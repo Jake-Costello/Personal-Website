@@ -1,6 +1,6 @@
 export const WORLD_LENGTH = 4000;
 const ACCELERATION = 1150;
-const MAX_SPEED = 440;
+export const MAX_SPEED = 440;
 const GRAVITY = 1500;
 const PUMP_WINDOW = 0.85;
 
@@ -39,12 +39,13 @@ export const initialRide = (position = 0): RideState => ({
   jumps: 0,
 });
 
-export function chapterAt(position: number, count: number): number {
-  return Math.max(0, Math.min(count - 1, Math.round((position / WORLD_LENGTH) * (count - 1))));
-}
-
 /** Seconds-based, bounded simulation. Jump is a one-frame input, consumed by the caller. */
-export function advanceRide(current: RideState, input: RideInput, elapsed: number): RideState {
+export function advanceRide(
+  current: RideState,
+  input: RideInput,
+  elapsed: number,
+  worldLength = WORLD_LENGTH,
+): RideState {
   const dt = Math.max(0, Math.min(elapsed, 0.05));
   const next = { ...current };
   const direction = Number(input.right) - Number(input.left);
@@ -62,8 +63,8 @@ export function advanceRide(current: RideState, input: RideInput, elapsed: numbe
     if (Math.abs(next.velocity) < 0.5) next.velocity = 0;
   }
   next.turn = Math.max(0, next.turn - dt);
-  next.position = Math.max(0, Math.min(WORLD_LENGTH, current.position + next.velocity * dt));
-  if (next.position === 0 || next.position === WORLD_LENGTH) next.velocity = 0;
+  next.position = Math.max(0, Math.min(worldLength, current.position + next.velocity * dt));
+  if (next.position === 0 || next.position === worldLength) next.velocity = 0;
 
   if (input.down && next.height === 0) {
     next.charge = Math.min(1, current.charge + dt * 2.5);

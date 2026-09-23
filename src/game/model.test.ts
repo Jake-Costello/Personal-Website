@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { advanceRide, chapterAt, idleInput, initialRide, WORLD_LENGTH } from './model.ts';
+import { advanceRide, idleInput, initialRide, WORLD_LENGTH } from './model.ts';
 
 function run(seconds: number, state = initialRide(), input = idleInput()) {
   for (let frame = 0; frame < seconds * 60; frame += 1) state = advanceRide(state, input, 1 / 60);
@@ -58,10 +58,12 @@ test('the rider bends while pumping, releases the crouch, and extends on takeoff
   assert.equal(jumping.crouch, 0);
 });
 
-test('milestones map consistently from either travel direction', () => {
-  assert.equal(chapterAt(0, 5), 0);
-  assert.equal(chapterAt(1000, 5), 1);
-  assert.equal(chapterAt(2000, 5), 2);
-  assert.equal(chapterAt(3000, 5), 3);
-  assert.equal(chapterAt(WORLD_LENGTH, 5), 4);
+test('the same controls can traverse a longer route and stop at its destination', () => {
+  let state = initialRide();
+  const length = 42_000;
+  for (let frame = 0; frame < 110 * 60; frame += 1) {
+    state = advanceRide(state, { ...idleInput(), right: true }, 1 / 60, length);
+  }
+  assert.equal(state.position, length);
+  assert.equal(state.velocity, 0);
 });

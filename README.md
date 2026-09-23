@@ -29,8 +29,9 @@ Restart Vite. In the explorer, select **Fetch live network** to retrieve STRING 
 
 - Responsive portfolio, project detail dialogs, about content, and contact links.
 - Original SVG pixel-art stand-up jetski with articulated cruising, crouching, and extended jump poses; acceleration, reversal, pump/jump controls, and five career chapters.
-- Cleveland-inspired pixel skyline, a taller responsive scene, and optional browser full-screen mode. No stock photography or generated image assets are used for the game.
-- Fading career milestones, typed story reveals with a skip button, and staggered tool/skill badges. Reduced-motion mode and the readable timeline display the full content immediately.
+- Cleveland lakefront pixel skyline including the Browns stadium and Sherwin-Williams headquarters, a taller responsive scene, and optional browser full-screen mode. No stock photography or generated image assets are used for the game.
+- Larger career stories revealed in stages: title, year, then details at about 200 words per minute. Departure fades details, year, and title in sequence, with open water between stops. Reduced-motion mode and the readable timeline show each active story immediately.
+- A roughly 92-second route at full speed, a shoreline progress indicator, a larger Revision Marine workshop, and a Back to start control at the destination. Story text keeps revealing when the rider stops.
 - Revision Marine dock reveal, plus readable timeline navigation, keyboard and touch controls, and reduced-motion support.
 - Interactive protein graph with rotation, zoom, confidence filtering, and accessible node selection.
 - Optional FastAPI service: STRING identifier resolution, validated data processing, repeatable community detection, caching, and source provenance.
@@ -41,6 +42,8 @@ Still to come: confirmed personal photos and additional stories, a public Revisi
 ## Update the resume and timeline
 
 Career content lives in [`src/data/experience.ts`](src/data/experience.ts). The game and readable overview use the same data, so dates, stories, skills, links, and chapter order can change without rebuilding the game mechanics. Chapter numbering follows the data length.
+
+Route spacing is calculated from story word counts in `src/game/route.ts`. Adding a checkpoint extends the route while preserving reading time at existing stops. That file also sets the reading speed, hold duration, departure fades, and open-water gaps. Timed runs and obstacles are possible later extensions and are not implemented yet.
 
 A future resume update can be used to revise this content and the relevant project descriptions. Project case-study copy currently lives in `src/App.tsx`. The repository does not contain a public upload form or automatic resume parser.
 

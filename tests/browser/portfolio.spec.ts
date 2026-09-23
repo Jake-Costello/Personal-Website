@@ -1,4 +1,7 @@
 import { expect, test } from '@playwright/test';
+import { experience } from '../../src/data/experience';
+import { MAX_SPEED } from '../../src/game/model';
+import { buildJourneyRoute } from '../../src/game/route';
 
 test('the portfolio renders without errors or horizontal overflow', async ({ page }, testInfo) => {
   const errors: string[] = [];
@@ -35,9 +38,15 @@ test('the focused game responds to keys and stops consuming them after blur', as
   const stage = page.getByRole('group', { name: /^Playable jetski experience/ });
   await stage.focus();
   await page.keyboard.down('ArrowRight');
-  await expect(
-    page.getByRole('heading', { name: 'An old payphone. Some new possibilities.' }),
-  ).toBeVisible();
+  await expect
+    .poll(async () =>
+      Number(
+        await page
+          .getByRole('progressbar', { name: 'Shoreline progress' })
+          .getAttribute('aria-valuenow'),
+      ),
+    )
+    .toBeGreaterThan(0);
   await page.keyboard.up('ArrowRight');
   await page.getByRole('button', { name: 'Read as a timeline ↗' }).focus();
   const positionBefore = await page.evaluate(() => window.scrollY);
@@ -67,14 +76,76 @@ test('animated chapters reveal text, allow skipping, and settle on the latest se
     page.getByRole('heading', { name: 'An old payphone. Some new possibilities.' }),
   ).toBeVisible();
   await expect(page.locator('.journey-untyped')).not.toBeEmpty();
+  await expect(page.locator('.journey-story-year')).toHaveCSS('opacity', '1');
+  await expect
+    .poll(async () => (await page.locator('.journey-typed').textContent())!.trim().length)
+    .toBeGreaterThan(0);
   await page.getByRole('button', { name: 'Show full story' }).click();
   await expect(page.locator('.journey-untyped')).toHaveCount(0);
   await expect(page.locator('.journey-story').getByText('Asterisk', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '2024: Ohio University · Athens, Ohio' }).click();
   await page.getByRole('button', { name: 'NOW: Revision Marine · Cofounder' }).click();
   await expect(page.getByRole('heading', { name: 'And that explains the jetski.' })).toBeVisible();
+  await page.getByRole('button', { name: 'Show full story' }).click();
   await expect(page.locator('.journey-story').getByText('Medusa', { exact: true })).toBeVisible();
   await expect(page.locator('.journey-story-transition')).not.toHaveClass(/is-leaving/);
+});
+
+test('the long route leaves reading time, fades each layer, and crosses open water', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
+  await page.goto('/#experience');
+  // Let real scrolling and IntersectionObserver start the visible scene before
+  // advancing its timers; neither is driven by the browser's mock clock.
+  await page.locator('.journey-stage').scrollIntoViewIfNeeded();
+  await expect(page.locator('.journey-story-year')).toHaveCSS('opacity', '1');
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  const route = buildJourneyRoute(experience, MAX_SPEED);
+  await page.locator('.journey-stage').focus();
+  await page.keyboard.down('ArrowRight');
+  await page.clock.runFor((route.stops[0].detailsOut / MAX_SPEED) * 1000 - 500);
+  await expect(page.locator('.journey-untyped')).toHaveCount(0);
+  await expect(page.locator('.journey-story-details')).toHaveCSS('opacity', '1');
+  await page.clock.runFor(1000);
+  const opacity = async (selector: string) =>
+    Number(await page.locator(selector).evaluate((el) => getComputedStyle(el).opacity));
+  expect(await opacity('.journey-story-details')).toBeLessThan(1);
+  expect(await opacity('.journey-story-details')).toBeGreaterThan(0);
+  expect(await opacity('.journey-story-year')).toBe(1);
+  await page.clock.runFor(800);
+  expect(await opacity('.journey-story-details')).toBe(0);
+  expect(await opacity('.journey-story-year')).toBeLessThan(1);
+  expect(await opacity('.journey-story-title')).toBe(1);
+  await page.clock.runFor(750);
+  expect(await opacity('.journey-story-year')).toBe(0);
+  expect(await opacity('.journey-story-title')).toBeLessThan(1);
+  await page.clock.runFor(650);
+  await expect(page.locator('.journey-story')).toHaveCount(0);
+  await expect(page.getByText('OPEN WATER / THE NEXT CHAPTER IS AHEAD')).toBeVisible();
+  await page.clock.runFor(2800);
+  await page.keyboard.up('ArrowRight');
+  await expect(page.locator('.journey-story')).toHaveAttribute('data-story-id', 'payphone');
+});
+
+test('back to start clears the ride and restores its first checkpoint', async ({ page }) => {
+  await page.goto('/#experience');
+  await page.getByRole('button', { name: 'NOW: Revision Marine · Cofounder' }).click();
+  await expect(page.getByRole('progressbar', { name: 'Shoreline progress' })).toHaveAttribute(
+    'aria-valuenow',
+    '100',
+  );
+  await page.getByRole('button', { name: 'Back to start' }).click();
+  await expect(page.getByRole('progressbar', { name: 'Shoreline progress' })).toHaveAttribute(
+    'aria-valuenow',
+    '0',
+  );
+  await expect(page.locator('.journey-story')).toHaveAttribute('data-story-id', 'first-tools');
+  await expect(page.locator('.jetski-sprite')).toHaveAttribute('data-rider-pose', 'cruising');
+  await expect(page.locator('.journey-stage')).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Back to start' })).toHaveCount(0);
 });
 
 test('reduced motion shows the full story and tools immediately', async ({ page }) => {

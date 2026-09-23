@@ -1,40 +1,56 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent } from 'react';
 import { experience } from '../data/experience';
-import { advanceRide, chapterAt, idleInput, initialRide, WORLD_LENGTH } from '../game/model';
+import { advanceRide, idleInput, initialRide, MAX_SPEED } from '../game/model';
 import type { RideInput, RideState } from '../game/model';
+import { buildJourneyRoute, getJourneyFrame } from '../game/route';
 import ClevelandSkyline from './ClevelandSkyline';
 import JetskiSprite from './JetskiSprite';
 import JourneyStory from './JourneyStory';
 import './jetski.css';
 
+const route = buildJourneyRoute(experience, MAX_SPEED);
+
 type Control = keyof RideInput;
 
 function Dock({ x, waterline, scale }: { x: number; waterline: number; scale: number }) {
   return (
-    <g transform={`translate(${x} ${waterline}) scale(${scale})`} shapeRendering="crispEdges">
-      <path d="M18-93h142v94H18z" fill="#f5f3ed" />
-      <path d="M7-101h11v-10h141v10h12v15H7z" fill="#17251e" />
-      <path d="M36-57h105V0H36z" fill="#496356" />
-      <path d="M39-53h99v5H39zm0 12h99v5H39zm0 12h99v5H39z" fill="#789082" />
-      <path d="M31-82h117v19H31z" fill="#dfff7f" />
+    <g
+      className="revision-outpost"
+      transform={`translate(${x} ${waterline}) scale(${scale})`}
+      shapeRendering="crispEdges"
+    >
+      <path d="M12-164h160V1H12z" fill="#f5f3ed" />
+      <path d="M2-172h10v-10h160v10h10v15H2z" fill="#17251e" />
+      <path
+        d="M15-130h154v3H15zm0 19h154v3H15zm0 19h154v3H15zm0 19h154v3H15zm0 19h154v3H15zm0 19h154v3H15"
+        fill="#d5dacf"
+      />
+      <path d="M26-111h105V0H26z" fill="#496356" />
+      <path
+        d="M30-104h97v5H30zm0 15h97v5H30zm0 15h97v5H30zm0 15h97v5H30zm0 15h97v5H30zm0 15h97v5H30zm0 15h97v5H30z"
+        fill="#789082"
+      />
+      <path d="M141-107h22v35h-22z" fill="#17251e" />
+      <path d="M144-104h16v12h-16zm0 16h16v13h-16z" fill="#b9e5ee" />
+      <path d="M24-150h136v25H24z" fill="#dfff7f" />
       <text
-        x="89"
-        y="-69"
+        x="92"
+        y="-134"
         textAnchor="middle"
         fill="#17251e"
-        fontSize={scale < 1 ? 12 : 9}
+        fontSize="11"
         fontWeight="800"
         fontFamily="monospace"
-        letterSpacing={scale < 1 ? 0.3 : 1}
+        letterSpacing="0.4"
       >
         REVISION MARINE
       </text>
       <path d="M-52-5h244v11H-52z" fill="#17251e" />
       <path d="M-45 6h10v45h-10zm67 0h10v57H22zm122 0h10v57h-10zm32 0h10v45h-10z" fill="#77847a" />
       <path d="M-51-24h5v19h-5zm32 0h5v19h-5zm-29 5h31v4h-31z" fill="#17251e" />
-      <path d="M182-64h5V-5h-5z" fill="#17251e" />
-      <path d="M187-64h30v19h-30z" fill="#f399bf" />
+      <path d="M178-95h5V-5h-5z" fill="#17251e" />
+      <path d="M183-95h24v19h-24z" fill="#f399bf" />
       <path d="M-34 64h47v3h-47zm123-11h64v3H89zm-38 26h29v3H51z" fill="#99d0d3" />
     </g>
   );
@@ -52,14 +68,13 @@ function Scene({
   reduced: boolean;
 }) {
   const waterline = height - 155;
-  const progress = state.position / WORLD_LENGTH;
+  const progress = state.position / route.length;
   const docking = Math.max(0, (progress - 0.7) / 0.3);
-  const compact = width >= 900 && height < 740;
-  const dockScale = width < 560 ? 0.64 : width < 1000 ? 0.82 : 1;
-  const startX = width * (compact ? 0.64 : 0.28);
-  const dockedX = Math.max(startX, width * 0.7 - 175 * dockScale);
+  const dockScale = width < 560 ? 0.98 : width < 1000 ? 1.25 : 1.65;
+  const dockX = width - 204 * dockScale - (width < 560 ? 10 : 24);
+  const startX = width * 0.28;
+  const dockedX = Math.max(startX, dockX - 100 * dockScale);
   const boatX = width < 560 ? width * 0.26 : startX + docking * (dockedX - startX);
-  const dockX = width < 560 ? width * 0.62 : Math.max(width * 0.7, dockedX + 175 * dockScale);
   return (
     <svg
       className="journey-scene"
@@ -213,7 +228,9 @@ export default function JetskiJourney() {
   const simulation = useRef(initialRide());
   const input = useRef(idleInput());
   const instructionsId = useId();
-  const chapterIndex = chapterAt(ride.position, experience.length);
+  const journeyFrame = getJourneyFrame(route, ride.position);
+  const chapterIndex = journeyFrame.index;
+  const atDestination = ride.position >= route.length - 1;
 
   useEffect(() => {
     setFullscreenAvailable(Boolean(document.fullscreenEnabled));
@@ -263,7 +280,7 @@ export default function JetskiJourney() {
     function animate(now: number) {
       const dt = previous ? (now - previous) / 1000 : 0;
       previous = now;
-      simulation.current = advanceRide(simulation.current, input.current, dt);
+      simulation.current = advanceRide(simulation.current, input.current, dt, route.length);
       input.current.jump = false;
       if (now - lastPaint > 1000 / 30) {
         const next = simulation.current;
@@ -309,11 +326,15 @@ export default function JetskiJourney() {
     }
   }
 
-  function navigate(index: number) {
+  function resetRide(position: number) {
     input.current = idleInput();
-    const next = initialRide((index / (experience.length - 1)) * WORLD_LENGTH);
+    const next = initialRide(position);
     simulation.current = next;
     setRide(next);
+  }
+
+  function navigate(index: number) {
+    resetRide(index === experience.length - 1 ? route.length : route.stops[index].start);
   }
 
   function handleKeys(event: KeyboardEvent<HTMLDivElement>, active: boolean) {
@@ -391,8 +412,17 @@ export default function JetskiJourney() {
             ))}
           </div>
           <div
+            className="journey-progress"
+            role="progressbar"
+            aria-label="Shoreline progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round((ride.position / route.length) * 100)}
+          >
+            <span style={{ width: `${(ride.position / route.length) * 100}%` }} />
+          </div>
+          <div
             className="journey-stage"
-            data-compact={size.width >= 900 && size.height < 740}
             ref={stage}
             tabIndex={0}
             role="group"
@@ -410,7 +440,7 @@ export default function JetskiJourney() {
           >
             <Scene state={ride} width={size.width} height={size.height} reduced={reduced} />
             <JourneyStory
-              index={chapterIndex}
+              frame={journeyFrame}
               visible={visible}
               reduced={reduced}
               onFollowLink={() => {
@@ -419,9 +449,11 @@ export default function JetskiJourney() {
             />
             <div className="journey-stage-caption" aria-hidden="true">
               <span>
-                {chapterIndex === experience.length - 1
-                  ? 'DESTINATION: REVISION MARINE'
-                  : 'A LITTLE CURIOSITY GOES A LONG WAY'}
+                {!journeyFrame.stop
+                  ? 'OPEN WATER / THE NEXT CHAPTER IS AHEAD'
+                  : chapterIndex === experience.length - 1
+                    ? 'DESTINATION: REVISION MARINE'
+                    : 'A LITTLE CURIOSITY GOES A LONG WAY'}
               </span>
               <span>
                 {String(chapterIndex + 1).padStart(2, '0')} /{' '}
@@ -442,6 +474,18 @@ export default function JetskiJourney() {
                 to jump.
               </span>
             </p>
+            {atDestination && (
+              <button
+                className="journey-restart"
+                type="button"
+                onClick={() => {
+                  resetRide(0);
+                  stage.current?.focus({ preventScroll: true });
+                }}
+              >
+                <span aria-hidden="true">↶</span> Back to start
+              </button>
+            )}
             <div className="journey-buttons" role="group" aria-label="Jetski controls">
               <RideButton control="left" symbol="←" label="Left" setInput={setInput} />
               <RideButton control="right" symbol="→" label="Right" setInput={setInput} />
