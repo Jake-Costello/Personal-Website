@@ -1,5 +1,8 @@
 # One paid API service. The portfolio remains on GitHub Pages.
 # https://render.com/docs/blueprint-spec
+# Optional AI: set OPENAI_API_KEY and AI_EXPLANATIONS_ENABLED=true in the service
+# Environment after deployment. Keep the key out of this public Blueprint.
+# See docs/AI-EXPLANATIONS.md for the approved $5/month project spend controls.
 services:
   - type: web
     name: personal-website-protein-api

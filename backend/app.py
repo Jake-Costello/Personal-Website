@@ -1,4 +1,4 @@
-"""A small, bounded STRING proxy. No credentials or AI provider are required."""
+"""Bounded live protein data with optional, server-grounded AI explanations."""
 
 import asyncio
 from collections import OrderedDict, deque
@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from enum import IntEnum
 from math import ceil
 import os
+import json
 from threading import Lock
 from time import monotonic
 from typing import Any
@@ -15,7 +16,11 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import httpx
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
+from backend.comparisons import ComparisonError, retrieve_comparison
+from backend.evidence import build_evidence
+from backend.explanations import ExplanationError, explanation_status, generate_explanation
 from backend.network import PROTEIN_SYMBOLS, build_catalog, build_network, parse_proteins
 
 STRING_BASE = "https://version-12-0.string-db.org"
@@ -57,14 +62,16 @@ class NetworkRequestLimiter:
 
 
 network_request_limiter = NetworkRequestLimiter()
-app = FastAPI(title="Jacob Costello · Protein Explorer", version="0.2.0")
+app = FastAPI(title="Jacob Costello · Protein Explorer", version="0.3.0")
 
 
 @app.middleware("http")
 async def limit_network_requests(request: Request, call_next):
     # Shared by all visitors, with no dependence on proxy/IP headers. Limit before
     # validation, cache lookup, graph computation, or any upstream work.
-    if request.method == "GET" and request.url.path in {"/api/network", "/api/proteins"}:
+    if request.method in {"GET", "POST"} and request.url.path in {
+        "/api/network", "/api/proteins", "/api/comparison", "/api/explain", "/api/ai/status"
+    }:
         retry_after = network_request_limiter.try_acquire()
         if retry_after is not None:
             return JSONResponse(
@@ -80,7 +87,7 @@ allowed_origins = [origin.strip() for origin in os.getenv(
 ).split(",") if origin.strip()]
 # Register CORS last so it also wraps rate-limit responses and preflight requests.
 app.add_middleware(CORSMiddleware, allow_origins=allowed_origins,
-                   allow_credentials=False, allow_methods=["GET"], allow_headers=[],
+                   allow_credentials=False, allow_methods=["GET", "POST"], allow_headers=["Content-Type"],
                    expose_headers=["Retry-After"])
 cache: OrderedDict[tuple[tuple[str, str], int], dict[str, Any]] = OrderedDict()
 catalog_cache: dict[str, Any] | None = None
@@ -215,3 +222,88 @@ async def proteins() -> dict[str, Any]:
     except (httpx.HTTPError, ValueError) as error:
         raise HTTPException(status_code=502, detail="STRING data could not be retrieved or validated. Please retry.") from error
     return {**entry["result"], "source": source_metadata(entry, cached)}
+
+
+@app.get("/api/comparison")
+async def comparison(protein: str = Query(max_length=20)) -> dict[str, Any]:
+    try:
+        return await retrieve_comparison(protein)
+    except ComparisonError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from None
+
+
+@app.get("/api/ai/status")
+async def ai_status() -> dict[str, bool]:
+    # Availability only; never exposes configuration values or account details.
+    return explanation_status()
+
+
+class ExplanationQuery(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    proteins: str = Field(min_length=1, max_length=40)
+    protein: str = Field(min_length=1, max_length=20)
+    confidence: float = Field(ge=0.4, le=0.95, allow_inf_nan=False)
+    neighbors: int
+
+    @field_validator("neighbors")
+    @classmethod
+    def valid_neighbors(cls, value: int) -> int:
+        if value not in {0, 8, 24}:
+            raise ValueError("Invalid neighborhood size.")
+        return value
+
+
+async def read_explanation_query(request: Request) -> tuple[ExplanationQuery, tuple[str, str]]:
+    if request.headers.get("content-type", "").split(";", 1)[0].strip().lower() != "application/json":
+        raise HTTPException(415, "Use an application/json request.")
+    # Bound streamed bodies as well as requests with a Content-Length header.
+    body = bytearray()
+    try:
+        async with asyncio.timeout(5):
+            async for chunk in request.stream():
+                body.extend(chunk)
+                if len(body) > 2048:
+                    raise HTTPException(413, "The explanation request is too large.")
+    except TimeoutError:
+        raise HTTPException(408, "The request took too long. Please retry.") from None
+    try:
+        query = ExplanationQuery.model_validate(json.loads(body))
+        selected = parse_proteins(query.proteins)
+        query.protein = query.protein.strip().upper()
+        if query.protein not in selected:
+            raise ValueError("Compare one of the selected human proteins.")
+    except (ValueError, TypeError, ValidationError):
+        # Do not reflect unknown fields (including arbitrary prompt text).
+        raise HTTPException(422, "Choose two distinct supported proteins, one of them to compare, and valid network settings.") from None
+    return query, selected
+
+
+@app.post("/api/explain")
+async def explain(request: Request) -> dict[str, Any]:
+    query, selected = await read_explanation_query(request)
+    if not explanation_status()["enabled"]:
+        raise HTTPException(503, "AI explanations are not enabled yet. The live data is still available.")
+    try:
+        async with asyncio.timeout(90):
+            # Fetch authoritative evidence on the server. Clients send identifiers
+            # and settings only, never a graph, annotation, URL, or model prompt.
+            async with asyncio.timeout(UPSTREAM_WORK_TIMEOUT_SECONDS):
+                (entry, cached), compared = await asyncio.gather(
+                    retrieve_network(selected, query.neighbors),
+                    retrieve_comparison(query.protein),
+                )
+            graph = build_network(entry["records"], entry["seeds"], query.confidence,
+                                  selected_only=query.neighbors == 0)
+            graph["source"] = source_metadata(entry, cached)
+            evidence = build_evidence(graph, entry["seeds"], compared, selected, query.neighbors)
+            result = await generate_explanation(evidence)
+        return {**result, "sources": evidence["sources"]}
+    except ExplanationError as error:
+        headers = {"Retry-After": str(error.retry_after)} if error.retry_after else None
+        raise HTTPException(error.status_code, error.detail, headers=headers) from None
+    except ComparisonError as error:
+        raise HTTPException(error.status_code, error.detail) from None
+    except (TimeoutError, httpx.TimeoutException):
+        raise HTTPException(504, "The explanation or its source data took too long. Please retry.") from None
+    except (ValueError, httpx.HTTPError):
+        raise HTTPException(502, "The source data could not be verified. Please load a fresh network and retry.") from None

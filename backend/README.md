@@ -33,7 +33,7 @@ The Blueprint pins Python 3.14.3, installs the tested dependency lock, binds Uvi
 
 `ALLOWED_ORIGINS` includes the exact portfolio apex, `www`, and GitHub Pages origins. HTTP variants support the existing domain during its HTTPS transition; remove them once HTTPS is enforced. Keep the origins explicit. The `onrender.com` API address works without Wix DNS changes; a custom API subdomain can be added later.
 
-No API key is needed for these STRING requests. The AI integration remains a separate step; future AI secrets belong in Render's environment settings, never Git, frontend build variables, or chat.
+No API key is needed for STRING or Ensembl requests. Optional AI explanations use the same service; follow the [OpenAI setup and activation guide](../docs/AI-EXPLANATIONS.md). Keys belong only in Render's environment settings, never Git, frontend build variables, or chat.
 
 References: [Render FastAPI deployment](https://render.com/docs/deploy-fastapi), [Blueprint fields](https://render.com/docs/blueprint-spec), [compute pricing](https://render.com/pricing).
 
@@ -55,6 +55,20 @@ References: [Render FastAPI deployment](https://render.com/docs/deploy-fastapi),
 - `422` for invalid inputs, `429` with `Retry-After` when the shared request allowance is exhausted, `502` for upstream/validation failures, and `504` for upstream timeouts. No silent substitution of demo data.
 - `/health` reports service health; `/docs` exposes FastAPI's interactive API documentation.
 
+`GET /api/comparison?protein=TP53`
+
+- One of the same 12 human symbols; chimpanzee, mouse, zebrafish, and fruit fly from Ensembl release 112 (May 2024).
+- Returns `human{symbol,geneId,proteinId}`, `metric: human_sequence_identity`, `species[{species,taxonId,label,status,orthologues}]`, and `source{name,release,url,retrievedAt,cached}`.
+- Each orthologue includes `geneId`, `proteinId`, `type`, `humanIdentity`, `animalIdentity`, `humanCoverage`, `humanLength`, `animalLength`, and `sourceUrl`. Identity and coverage are percentages. The server validates reported identity against aligned sequences; raw sequences are not sent to the browser or model.
+- Species status is `matched`, `not_found` (successful lookup, no orthologues), or `unavailable`. Missing values are never zero. All candidates remain within the response bound. Ranking requires the same human protein reference across species.
+- Up to four simultaneous archive calls per cache miss, with bounded response sizes and a 25-second total retrieval deadline. At most 12 cached comparisons: 24 hours for success, a short recovery interval for partial/failure results. Concurrent duplicate requests are coalesced.
+
+`GET /api/ai/status` and `POST /api/explain`
+
+- AI is disabled unless a server key and `AI_EXPLANATIONS_ENABLED=true` are present. Status reports configuration only.
+- POST accepts only `proteins`, `protein`, `confidence`, and `neighbors`; see the [explanation contract, spending controls, and evaluation guide](../docs/AI-EXPLANATIONS.md).
+- Evidence and source links are composed on the server. The Responses client validates structured output and citations, redacts provider failures, caches results, coalesces duplicate requests, and limits paid attempts. Page loads and species lookups do not make paid AI requests.
+
 The service pins upstream requests to [STRING v12.0](https://version-12-0.string-db.org/), uses a caller identity, and waits at least 1.05 seconds between upstream calls. The catalog has one cache entry; networks use a 64-entry LRU cache keyed by normalized pair and neighborhood size. Both expire after 30 minutes. Source timestamps remain the original retrieval time. Cache misses are serialized/coalesced; confidence changes reuse retrieved data. Retrieval has a 25-second total deadline including the upstream queue. A shared allowance of 60 catalog/network requests per rolling minute bounds work across visitors; `/health` remains available. These limits and caches live in one worker's memory and reset on restart. Scaling beyond one worker requires a shared cache and limiter. This application limit does not replace hosting-level traffic protection.
 
 ## Validate
@@ -67,6 +81,6 @@ Tests use synthetic fixtures and a mocked upstream service. They check invalid i
 
 ## Current boundaries
 
-The graph supports rotation, zoom, protein selection, and an accessible alternative node list. The curated TP53 link opens the experimental p53–DNA complex [1TUP at RCSB PDB](https://www.rcsb.org/structure/1TUP). An embedded molecular viewer and grounded AI explanations are not implemented; the interface says so. No generated explanation is shown as an AI result.
+The graph supports rotation, zoom, protein selection, and an accessible alternative node list. The curated TP53 link opens the experimental p53–DNA complex [1TUP at RCSB PDB](https://www.rcsb.org/structure/1TUP); an embedded molecular viewer remains outside this version. Comparisons describe representative sequences from a named historical release. Optional AI requires configuration and a live provider check; mocked tests alone do not establish scientific answer quality. No generated animal network or new molecular structure is claimed.
 
 Primary implementation references: [STRING API](https://string-db.org/help/api/), [NetworkX Louvain](https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.community.louvain.louvain_communities.html), and [FastAPI CORS](https://fastapi.tiangolo.com/tutorial/cors/).
