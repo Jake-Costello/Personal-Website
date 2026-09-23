@@ -63,11 +63,13 @@ function Scene({
   width,
   height,
   reduced,
+  blimpStartedAt,
 }: {
   state: RideState;
   width: number;
   height: number;
   reduced: boolean;
+  blimpStartedAt: number | null;
 }) {
   const waterline = height - 155;
   const progress = state.position / route.length;
@@ -110,7 +112,13 @@ function Scene({
         <path d={`M${width - 266} 99h24V87h30v12h22v12h-76z`} />
         <path d={`M${width - 113} 173h26v-13h29v8h23v17h-78z`} />
       </g>
-      <ClevelandSkyline width={width} waterline={waterline} progress={progress} />
+      <ClevelandSkyline
+        width={width}
+        waterline={waterline}
+        progress={progress}
+        blimpStartedAt={blimpStartedAt}
+        reduced={reduced}
+      />
       <path d={`M0 ${waterline - 3}h${width}v5H0z`} fill="#728f80" />
       <rect y={waterline + 2} width={width} height="160" fill="#b9e5ee" />
       <rect y={waterline + 5} width={width} height="160" fill="url(#journey-water)" />
@@ -225,6 +233,9 @@ function RideButton({
 
 export default function JetskiJourney() {
   const [ride, setRide] = useState(initialRide);
+  // Keep the event timestamp outside the scene: chapter navigation and the
+  // readable overview must not replay it or stop its clock.
+  const [blimpStartedAt, setBlimpStartedAt] = useState<number | null>(null);
   const [overview, setOverview] = useState(false);
   const [visible, setVisible] = useState(false);
   const [reduced, setReduced] = useState(
@@ -243,6 +254,12 @@ export default function JetskiJourney() {
   const journeyFrame = getJourneyFrame(route, ride.position);
   const chapterIndex = journeyFrame.index;
   const atDestination = ride.position >= route.length - 1;
+
+  useEffect(() => {
+    if (blimpStartedAt === null && ride.position / route.length >= 0.84) {
+      setBlimpStartedAt(performance.now());
+    }
+  }, [ride.position, blimpStartedAt]);
 
   useEffect(() => {
     setFullscreenAvailable(Boolean(document.fullscreenEnabled));
@@ -441,7 +458,13 @@ export default function JetskiJourney() {
                 event.currentTarget.focus({ preventScroll: true });
             }}
           >
-            <Scene state={ride} width={size.width} height={size.height} reduced={reduced} />
+            <Scene
+              state={ride}
+              width={size.width}
+              height={size.height}
+              reduced={reduced}
+              blimpStartedAt={blimpStartedAt}
+            />
             <JourneyStory
               frame={journeyFrame}
               visible={visible}
@@ -482,6 +505,7 @@ export default function JetskiJourney() {
                 className="journey-restart"
                 type="button"
                 onClick={() => {
+                  setBlimpStartedAt(null);
                   resetRide(0);
                   stage.current?.focus({ preventScroll: true });
                 }}

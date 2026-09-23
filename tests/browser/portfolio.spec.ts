@@ -185,6 +185,91 @@ test('water spray animates while riding and splashes once on takeoff and landing
   await expect(page.locator('.jetski-splash, .jetski-wake')).toHaveCount(0);
 });
 
+test('the blimp flies once on its own clock and only replays after Back to start', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.clock.install();
+  await page.goto('/#experience');
+  const stage = page.locator('.journey-stage');
+  const blimp = page.locator('.skyline-blimp');
+  const progress = page.getByRole('progressbar', { name: 'Shoreline progress' });
+  const destination = page.getByRole('button', { name: /^NOW: Revision Marine/ });
+  const x = () => blimp.evaluate((element) => element.getBoundingClientRect().x);
+  await stage.scrollIntoViewIfNeeded();
+  await expect(page.locator('.journey-story-year')).toHaveCSS('opacity', '1');
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  await expect(blimp).toHaveCount(0);
+
+  await destination.click();
+  await page.clock.runFor(100);
+  await expect(blimp).toHaveCount(1);
+  const arrivalX = await x();
+  await page.clock.runFor(2000);
+  expect(await x()).toBeLessThan(arrivalX);
+  await expect(progress).toHaveAttribute('aria-valuenow', '100');
+
+  // Reversing and selecting an earlier chapter must not restart the flyover.
+  const beforeReversingX = await x();
+  await stage.focus();
+  await page.keyboard.down('ArrowLeft');
+  await page.clock.runFor(700);
+  await page.keyboard.up('ArrowLeft');
+  expect(await x()).toBeLessThan(beforeReversingX);
+  expect(Number(await progress.getAttribute('aria-valuenow'))).toBeLessThan(100);
+  const beforeChapterChangeX = await x();
+  await page.getByRole('button', { name: /^2021: Component Repair Technologies$/ }).click();
+  await page.clock.runFor(100);
+  await expect(blimp).toHaveCount(1);
+  const earlierChapterX = await x();
+  expect(earlierChapterX).toBeLessThan(beforeChapterChangeX);
+  await page.clock.runFor(1000);
+  expect(await x()).toBeLessThan(earlierChapterX);
+  await expect(progress).toHaveAttribute('aria-valuenow', '0');
+
+  // The event also expires while the scene is unmounted in the readable view.
+  await page.getByRole('button', { name: /^Read as a timeline/ }).click();
+  await page.clock.fastForward(25000);
+  await page.getByRole('button', { name: /Back to the ride/ }).click();
+  await page.clock.runFor(100);
+  await expect(blimp).toHaveCount(0);
+  await destination.click();
+  await page.clock.runFor(100);
+  await expect(blimp).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Back to start' }).click();
+  await expect(progress).toHaveAttribute('aria-valuenow', '0');
+  await destination.click();
+  await page.clock.runFor(100);
+  await expect(blimp).toHaveCount(1);
+  const replayX = await x();
+  await page.clock.runFor(2000);
+  expect(await x()).toBeLessThan(replayX);
+});
+
+test('reduced motion keeps the timed blimp stationary until its flyover ends', async ({ page }) => {
+  await page.clock.install();
+  await page.goto('/#experience');
+  const stage = page.locator('.journey-stage');
+  const blimp = page.locator('.skyline-blimp');
+  await stage.scrollIntoViewIfNeeded();
+  await expect(stage).toBeInViewport();
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  await page.getByRole('button', { name: /^NOW: Revision Marine/ }).click();
+  await page.clock.runFor(100);
+  await expect(blimp).toHaveCount(1);
+  const initialX = await blimp.evaluate((element) => element.getBoundingClientRect().x);
+  await page.clock.runFor(2000);
+  expect(await blimp.evaluate((element) => element.getBoundingClientRect().x)).toBeCloseTo(
+    initialX,
+  );
+  await page.clock.fastForward(21000);
+  await expect(blimp).toHaveCount(1);
+  await page.clock.fastForward(1000);
+  await page.clock.runFor(100);
+  await expect(blimp).toHaveCount(0);
+});
+
 test('back to start clears the ride and restores its first checkpoint', async ({ page }) => {
   await page.goto('/#experience');
   await page.getByRole('button', { name: 'NOW: Revision Marine · Cofounder' }).click();
