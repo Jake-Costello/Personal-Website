@@ -165,6 +165,7 @@ test('explanation submits only the loaded query and renders grounded source link
       json: {
         ...explanationFixture(),
         overview: '<img src=x onerror=alert(1)> is plain explanation text.',
+        network: 'This is a human association network. [No source IDs here]',
       },
     });
   });
@@ -174,6 +175,7 @@ test('explanation submits only the loaded query and renders grounded source link
     '<img src=x onerror=alert(1)> is plain explanation text.',
   );
   await expect(page.locator('.protein-explanation-copy img')).toHaveCount(0);
+  await expect(page.locator('.protein-explanation-copy')).not.toContainText('[No source IDs here]');
   expect(body).toEqual({
     proteins: 'BRCA1,BRCA2',
     protein: 'BRCA1',

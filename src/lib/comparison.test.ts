@@ -171,3 +171,15 @@ test('explanations require complete bounded text and citations to approved sourc
   ])
     assert.throws(() => parseExplanation(input));
 });
+
+test('the observed citation-format note is omitted without altering scientific notation', () => {
+  const value = {
+    ...explanation(),
+    network: 'The pair [BRCA1, BRCA2] has one link. [No source IDs here]',
+  };
+  const parsed = parseExplanation(value);
+  assert.equal(parsed.network, 'The pair [BRCA1, BRCA2] has one link.');
+  assert.deepEqual(parsed.citations, value.citations);
+  assert.ok(value.network.endsWith('[No source IDs here]'));
+  assert.throws(() => parseExplanation({ ...value, network: '[No source IDs here]' }));
+});

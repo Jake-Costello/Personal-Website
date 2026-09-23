@@ -227,5 +227,14 @@ export function parseExplanation(value: unknown): NetworkExplanation {
     value.citations.some((citation) => typeof citation !== 'string' || !sources.has(citation))
   )
     throw invalid();
-  return value as unknown as NetworkExplanation;
+  // A live response included this non-content formatting note despite the
+  // prompt. Remove only that exact artifact; scientific text and citations stay
+  // intact, including any other bracketed notation.
+  const result = { ...value };
+  for (const key of ['overview', 'network', 'comparison', 'significance', 'limitations']) {
+    const cleaned = (result[key] as string).replaceAll('[No source IDs here]', '').trim();
+    if (!cleaned) throw invalid();
+    result[key] = cleaned;
+  }
+  return result as unknown as NetworkExplanation;
 }

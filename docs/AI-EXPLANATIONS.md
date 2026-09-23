@@ -44,7 +44,7 @@ Automated backend, frontend, and browser tests mock providers and incur no charg
 
 ## Recorded integration evaluation — September 23, 2026
 
-All 12 selectable proteins were retrieved and validated against the live Ensembl archive. The published UI was exercised on desktop and mobile against Render, including actual OpenAI responses and cached repeats. Automated checks passed: 67 backend tests, 32 frontend unit tests, and 57 browser tests (3 viewport-specific skips).
+All 12 selectable proteins were retrieved and validated against the live Ensembl archive. The published UI was exercised on desktop and mobile against Render, including actual OpenAI responses and cached repeats. Automated checks passed: 67 backend tests, 33 frontend unit tests, and 57 browser tests (3 viewport-specific skips).
 
 Three real generated answers were checked against their source evidence and STRING annotations:
 
@@ -55,6 +55,8 @@ Three real generated answers were checked against their source evidence and STRI
 | CDK2 + PALB2, pair only, compare CDK2 | Correct 2 isolated proteins / 0 associations / 2 groups; no invented human connection; missing fruit-fly match acknowledged |
 
 All cited IDs mapped to supplied official sources. Repeat requests reused the generated timestamp and returned cached answers. These are representative checks, not a guarantee about every future answer. Review found an unnecessary BRCA1 note about coordinates omitted from model input; prompt version 2 explicitly separates the displayed graph from internal evidence fields and excludes editorial notes. A prompt-version change invalidates existing AI cache entries.
+
+The deployed version 2 was checked with a fresh BRCA1 answer and cached repeat. Its data remained correct and the coordinate comment was absent. A stray literal `[No source IDs here]` formatting note still appeared; the display parser removes only that exact non-content marker, preserving scientific prose, other bracketed notation, and the validated citation list. This case has a regression check.
 
 ## Primary references
 
