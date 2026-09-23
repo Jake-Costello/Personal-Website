@@ -28,7 +28,9 @@ Restart Vite. In the explorer, select **Fetch live network** to retrieve STRING 
 ## What is implemented
 
 - Responsive portfolio, project detail dialogs, about content, and contact links.
-- Original pixel-art jetski scene with acceleration, reversal, pump/jump controls, and five career chapters.
+- Original SVG pixel-art stand-up jetski with articulated cruising, crouching, and extended jump poses; acceleration, reversal, pump/jump controls, and five career chapters.
+- Cleveland-inspired pixel skyline, a taller responsive scene, and optional browser full-screen mode. No stock photography or generated image assets are used for the game.
+- Fading career milestones, typed story reveals with a skip button, and staggered tool/skill badges. Reduced-motion mode and the readable timeline display the full content immediately.
 - Revision Marine dock reveal, plus readable timeline navigation, keyboard and touch controls, and reduced-motion support.
 - Interactive protein graph with rotation, zoom, confidence filtering, and accessible node selection.
 - Optional FastAPI service: STRING identifier resolution, validated data processing, repeatable community detection, caching, and source provenance.

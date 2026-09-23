@@ -28,7 +28,7 @@ export const experience: ExperienceChapter[] = [
     title: 'An old payphone. Some new possibilities.',
     story:
       'I led a senior project that gave a payphone a second life: concert information, Spotify queue additions, and recorded messages. Real hardware, Python, and a whole lot of integration.',
-    skills: ['Python', 'SIP / VoIP', 'pytest'],
+    skills: ['Python', 'Asterisk', 'SIP / VoIP', 'pytest'],
     link: { href: '#project-payphone', label: 'Pick up the story' },
   },
   {
@@ -49,7 +49,7 @@ export const experience: ExperienceChapter[] = [
     title: 'Making complex systems work together.',
     story:
       'I build warehouse integrations—from picking-cart workflows supporting 1,000+ order lines a day at full production to robot communication and exception handling. Documentation and hands-on training help teams put the software to work.',
-    skills: ['REST APIs', 'PL/SQL', 'Systems integration'],
+    skills: ['REST APIs', 'PL/SQL', 'Robotics integration', 'Workflow automation'],
   },
   {
     id: 'revision',
@@ -59,7 +59,7 @@ export const experience: ExperienceChapter[] = [
     title: 'And that explains the jetski.',
     story:
       'I’m cofounding Revision Marine, a jetski parts company, and building its commerce website. A chance to bring engineering, a business idea, and something I love onto the same shoreline.',
-    skills: ['Entrepreneurship', 'Next.js', 'Commerce'],
+    skills: ['Next.js', 'TypeScript', 'Medusa', 'Entrepreneurship'],
     link: { href: '#project-revision', label: 'Meet Revision Marine' },
   },
 ];

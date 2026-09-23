@@ -19,6 +19,7 @@ export type RideState = {
   facing: 1 | -1;
   turn: number;
   charge: number;
+  crouch: number;
   pumpWindow: number;
   jumps: number;
 };
@@ -33,6 +34,7 @@ export const initialRide = (position = 0): RideState => ({
   facing: 1,
   turn: 0,
   charge: 0,
+  crouch: 0,
   pumpWindow: 0,
   jumps: 0,
 });
@@ -70,11 +72,17 @@ export function advanceRide(current: RideState, input: RideInput, elapsed: numbe
     next.pumpWindow = Math.max(0, current.pumpWindow - dt);
     if (next.pumpWindow === 0) next.charge = 0;
   }
+  // Pose is separate from stored jump charge: releasing Down straightens the
+  // rider while preserving the short window for pressing Up.
+  const crouchTarget = input.down && next.height === 0 ? 1 : 0;
+  next.crouch += (crouchTarget - next.crouch) * Math.min(1, dt * 14);
+  if (Math.abs(next.crouch - crouchTarget) < 0.005) next.crouch = crouchTarget;
   if (input.jump && next.height === 0 && next.charge > 0 && next.pumpWindow > 0) {
     next.lift = 400 + next.charge * 210;
     next.charge = 0;
     next.pumpWindow = 0;
     next.jumps += 1;
+    next.crouch = 0;
   }
   if (next.lift !== 0 || next.height > 0) {
     next.height = Math.max(0, next.height + next.lift * dt);

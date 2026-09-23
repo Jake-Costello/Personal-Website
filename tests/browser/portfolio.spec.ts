@@ -45,6 +45,64 @@ test('the focused game responds to keys and stops consuming them after blur', as
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(positionBefore);
 });
 
+test('the stand-up rider crouches for a pump, extends on jumping, and lands', async ({ page }) => {
+  await page.goto('/#experience');
+  const stage = page.getByRole('group', { name: /^Playable jetski experience/ });
+  await stage.focus();
+  await page.keyboard.down('ArrowDown');
+  await expect(page.locator('.jetski-sprite')).toHaveAttribute('data-rider-pose', 'crouched');
+  await page.keyboard.up('ArrowDown');
+  await page.keyboard.press('ArrowUp');
+  await expect(page.locator('.jetski-sprite')).toHaveAttribute('data-rider-pose', 'extended');
+  await expect(page.locator('.jetski-sprite')).toHaveAttribute('data-rider-pose', 'cruising');
+});
+
+test('animated chapters reveal text, allow skipping, and settle on the latest selection', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/#experience');
+  await page.getByRole('button', { name: '2023: The Union · Athens, Ohio' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'An old payphone. Some new possibilities.' }),
+  ).toBeVisible();
+  await expect(page.locator('.journey-untyped')).not.toBeEmpty();
+  await page.getByRole('button', { name: 'Show full story' }).click();
+  await expect(page.locator('.journey-untyped')).toHaveCount(0);
+  await expect(page.locator('.journey-story').getByText('Asterisk', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '2024: Ohio University · Athens, Ohio' }).click();
+  await page.getByRole('button', { name: 'NOW: Revision Marine · Cofounder' }).click();
+  await expect(page.getByRole('heading', { name: 'And that explains the jetski.' })).toBeVisible();
+  await expect(page.locator('.journey-story').getByText('Medusa', { exact: true })).toBeVisible();
+  await expect(page.locator('.journey-story-transition')).not.toHaveClass(/is-leaving/);
+});
+
+test('reduced motion shows the full story and tools immediately', async ({ page }) => {
+  await page.goto('/#experience');
+  await page.getByRole('button', { name: 'NOW: Revision Marine · Cofounder' }).click();
+  await expect(page.locator('.journey-untyped')).toHaveCount(0);
+  await expect(page.locator('.journey-typed')).toContainText('onto the same shoreline.');
+  await expect(page.locator('.journey-story').getByText('Medusa', { exact: true })).toBeVisible();
+});
+
+test('full screen preserves the chapter, focuses the ride, and offers an exit', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop');
+  await page.goto('/#experience');
+  await page.getByRole('button', { name: 'NOW: Revision Marine · Cofounder' }).click();
+  const enter = page.getByRole('button', { name: 'Full screen ↗', exact: true });
+  await enter.click();
+  await expect
+    .poll(() => page.evaluate(() => document.fullscreenElement?.className))
+    .toBe('journey');
+  await expect(page.getByRole('group', { name: /^Playable jetski experience/ })).toBeFocused();
+  await expect(page.getByRole('heading', { name: 'And that explains the jetski.' })).toBeVisible();
+  await page.getByRole('button', { name: 'Exit full screen' }).click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement)).toBeNull();
+  await expect(enter).toBeFocused();
+});
+
 test('project details are accessible and the dialog closes with Escape', async ({ page }) => {
   await page.goto('/#work');
   await page.getByRole('button', { name: 'Read about Revision Marine' }).click();

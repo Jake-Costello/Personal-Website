@@ -46,6 +46,18 @@ test('up alone and an expired pump do not launch', () => {
   assert.equal(advanceRide(expired, { ...idleInput(), jump: true }, 1 / 60).height, 0);
 });
 
+test('the rider bends while pumping, releases the crouch, and extends on takeoff', () => {
+  const crouched = run(0.4, initialRide(), { ...idleInput(), down: true });
+  assert.ok(crouched.crouch > 0.95);
+  assert.equal(crouched.height, 0);
+  const released = run(0.2, crouched);
+  assert.ok(released.crouch < 0.1);
+  assert.ok(released.charge > 0, 'releasing the pose must not discard the stored jump');
+  const jumping = advanceRide(crouched, { ...idleInput(), down: true, jump: true }, 1 / 60);
+  assert.ok(jumping.height > 0);
+  assert.equal(jumping.crouch, 0);
+});
+
 test('milestones map consistently from either travel direction', () => {
   assert.equal(chapterAt(0, 5), 0);
   assert.equal(chapterAt(1000, 5), 1);
