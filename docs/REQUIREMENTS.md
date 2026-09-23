@@ -23,7 +23,7 @@ Success means a visitor can quickly find qualifications and project evidence, ex
 3. **Projects:** case studies for Revision Marine, the multifunctional payphone, and the new protein-network explorer.
 4. **Protein explorer:** a live demonstration combining external APIs, Python data processing, community detection, interactive visualization, and AI explanations.
 5. **About:** photographs, hobbies, and short personal stories.
-6. **Contact:** confirmed email, GitHub, and LinkedIn links. A downloadable resume is a secondary convenience.
+6. **Contact:** LinkedIn contact and GitHub links, without publishing a personal email or phone number. An optional Formspree form can be enabled after configuring recipient delivery and provider-side CAPTCHA/spam protection. A downloadable resume is a secondary convenience and must omit private contact details.
 
 ## Visual direction
 

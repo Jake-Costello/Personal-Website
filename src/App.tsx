@@ -1,7 +1,10 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import JetskiJourney from './components/JetskiJourney';
+import ContactForm from './components/ContactForm';
+import { getContactEndpoint, linkedInUrl } from './lib/contact';
 
 const ProteinExplorer = lazy(() => import('./components/ProteinExplorer'));
+const contactEndpoint = getContactEndpoint(import.meta.env.VITE_CONTACT_FORM_ENDPOINT);
 
 function Arrow({ diagonal = false, className = '' }: { diagonal?: boolean; className?: string }) {
   return (
@@ -562,7 +565,12 @@ function App() {
             </p>
             <p className="eyebrow">GOOD THINGS START WITH A CONVERSATION.</p>
           </div>
-          <a className="contact-heading" href="mailto:jakecostello17@gmail.com">
+          <a
+            className="contact-heading"
+            href={contactEndpoint ? '#contact-form' : linkedInUrl}
+            target={contactEndpoint ? undefined : '_blank'}
+            rel={contactEndpoint ? undefined : 'noreferrer'}
+          >
             <h2 id="contact-title">
               LET’S BUILD
               <br />
@@ -570,19 +578,23 @@ function App() {
             </h2>
             <Arrow diagonal />
           </a>
+          {contactEndpoint ? (
+            <ContactForm endpoint={contactEndpoint} />
+          ) : (
+            <p className="contact-note">
+              Have a role, a project, or a good idea? Connect with me on LinkedIn to start a
+              conversation.
+            </p>
+          )}
           <div className="contact-bottom">
-            <a className="contact-email" href="mailto:jakecostello17@gmail.com">
-              jakecostello17@gmail.com <Arrow diagonal />
+            <a className="contact-link" href={linkedInUrl} target="_blank" rel="noreferrer">
+              Let’s connect on LinkedIn <Arrow diagonal />
             </a>
             <div className="social-links">
               <a href="https://github.com/Jake-Costello" target="_blank" rel="noreferrer">
                 GitHub <Arrow diagonal />
               </a>
-              <a
-                href="https://www.linkedin.com/in/jacob-costello-675913232"
-                target="_blank"
-                rel="noreferrer"
-              >
+              <a href={linkedInUrl} target="_blank" rel="noreferrer">
                 LinkedIn <Arrow diagonal />
               </a>
               <a href="#experience">

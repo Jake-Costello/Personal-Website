@@ -94,3 +94,17 @@ test('small screens expose working navigation', async ({ page }, testInfo) => {
     'false',
   );
 });
+
+test('contact offers LinkedIn without publishing an email or phone link', async ({ page }) => {
+  const response = await page.goto('/#contact');
+  // Includes the no-JavaScript fallback, which is not rendered in this browser.
+  expect(await response!.text()).not.toMatch(/mailto:|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  const contact = page.getByRole('region', { name: 'LET’S BUILD SOMETHING.' });
+  await expect(contact.getByRole('link', { name: 'Let’s connect on LinkedIn' })).toHaveAttribute(
+    'href',
+    'https://www.linkedin.com/in/jacob-costello-675913232',
+  );
+  await expect(page.locator('a[href^="mailto:"], a[href^="tel:"]')).toHaveCount(0);
+  await expect(contact.getByRole('form')).toHaveCount(0);
+  expect(await contact.textContent()).not.toMatch(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+});
