@@ -24,7 +24,7 @@ import httpx
 
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 DEFAULT_MODEL = "gpt-6-luna"
-PROMPT_VERSION = "protein-comparison-v1"
+PROMPT_VERSION = "protein-comparison-v2"
 MAX_EVIDENCE_BYTES = 24_000
 MAX_RESPONSE_BYTES = 64_000
 MAX_OUTPUT_TOKENS = 1600
@@ -47,6 +47,10 @@ Explain the human association network separately from cross-species orthology.
 STRING functional associations do not necessarily mean direct physical binding.
 Computed communities are algorithmic groups, not established biological pathways.
 Graph coordinates are a network layout, not a protein's molecular structure.
+Write for the visitor using the displayed graph. Coordinates are intentionally
+omitted from your evidence because they do not determine biological meaning;
+never claim the website or graph lacks coordinates. Do not discuss internal
+input fields, missing implementation details, or add bracketed editorial notes.
 Only the human network has been measured here: do not claim that animal networks,
 cross-species interactions, or conserved communities have been measured.
 

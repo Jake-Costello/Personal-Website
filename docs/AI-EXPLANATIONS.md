@@ -42,6 +42,20 @@ Application limits allow **2 new provider attempts per minute and 20 per rolling
 
 Automated backend, frontend, and browser tests mock providers and incur no charges. Live source checks cover TP53 (four matches), BRCA1 (missing results), one-to-many candidates, partial outages, and caching. Live model evaluations should cover connected, sparse, and disconnected graphs; check exact counts, scoped rankings/ties, citations, and restrained biological interpretation. Record real provider checks separately from mocked tests. Never print or retain the API key in verification artifacts.
 
+## Recorded integration evaluation — September 23, 2026
+
+All 12 selectable proteins were retrieved and validated against the live Ensembl archive. The published UI was exercised on desktop and mobile against Render, including actual OpenAI responses and cached repeats. Automated checks passed: 67 backend tests, 32 frontend unit tests, and 57 browser tests (3 viewport-specific skips).
+
+Three real generated answers were checked against their source evidence and STRING annotations:
+
+| Query | Checked outcome |
+| --- | --- |
+| TP53 + MDM2, 8 neighbors, compare TP53 | Correct 10 proteins / 17 associations / 1 group; four identities and ranks; one-to-many fruit-fly caveat |
+| BRCA1 + BRCA2, pair only, compare BRCA1 | Correct 2 proteins / 1 association (0.999) / 1 group; two matches; zebrafish and fruit fly remain missing and unranked |
+| CDK2 + PALB2, pair only, compare CDK2 | Correct 2 isolated proteins / 0 associations / 2 groups; no invented human connection; missing fruit-fly match acknowledged |
+
+All cited IDs mapped to supplied official sources. Repeat requests reused the generated timestamp and returned cached answers. These are representative checks, not a guarantee about every future answer. Review found an unnecessary BRCA1 note about coordinates omitted from model input; prompt version 2 explicitly separates the displayed graph from internal evidence fields and excludes editorial notes. A prompt-version change invalidates existing AI cache entries.
+
 ## Primary references
 
 - [Ensembl homology endpoint](https://may2024.rest.ensembl.org/documentation/info/homology_symbol)
