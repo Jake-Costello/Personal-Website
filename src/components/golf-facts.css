@@ -27,8 +27,8 @@
 }
 .golf-club-button {
   position: absolute;
-  width: 44px;
-  height: 44px;
+  width: var(--club-hit-width);
+  height: var(--club-hit-height);
   padding: 0;
   transform: translate(-50%, -50%);
   background: transparent;
@@ -66,15 +66,25 @@
 .golf-club-icon {
   position: absolute;
   left: 50%;
-  top: 10px;
-  width: 34px;
-  height: var(--club-length);
-  transform: translateX(-50%) rotate(var(--club-angle));
-  transform-origin: 50% 12px;
+  top: 50%;
+  width: var(--club-head-width);
+  height: auto;
+  transform: translate(-50%, -50%);
   pointer-events: none;
   filter: drop-shadow(1px 1px 0 #17251e18);
 }
-.golf-club-button.is-picked-up .golf-club-icon {
+.golf-club-shaft {
+  position: absolute;
+  left: calc(50% + var(--club-shaft-offset));
+  top: calc(50% + var(--club-shaft-start));
+  width: var(--club-shaft-width);
+  height: var(--club-length);
+  background: linear-gradient(90deg, #17251e 0 25%, #d2dbdb 25% 65%, #536962 65% 80%, #17251e 80%);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.golf-club-button.is-picked-up .golf-club-icon,
+.golf-club-button.is-picked-up .golf-club-shaft {
   opacity: 0.15;
 }
 .golf-club-tooltip {

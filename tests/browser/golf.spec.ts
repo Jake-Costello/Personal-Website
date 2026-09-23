@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type CDPSession, type Locator, type Page } from '@playwright/test';
 import { installProteinApi } from './protein-fixtures';
 
 const clubs = [
@@ -35,6 +35,7 @@ async function dragPointer(
   from: { x: number; y: number },
   to: { x: number; y: number },
   touch: boolean,
+  touchSession?: CDPSession,
 ) {
   if (!touch) {
     await page.mouse.move(from.x, from.y);
@@ -44,7 +45,7 @@ async function dragPointer(
     return;
   }
   // Use native Chromium touch input, which exercises pointer capture and touch-action.
-  const session = await page.context().newCDPSession(page);
+  const session = touchSession ?? (await page.context().newCDPSession(page));
   try {
     await session.send('Input.dispatchTouchEvent', {
       type: 'touchStart',
@@ -64,8 +65,18 @@ async function dragPointer(
     }
     await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   } finally {
-    await session.detach();
+    if (!touchSession) await session.detach();
   }
+}
+
+async function tapWithSession(target: Locator, session: CDPSession) {
+  await target.scrollIntoViewIfNeeded();
+  const bounds = await target.boundingBox();
+  await session.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [{ x: bounds!.x + bounds!.width / 2, y: bounds!.y + bounds!.height / 2, id: 1 }],
+  });
+  await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 }
 
 test('Revision Marine identifies the engineering role and links to the company', async ({
@@ -194,6 +205,67 @@ test('dragging a club to the golfer plays its story, while a missed drop does no
   );
   await expect(golf).toHaveAttribute('data-phase', 'idle');
   await expect(page.locator('.golf-fact-ball')).toHaveCount(0);
+});
+
+test('all six club heads remain touch-reachable on narrow phones', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile');
+  const touchSession = await page.context().newCDPSession(page);
+  try {
+    for (const width of [320, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      const golf = await openGolf(page);
+      for (const label of clubs) {
+        const club = golf.getByRole('button', { name: label, exact: true });
+        await club.scrollIntoViewIfNeeded();
+        const bounds = await club.boundingBox();
+        expect(bounds!.width).toBeGreaterThanOrEqual(24);
+        expect(bounds!.height).toBeGreaterThanOrEqual(24);
+        await tapWithSession(club, touchSession);
+        await expect(page.locator('.golf-fact-kicker')).toContainText(label.split(' — ')[1]);
+        if (label === clubs[0]) {
+          const next = await page
+            .getByRole('button', { name: 'Next shot', exact: true })
+            .boundingBox();
+          await dragPointer(
+            page,
+            { x: next!.x + next!.width / 2, y: next!.y + next!.height / 2 },
+            { x: 4, y: 4 },
+            true,
+            touchSession,
+          );
+          await expect(golf).toHaveAttribute('data-phase', 'reading');
+        }
+        await tapWithSession(
+          page.getByRole('button', { name: 'Next shot', exact: true }),
+          touchSession,
+        );
+        await expect(golf).toHaveAttribute('data-phase', 'idle');
+      }
+
+      const club = golf.getByRole('button', { name: clubs[2], exact: true });
+      const origin = await club.boundingBox();
+      const target = await golf.locator('.golf-drop-zone').boundingBox();
+      await dragPointer(
+        page,
+        { x: origin!.x + origin!.width / 2, y: origin!.y + origin!.height / 2 },
+        { x: target!.x + target!.width / 2, y: target!.y + target!.height / 2 },
+        true,
+        touchSession,
+      );
+      await expect(page.locator('.golf-fact-copy')).toContainText(/beach volleyball/i);
+      await tapWithSession(
+        page.getByRole('button', { name: 'Next shot', exact: true }),
+        touchSession,
+      );
+      await expect(golf).toHaveAttribute('data-phase', 'idle');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+      await page.screenshot({ path: `.cache/golf-tests-phone-${width}.png` });
+    }
+  } finally {
+    await touchSession.detach();
+  }
 });
 
 test('a shot swings, approaches the screen, waits to be read, then falls away', async ({

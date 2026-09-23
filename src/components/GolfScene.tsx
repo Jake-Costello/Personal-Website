@@ -1,3 +1,4 @@
+import Golfer from './GolfGolfer';
 import './golf-scene.css';
 
 export type GolfPhase = 'idle' | 'swing' | 'flight' | 'reading' | 'falling';
@@ -10,14 +11,73 @@ export const GOLF_SCENE_GEOMETRY = {
   golferDrop: { x: 215, y: 165, width: 150, height: 220 },
   bagAnchor: { x: 463, y: 313 },
   clubSlots: [
-    { x: 385, y: 225 },
-    { x: 415, y: 187 },
-    { x: 444, y: 165 },
-    { x: 488, y: 165 },
-    { x: 515, y: 187 },
-    { x: 545, y: 225 },
+    { x: 423, y: 196 },
+    { x: 429, y: 233 },
+    { x: 459, y: 204 },
+    { x: 465, y: 244 },
+    { x: 495, y: 237 },
+    { x: 489, y: 193 },
   ],
 } as const;
+
+function ClubHead({ color, kind = 'iron' }: { color: string; kind?: string }) {
+  if (kind === 'driver' || kind === 'wood') {
+    return (
+      <g transform={kind === 'wood' ? 'translate(5 4) scale(.85)' : undefined}>
+        <path d="M10 2h17v3h7v5h4v13h-5v5H12v-3H6v-6H3V9h3V5h4z" fill="#17251e" />
+        <path d="M11 5h14v3h7v5h3v8h-5v4H13v-3H9v-5H6v-7h5z" fill="#42565c" />
+        <path d="M11 5h14v3h6v3H10V8h1z" fill={color} />
+        <path d="M8 13h3v7h-3zm6 10h14v2H14z" fill="#819292" />
+        <path d="M31 23h6v9h-6z" fill="#17251e" />
+        <path d="M33 25h2v7h-2z" fill="#d2dbdb" />
+      </g>
+    );
+  }
+  if (kind === 'putter') {
+    return (
+      <>
+        <path d="M6 16h33v8H6z" fill="#17251e" />
+        <path d="M9 18h27v4H9z" fill="#c5d0d0" />
+        <path d="M12 18h19v1H12z" fill="#f5f3ed" />
+        <path d="M31 23h6v9h-6z" fill="#17251e" />
+        <path d="M33 24h2v8h-2z" fill="#d2dbdb" />
+        <path d="M25 18h3v4h-3z" fill={color} />
+      </>
+    );
+  }
+  return (
+    <>
+      <path d="M5 8h10v3h9v4h12v17h-6v-7H12v-4H5z" fill="#17251e" />
+      <path d="M8 11h6v3h9v4h10v4H14v-4H8z" fill="#c5d0d0" />
+      <path d="M9 11h4v3h9v2H12v-2H9z" fill="#f5f3ed" />
+      <path d="M12 17h13v1H12zm3 3h14v1H15z" fill="#758a8c" />
+      <path d="M32 24h2v8h-2z" fill="#d2dbdb" />
+      <path d="M27 18h4v3h-4z" fill={color} />
+    </>
+  );
+}
+
+export function GolfClubHeadIcon({
+  color,
+  className,
+  kind,
+}: {
+  color: string;
+  className?: string;
+  kind?: string;
+}) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 44 32"
+      fill="none"
+      aria-hidden="true"
+      shapeRendering="crispEdges"
+    >
+      <ClubHead color={color} kind={kind} />
+    </svg>
+  );
+}
 
 export function GolfClubIcon({
   color,
@@ -32,55 +92,44 @@ export function GolfClubIcon({
     <svg
       className={className}
       viewBox="0 0 44 140"
-      preserveAspectRatio="none"
       fill="none"
       aria-hidden="true"
       shapeRendering="crispEdges"
     >
-      <path d="M20 15h5v117h-5z" fill="#17251e" />
-      <path d="M21 19h2v107h-2z" fill="#dce3de" />
-      <path d="M19 120h7v20h-7z" fill="#17251e" />
-      <path d="M20 123h2v14h-2z" fill={color} />
-      {kind === 'driver' || kind === 'wood' ? (
-        <>
-          <path d="M8 3h23v4h7v14h-7v4H9v-4H5V7h3z" fill="#17251e" />
-          <path d="M10 6h19v4h6v8h-6v4H11v-4H8V9h2z" fill={color} />
-          <path d="M12 7h15v3H12z" fill="#f5f3ed" />
-          <path d="M27 13h6v5h-6z" fill="#17251e" opacity=".2" />
-        </>
-      ) : kind === 'putter' ? (
-        <>
-          <path d="M3 6h38v15H3z" fill="#17251e" />
-          <path d="M6 9h32v8H6z" fill={color} />
-          <path d="M20 9h4v8h-4z" fill="#f5f3ed" />
-        </>
-      ) : (
-        <>
-          <path d="M5 4h31v14H25v7h-7v-7H5z" fill="#17251e" />
-          <path d="M8 7h25v8H22v7h-2v-7H8z" fill={color} />
-          <path d="M10 9h17v2H10z" fill="#f5f3ed" />
-        </>
-      )}
+      <path d="M31 27h6v107h-6z" fill="#17251e" />
+      <path d="M33 29h2v102h-2z" fill="#dce3de" />
+      <path d="M30 121h8v19h-8z" fill="#17251e" />
+      <path d="M32 123h2v14h-2z" fill={color} />
+      <ClubHead color={color} kind={kind} />
     </svg>
   );
 }
 
-function GolfBag() {
+function GolfBag({ frontOnly = false }: { frontOnly?: boolean }) {
   return (
     <g className="golf-scene__bag">
-      <path d="M428 378h70v5h-70zm8 5h54v4h-54z" fill="#719656" opacity=".6" />
-      <path d="M438 312h5v62h-5zm44 2h5v61h-5z" fill="#17251e" />
-      <path d="M434 292h50v8h5v64h-4v16h-43v-6h-8z" fill="#17251e" />
-      <path d="M438 301h42v58h-3v16h-31v-5h-8z" fill="#355a74" />
-      <path d="M466 301h14v58h-3v16h-11z" fill="#274559" />
-      <path d="M438 296h42v7h-42z" fill="#f5f3ed" />
-      <path d="M440 296h36v3h-36z" fill="#c4cdbf" />
-      <path d="M438 315h22v42h-22z" fill="#17251e" />
-      <path d="M442 319h14v34h-14z" fill="#f5f3ed" />
-      <path d="M442 329h14v4h-14z" fill="#bfa7db" />
-      <path d="M470 310h4v37h-4zm-2 40h8v4h-8z" fill="#b9c8c4" />
-      <path d="M485 307h13v6h-8v38h-5z" fill="#17251e" />
-      <path d="M444 367h16v3h-16z" fill="#517e95" />
+      {!frontOnly && (
+        <>
+          <path d="M424 382h99v6h-99zm11 6h78v4h-78z" fill="#719656" opacity=".6" />
+          <path d="M431 263h70v4h13v13h-89v-13h6z" fill="#17251e" />
+          <path d="M433 267h65v3h10v9h-77v-9h2z" fill="#091712" />
+          <path d="M433 267h65v2h-65z" fill="#8b9b93" />
+        </>
+      )}
+      <path d="M425 275h89v11h-7v66h-5v31h-63v-7h-5v-30h-4v-59h-5z" fill="#17251e" />
+      <path d="M434 285h68v65h-5v27h-53v-5h-5v-29h-5z" fill="#355a74" />
+      <path d="M481 285h21v65h-5v27h-16z" fill="#274559" />
+      <path d="M430 278h79v4h-79z" fill="#b9c8c4" />
+      <path d="M437 286h8v83h-4v-29h-4z" fill="#517e95" />
+      <path d="M445 307h22v5h5v42h-5v9h-22v-6h-5v-43h5z" fill="#17251e" />
+      <path d="M447 311h16v5h5v34h-5v8h-16v-5h-3v-36h3z" fill="#426e86" />
+      <path d="M448 318h2v30h-2zm-2 31h6v4h-6z" fill="#dce3de" />
+      <path d="M455 326h8v12h-8z" fill="#bfa7db" />
+      <path d="M485 310h16v8h6v39h-6v9h-16z" fill="#17251e" />
+      <path d="M489 315h8v7h6v31h-6v8h-8z" fill="#355a74" />
+      <path d="M492 321h2v23h-2zm-2 24h6v4h-6z" fill="#b9c8c4" />
+      <path d="M503 290h13v7h6v45h-6v17h-8v-7h5v-14h4v-35h-5v-6h-9z" fill="#17251e" />
+      <path d="M447 370h26v3h-26z" fill="#517e95" />
     </g>
   );
 }
@@ -96,121 +145,8 @@ export function GolfBagOverlay({ className }: { className?: string }) {
       shapeRendering="crispEdges"
       style={{ pointerEvents: 'none' }}
     >
-      <GolfBag />
+      <GolfBag frontOnly />
     </svg>
-  );
-}
-
-function Flower({ x, y, scale = 1 }: { x: number; y: number; scale?: number }) {
-  return (
-    <g transform={`translate(${x} ${y}) scale(${scale})`}>
-      <path d="M3 0h4v3h3v4H7v3H3V7H0V3h3z" fill="#f5f3ed" />
-      <path d="M4 4h2v2H4z" fill="#dfff7f" />
-    </g>
-  );
-}
-
-function Golfer({ clubColor }: { clubColor: string }) {
-  return (
-    <g className="golf-scene__golfer">
-      <path d="M238 355h38v4h-38zm36 14h40v5h-40z" fill="#6f914e" opacity=".5" />
-      {/* A staggered stance and lower, larger shoulder give the sprite a three-quarter view. */}
-      <path
-        d="M267 286h36v14h7v25h-9v34h-22v-29h-7v13h-7v7h-20v-11h8v-24h7v-15h7z"
-        fill="#17251e"
-      />
-      <path d="M270 294h12v20h-8v15h-6v16h-17v-5h7v-24h7v-13h5z" fill="#343e39" />
-      <path d="M286 298h12v27h-3v30h-11v-27h-5v-8h7z" fill="#27322d" />
-      <path d="M245 342h21v5h7v11h-32v-6h4zm33 14h23v5h10v12h-38v-12h5z" fill="#17251e" />
-      <path d="M248 346h15v5h7v4h-25v-4h3zm33 14h17v5h10v5h-31v-7h4z" fill="#c4a177" />
-      <path d="M248 346h15v3h-15zm33 14h17v3h-17z" fill="#dfc298" />
-      <path d="M246 354h24v2h-24zm32 15h30v2h-30z" fill="#f5e6c9" />
-      <path d="M273 178h25v6h10v13h6v14h-7v11h-11v9h-23v-9h-7v-29h7z" fill="#17251e" />
-      <path d="M276 187h19v7h10v8h5v7h-7v10h-10v8h-17v-10h-6v-17h6z" fill="#f0cfb7" />
-      <path d="M271 202h8v13h-8zm6 18h12v7h-12z" fill="#d9aa8c" />
-      <path d="M283 203h4v5h-4zm16 3h4v4h-4z" fill="#17251e" />
-      <path d="M294 214h8v3h-8z" fill="#ac765e" />
-      <path d="M272 173h25v5h9v17h-39v-16h5z" fill="#17251e" />
-      <path d="M276 177h17v4h8v9h-30v-9h5z" fill="#29332e" />
-      <path d="M276 177h17v3h-17z" fill="#49534a" />
-      <path d="M269 191h40v4h7v6h-36v-4h-11z" fill="#17251e" />
-      <path d="M283 196h26v2h-26z" fill="#3d4840" />
-      <path d="M277 226h18v11h-18z" fill="#17251e" />
-      <path d="M281 226h10v10h-10z" fill="#f0cfb7" />
-      <path d="M261 233h16v-3h20v7h10v9h8v23h-9v28h-36v-5h-11v-26h-11v-24h7v-5h6z" fill="#17251e" />
-      <path d="M262 238h14v5h16v-7h3v6h9v8h7v15h-9v28h-28v-6h-11v-26h-10v-15h9z" fill="#4f97d5" />
-      <path d="M293 243h11v7h7v15h-9v28h-9z" fill="#306daa" />
-      <path d="M264 239h11v4h-11z" fill="#89bfe6" />
-      <Flower x={260} y={246} scale={0.7} />
-      <Flower x={278} y={250} />
-      <Flower x={296} y={256} scale={0.7} />
-      <Flower x={269} y={270} scale={0.8} />
-      <Flower x={287} y={281} scale={0.65} />
-      <g className="golf-scene__pose golf-scene__pose--address">
-        <path
-          d="M252 260h12v15h10v11h12v9h17v10h-22v-10h-14v-12h-10v-10h-5zm49 6h12v18h8v19h-11v-15h-9z"
-          fill="#17251e"
-        />
-        <path
-          d="M256 264h5v13h10v12h13v10h15v3h-16v-10h-13v-12h-10v-10h-4zm48 6h5v17h8v12h-4v-13h-9z"
-          fill="#f0cfb7"
-        />
-        <path d="M302 298h15v12h-15z" fill="#17251e" />
-        <path d="M305 300h9v8h-9z" fill="#f5f3ed" />
-        <path d="M308 308h5v53h-5z" fill="#17251e" />
-        <path d="M310 316h1v42h-1z" fill="#dce3de" />
-        <path d="M302 359h20v11h-20z" fill="#17251e" />
-        <path d="M305 362h14v5h-14z" fill={clubColor} />
-      </g>
-      <g className="golf-scene__pose golf-scene__pose--backswing">
-        <path
-          d="M251 260h13v-12h-9v-21h-12v-19h11v15h9v22h11v21h-23zm51 6h11v-18h-15v-13h-18v-12h-21v12h16v12h18v13h9z"
-          fill="#17251e"
-        />
-        <path
-          d="M255 263h6v-12h-10v-25h-5v-14h5v14h9v22h10v13h-8v4h-7zm51 6h3v-17h-14v-14h-17v-12h-14v6h13v12h19v13h10z"
-          fill="#f0cfb7"
-        />
-        <path d="M241 203h17v12h-17z" fill="#17251e" />
-        <path d="M244 205h11v8h-11z" fill="#f5f3ed" />
-        <path d="M249 203l-15-58 5-1 15 59z" fill="#17251e" />
-        <path d="M249 193l-11-44 1-1 11 45z" fill="#dce3de" />
-        <path d="M225 134h19v13h-19z" fill="#17251e" />
-        <path d="M228 137h13v7h-13z" fill={clubColor} />
-      </g>
-      <g className="golf-scene__pose golf-scene__pose--downswing">
-        <path
-          d="M252 260h12v14h15v11h20v12h-24v-10h-17v-12h-6zm49 6h12v17h10v16h-12v-11h-10z"
-          fill="#17251e"
-        />
-        <path
-          d="M256 264h5v13h16v11h18v6h-18v-10h-16v-12h-5zm48 6h5v17h10v8h-5v-11h-10z"
-          fill="#f0cfb7"
-        />
-        <path d="M299 292h17v13h-17z" fill="#17251e" />
-        <path d="M302 295h11v7h-11z" fill="#f5f3ed" />
-        <path d="M307 302l37 34-3 4-37-34z" fill="#17251e" />
-        <path d="M314 310l27 25-1 1-27-25z" fill="#dce3de" />
-        <path d="M337 333h19v12h-19z" fill="#17251e" />
-        <path d="M340 336h13v6h-13z" fill={clubColor} />
-      </g>
-      <g className="golf-scene__pose golf-scene__pose--followthrough">
-        <path
-          d="M251 260h13v10h12v-13h17v-15h14v-19h12v24h-17v18h-17v17h-21v-10h-13zm50 6h12v-13h16v-18h-11v14h-17z"
-          fill="#17251e"
-        />
-        <path
-          d="M255 264h6v10h12v-13h23v-16h15v-18h5v17h-17v18h-17v16h-15v-10h-12zm50 5h4v-16h16v-14h-4v13h-16z"
-          fill="#f0cfb7"
-        />
-        <path d="M306 217h17v13h-17z" fill="#17251e" />
-        <path d="M309 220h11v7h-11z" fill="#f5f3ed" />
-        <path d="M314 218l-45-48 4-4 45 49z" fill="#17251e" />
-        <path d="M309 209l-35-38 1-1 35 38z" fill="#dce3de" />
-        <path d="M260 157h19v13h-19z" fill="#17251e" />
-        <path d="M263 160h13v7h-13z" fill={clubColor} />
-      </g>
-    </g>
   );
 }
 

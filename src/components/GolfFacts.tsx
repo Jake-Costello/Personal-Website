@@ -3,7 +3,12 @@ import type { CSSProperties, KeyboardEvent, PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { personalFacts } from '../data/personal';
 import type { PersonalFact } from '../data/personal';
-import GolfScene, { GolfBagOverlay, GolfClubIcon, GOLF_SCENE_GEOMETRY } from './GolfScene';
+import GolfScene, {
+  GolfBagOverlay,
+  GolfClubIcon,
+  GolfClubHeadIcon,
+  GOLF_SCENE_GEOMETRY,
+} from './GolfScene';
 import './golf-facts.css';
 
 type Phase = 'idle' | 'swing' | 'flight' | 'reading' | 'falling';
@@ -39,6 +44,7 @@ export default function GolfFacts() {
   const originRef = useRef<HTMLButtonElement | null>(null);
   const dragRef = useRef<ClubDrag | null>(null);
   const suppressClick = useRef(false);
+  const nextShotTouchRef = useRef<number | null>(null);
 
   const changePhase = useCallback((next: Phase) => {
     phaseRef.current = next;
@@ -107,14 +113,40 @@ export default function GolfFacts() {
     setShot(fact);
     setHeld(false);
     setFocused(false);
+    nextShotTouchRef.current = null;
     changePhase(reducedMotion ? 'reading' : 'swing');
   }
 
   function dismissShot() {
     if (phaseRef.current === 'idle') return;
+    nextShotTouchRef.current = null;
     originRef.current?.focus({ preventScroll: true });
     setFocused(false);
     changePhase(reducedMotion ? 'idle' : 'falling');
+  }
+
+  function nextShotPointerDown(event: PointerEvent<HTMLButtonElement>) {
+    if (event.pointerType !== 'touch' || !event.isPrimary || event.button !== 0) return;
+    nextShotTouchRef.current = event.pointerId;
+    // A touch drag can suppress the next synthesized click. Handle the complete
+    // touch gesture directly, and prevent a compatibility click after dismissal.
+    event.preventDefault();
+  }
+
+  function nextShotPointerUp(event: PointerEvent<HTMLButtonElement>) {
+    if (nextShotTouchRef.current !== event.pointerId) return;
+    nextShotTouchRef.current = null;
+    event.preventDefault();
+    const bounds = event.currentTarget.getBoundingClientRect();
+    if (
+      event.clientX < bounds.left ||
+      event.clientX > bounds.right ||
+      event.clientY < bounds.top ||
+      event.clientY > bounds.bottom
+    )
+      return;
+    suppressClick.current = true;
+    dismissShot();
   }
 
   function isOverGolfer(x: number, y: number) {
@@ -188,26 +220,6 @@ export default function GolfFacts() {
   const paused = held || focused || reducedMotion;
   const geometry = GOLF_SCENE_GEOMETRY;
   const scale = sceneWidth / geometry.width;
-  const anchor = { x: geometry.bagAnchor.x * scale, y: geometry.bagAnchor.y * scale };
-  const compactBag = sceneWidth < 320;
-  const mobileFan = compactBag
-    ? [
-        [-40, -80],
-        [-30, -126],
-        [16, -130],
-        [40, -86],
-        [40, -40],
-        [-6, -40],
-      ]
-    : [
-        [-62, -40],
-        [-54, -85],
-        [-15, -115],
-        [29, -111],
-        [57, -75],
-        [54, -30],
-      ];
-  const mobileShift = Math.min(0, sceneWidth - 24 - (anchor.x + (compactBag ? 40 : 57)));
 
   return (
     <div
@@ -236,15 +248,7 @@ export default function GolfFacts() {
         <div className="golf-clubs" role="group" aria-label="Choose a club">
           {personalFacts.map((fact, index) => {
             const slot = geometry.clubSlots[index];
-            const head =
-              sceneWidth <= 480
-                ? {
-                    x: anchor.x + mobileFan[index][0] + mobileShift,
-                    y: anchor.y + mobileFan[index][1],
-                  }
-                : { x: slot.x * scale, y: slot.y * scale };
-            const length = Math.hypot(anchor.x - head.x, anchor.y - head.y);
-            const angle = (-Math.atan2(anchor.x - head.x, anchor.y - head.y) * 180) / Math.PI;
+            const head = { x: slot.x * scale, y: slot.y * scale };
             return (
               <button
                 key={fact.id}
@@ -254,8 +258,13 @@ export default function GolfFacts() {
                   {
                     left: head.x,
                     top: head.y,
-                    '--club-angle': `${angle}deg`,
-                    '--club-length': `${length + 18}px`,
+                    '--club-hit-width': `${Math.max(24, 44 * scale)}px`,
+                    '--club-hit-height': `${Math.max(24, 32 * scale)}px`,
+                    '--club-head-width': `${44 * scale}px`,
+                    '--club-shaft-offset': `${12 * scale}px`,
+                    '--club-shaft-start': `${9 * scale}px`,
+                    '--club-shaft-width': `${Math.max(1, 5 * scale)}px`,
+                    '--club-length': `${(geometry.bagAnchor.y - slot.y - 9) * scale}px`,
                   } as CSSProperties
                 }
                 aria-label={`${fact.club} — ${fact.topic}`}
@@ -273,7 +282,8 @@ export default function GolfFacts() {
                   startShot(fact, event.currentTarget);
                 }}
               >
-                <GolfClubIcon color={fact.color} kind={fact.kind} className="golf-club-icon" />
+                <span className="golf-club-shaft" aria-hidden="true" />
+                <GolfClubHeadIcon color={fact.color} kind={fact.kind} className="golf-club-icon" />
                 <span className="golf-club-tooltip" aria-hidden="true">
                   <strong>{fact.club}</strong>
                   <span>{fact.topic}</span>
@@ -339,7 +349,15 @@ export default function GolfFacts() {
                       {held ? 'Reading paused' : 'Keep reading'}
                     </button>
                   )}
-                  <button type="button" onClick={dismissShot}>
+                  <button
+                    type="button"
+                    onPointerDown={nextShotPointerDown}
+                    onPointerUp={nextShotPointerUp}
+                    onPointerCancel={() => {
+                      nextShotTouchRef.current = null;
+                    }}
+                    onClick={dismissShot}
+                  >
                     Next shot <span aria-hidden="true">↗</span>
                   </button>
                 </div>
