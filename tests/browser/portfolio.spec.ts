@@ -125,9 +125,64 @@ test('the long route leaves reading time, fades each layer, and crosses open wat
   await page.clock.runFor(650);
   await expect(page.locator('.journey-story')).toHaveCount(0);
   await expect(page.getByText('OPEN WATER / THE NEXT CHAPTER IS AHEAD')).toBeVisible();
-  await page.clock.runFor(2800);
+  await page.clock.runFor(1800);
   await page.keyboard.up('ArrowRight');
   await expect(page.locator('.journey-story')).toHaveAttribute('data-story-id', 'payphone');
+});
+
+test('shoreline dots locate real story starts and reset with the journey', async ({ page }) => {
+  await page.goto('/#experience');
+  const markers = page.locator('.journey-progress-marker');
+  const progress = page.getByRole('progressbar', { name: 'Shoreline progress' });
+  const route = buildJourneyRoute(experience, MAX_SPEED);
+  await expect(markers).toHaveCount(experience.length);
+  for (const stop of route.stops) {
+    const percentage = await markers
+      .nth(stop.index)
+      .evaluate((el) => parseFloat((el as HTMLElement).style.left));
+    expect(percentage).toBeCloseTo((stop.start / route.length) * 100, 3);
+  }
+  await expect(progress).toHaveAttribute('aria-valuetext', /Next checkpoint: 2023/);
+  await page.getByRole('button', { name: 'NOW: Revision Marine · Cofounder' }).click();
+  await expect(page.locator('.journey-progress-marker.is-reached')).toHaveCount(experience.length);
+  await expect(markers.last()).toHaveClass(/is-current/);
+  await page.getByRole('button', { name: 'Back to start' }).click();
+  await expect(page.locator('.journey-progress-marker.is-reached')).toHaveCount(1);
+  await expect(markers.first()).toHaveClass(/is-current/);
+});
+
+test('water spray animates while riding and splashes once on takeoff and landing', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.clock.install();
+  await page.goto('/#experience');
+  const stage = page.locator('.journey-stage');
+  await stage.scrollIntoViewIfNeeded();
+  await expect(page.locator('.journey-story-year')).toHaveCSS('opacity', '1');
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  await stage.focus();
+  await page.keyboard.down('ArrowRight');
+  const frames = new Set<string | null>();
+  for (let step = 0; step < 6; step += 1) {
+    await page.clock.runFor(125);
+    frames.add(await page.locator('.jetski-wake').getAttribute('data-frame'));
+  }
+  expect([...frames].sort()).toEqual(['0', '1', '2']);
+  await page.keyboard.down('ArrowDown');
+  await page.clock.runFor(400);
+  await page.keyboard.up('ArrowDown');
+  await page.keyboard.press('ArrowUp');
+  await page.clock.runFor(100);
+  await expect(page.locator('.jetski-splash')).toHaveAttribute('data-splash', 'takeoff');
+  await expect(page.locator('.jetski-wake')).toHaveCount(0);
+  await expect(page.locator('.jetski-sprite')).toHaveAttribute('data-rider-pose', 'extended');
+  await page.clock.runFor(850);
+  await expect(page.locator('.jetski-splash')).toHaveAttribute('data-splash', 'landing');
+  await expect(page.locator('.jetski-wake')).toHaveCount(1);
+  await page.keyboard.up('ArrowRight');
+  await page.clock.runFor(1000);
+  await expect(page.locator('.jetski-splash, .jetski-wake')).toHaveCount(0);
 });
 
 test('back to start clears the ride and restores its first checkpoint', async ({ page }) => {

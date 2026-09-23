@@ -545,15 +545,49 @@
 }
 
 .journey-progress {
-  height: 4px;
+  height: 22px;
   border-inline: 1px solid #17251e;
-  background: #b5cbbf;
+  background: #f5f3ed;
   flex-shrink: 0;
 }
-.journey-progress > span {
-  display: block;
+.journey-progress-track {
+  position: relative;
   height: 100%;
+  margin-inline: 8px;
+}
+.journey-progress-track::before,
+.journey-progress-fill {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  height: 4px;
+  transform: translateY(-50%);
+}
+.journey-progress-track::before {
+  content: '';
+  width: 100%;
+  background: #b5cbbf;
+}
+.journey-progress-fill {
+  display: block;
   background: #17251e;
+}
+.journey-progress-marker {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border: 2px solid #17251e;
+  border-radius: 50%;
+  background: #f5f3ed;
+  transform: translate(-50%, -50%);
+}
+.journey-progress-marker.is-reached {
+  background: #17251e;
+}
+.journey-progress-marker.is-current {
+  background: #f399bf;
+  box-shadow: 0 0 0 2px #f5f3ed;
 }
 .journey-story-year {
   display: flex;

@@ -3,6 +3,14 @@ const ACCELERATION = 1150;
 export const MAX_SPEED = 440;
 const GRAVITY = 1500;
 const PUMP_WINDOW = 0.85;
+export const SPLASH_SECONDS = 0.72;
+
+export type WaterSplash = {
+  kind: 'takeoff' | 'landing';
+  age: number;
+  position: number;
+  facing: 1 | -1;
+};
 
 export type RideInput = {
   left: boolean;
@@ -22,6 +30,8 @@ export type RideState = {
   crouch: number;
   pumpWindow: number;
   jumps: number;
+  wakeTime: number;
+  splash: WaterSplash | null;
 };
 
 export const idleInput = (): RideInput => ({ left: false, right: false, down: false, jump: false });
@@ -37,6 +47,8 @@ export const initialRide = (position = 0): RideState => ({
   crouch: 0,
   pumpWindow: 0,
   jumps: 0,
+  wakeTime: 0,
+  splash: null,
 });
 
 /** Seconds-based, bounded simulation. Jump is a one-frame input, consumed by the caller. */
@@ -48,6 +60,10 @@ export function advanceRide(
 ): RideState {
   const dt = Math.max(0, Math.min(elapsed, 0.05));
   const next = { ...current };
+  if (current.splash) {
+    const age = current.splash.age + dt;
+    next.splash = age < SPLASH_SECONDS ? { ...current.splash, age } : null;
+  }
   const direction = Number(input.right) - Number(input.left);
   if (direction) {
     next.velocity = Math.max(
@@ -84,11 +100,31 @@ export function advanceRide(
     next.pumpWindow = 0;
     next.jumps += 1;
     next.crouch = 0;
+    next.splash = {
+      kind: 'takeoff',
+      age: 0,
+      position: next.position,
+      facing: next.facing,
+    };
   }
   if (next.lift !== 0 || next.height > 0) {
     next.height = Math.max(0, next.height + next.lift * dt);
     next.lift -= GRAVITY * dt;
-    if (next.height === 0) next.lift = 0;
+    if (next.height === 0) {
+      next.lift = 0;
+      if (current.height > 0) {
+        next.splash = {
+          kind: 'landing',
+          age: 0,
+          position: next.position,
+          facing: next.facing,
+        };
+      }
+    }
   }
+  // Only advance the three-frame wake while there is spray to draw. Idle rides
+  // settle to a stable state instead of repainting an invisible animation.
+  next.wakeTime =
+    Math.abs(next.velocity) > 25 && next.height === 0 ? (current.wakeTime + dt) % 0.375 : 0;
   return next;
 }

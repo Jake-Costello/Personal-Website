@@ -1,4 +1,5 @@
 import type { RideState } from '../game/model';
+import { JetskiWake } from './JetskiWater';
 
 const pixel = (value: number) => Math.round(value / 2) * 2;
 
@@ -43,12 +44,7 @@ export default function JetskiSprite({
         transform={`scale(${state.facing * turnScale * scale} ${scale}) rotate(${reduced ? 0 : pitch})`}
         shapeRendering="crispEdges"
       >
-        {Math.abs(state.velocity) > 25 && !airborne && (
-          <g fill="#f5f3ed">
-            <path d="M-47 7h-12V3h-10v-5h-8v-7h-6V1h6v7h13v5h17zM-64 16h-29v3h29z" />
-            <path d="M-88-6h-5v5h5zm-10-9h4v4h-4zm19-3h4v4h-4z" />
-          </g>
-        )}
+        <JetskiWake state={state} reduced={reduced} />
         {/* Low, narrow hull; open rear foot tray; raised engine hood. No seat. */}
         <path
           fill="#17251e"

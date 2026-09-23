@@ -1,12 +1,12 @@
-export const WORDS_PER_SECOND = 200 / 60;
+export const WORDS_PER_SECOND = 250 / 60;
 export const INTRO_SECONDS = 1.8;
 
 const MIN_READING_SECONDS = 8;
-const HOLD_SECONDS = 3.5;
+const HOLD_SECONDS = 3;
 const DETAILS_FADE_SECONDS = 0.75;
 const YEAR_FADE_SECONDS = 0.65;
 const TITLE_FADE_SECONDS = 0.85;
-const GAP_SECONDS = 2.8;
+const GAP_SECONDS = 1.8;
 
 export type JourneyStop = {
   index: number;

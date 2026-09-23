@@ -10,9 +10,9 @@ const near = (actual: number, expected: number) =>
 test('full-speed travel gives every chapter a reading window and time to settle', () => {
   const route = buildJourneyRoute([story(80), story(12), { story: ' \n\t ' }], SPEED);
   const first = route.stops[0];
-  assert.equal(WORDS_PER_SECOND, 200 / 60);
-  assert.equal(first.readingSeconds, 24);
-  near((first.detailsOut - first.start) / SPEED, INTRO_SECONDS + 24 + 3.5);
+  assert.equal(WORDS_PER_SECOND, 250 / 60);
+  assert.equal(first.readingSeconds, 19.2);
+  near((first.detailsOut - first.start) / SPEED, INTRO_SECONDS + 19.2 + 3);
   assert.equal(route.stops[1].readingSeconds, 8);
   assert.equal(route.stops[2].readingSeconds, 8);
   assert.equal(getJourneyFrame(route, first.detailsOut).detailsOpacity, 1);
@@ -43,10 +43,10 @@ test('departure fades details, then year, then title, without overlap', () => {
   near((stop.end - stop.titleOut) / SPEED, 0.85);
 });
 
-test('the empty water between stories lasts 2.8 seconds and preserves the previous index', () => {
+test('the empty water between stories lasts 1.8 seconds and preserves the previous index', () => {
   const route = buildJourneyRoute([story(40), story(40), story(40)], SPEED);
   const [first, second] = route.stops;
-  near((second.start - first.end) / SPEED, 2.8);
+  near((second.start - first.end) / SPEED, 1.8);
   for (const position of [first.end, (first.end + second.start) / 2, second.start - 0.001]) {
     assert.deepEqual(getJourneyFrame(route, position), {
       index: 0,

@@ -28,10 +28,10 @@ Restart Vite. In the explorer, select **Fetch live network** to retrieve STRING 
 ## What is implemented
 
 - Responsive portfolio, project detail dialogs, about content, and contact links.
-- Original SVG pixel-art stand-up jetski with articulated cruising, crouching, and extended jump poses; acceleration, reversal, pump/jump controls, and five career chapters.
-- Cleveland lakefront pixel skyline including the Browns stadium and Sherwin-Williams headquarters, a taller responsive scene, and optional browser full-screen mode. No stock photography or generated image assets are used for the game.
-- Larger career stories revealed in stages: title, year, then details at about 200 words per minute. Departure fades details, year, and title in sequence, with open water between stops. Reduced-motion mode and the readable timeline show each active story immediately.
-- A roughly 92-second route at full speed, a shoreline progress indicator, a larger Revision Marine workshop, and a Back to start control at the destination. Story text keeps revealing when the rider stops.
+- Original SVG pixel-art stand-up jetski with articulated cruising, crouching, and extended jump poses; acceleration, reversal, pump/jump controls, and five career chapters. A three-frame rear jet/wake animates while riding; takeoff and landing produce separate splashes anchored to the lake. Reduced-motion mode uses static spray and smaller foam bursts.
+- Cleveland lakefront pixel skyline including the Browns stadium, Sherwin-Williams headquarters, a muted red KeyBank sign, and the Rock Hall's glass pyramid, plus a pixel Goodyear blimp. Includes a taller responsive scene and optional browser full-screen mode. No stock photography or generated image assets are used for the game.
+- Larger career stories revealed in stages: title, year, then details at about 250 words per minute. Departure fades details, year, and title in sequence, with 1.8 seconds of open water between stops at full speed. Reduced-motion mode and the readable timeline show each active story immediately.
+- A roughly 80-second route at full speed, a shoreline progress indicator with dots at actual story locations, a larger Revision Marine workshop, and a Back to start control at the destination. Story text keeps revealing when the rider stops.
 - Revision Marine dock reveal, plus readable timeline navigation, keyboard and touch controls, and reduced-motion support.
 - Interactive protein graph with rotation, zoom, confidence filtering, and accessible node selection.
 - Optional FastAPI service: STRING identifier resolution, validated data processing, repeatable community detection, caching, and source provenance.
@@ -44,6 +44,8 @@ Still to come: confirmed personal photos and additional stories, a public Revisi
 Career content lives in [`src/data/experience.ts`](src/data/experience.ts). The game and readable overview use the same data, so dates, stories, skills, links, and chapter order can change without rebuilding the game mechanics. Chapter numbering follows the data length.
 
 Route spacing is calculated from story word counts in `src/game/route.ts`. Adding a checkpoint extends the route while preserving reading time at existing stops. That file also sets the reading speed, hold duration, departure fades, and open-water gaps. Timed runs and obstacles are possible later extensions and are not implemented yet.
+
+Another planned addition is seasonal decoration: pumpkins in October and Christmas lights in December, layered onto the existing site like decorations on a house. Keep the core palette and content intact; this is recorded for a future iteration and is not enabled yet.
 
 A future resume update can be used to revise this content and the relevant project descriptions. Project case-study copy currently lives in `src/App.tsx`. The repository does not contain a public upload form or automatic resume parser.
 

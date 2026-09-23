@@ -32,6 +32,7 @@ Success means a visitor can quickly find qualifications and project evidence, ex
 - Use pixel art for the jetski and its world, with readable text for career stories and project details.
 - Keep information hierarchy and navigation consistent as colors and scenery change.
 - Exact palette, typography, scenery, photographs, and sprite design remain open.
+- Future seasonal decoration: add small details such as October pumpkins and December Christmas lights while retaining the site's usual palette and layout. Treat these as decorations on the existing setting; implementation is deferred.
 
 The reference homepage was visually inspected: bright yellow, large charcoal text, pink accents, and project names flowing together as navigation. Some project images did not load, so their artwork has not been fully reviewed.
 

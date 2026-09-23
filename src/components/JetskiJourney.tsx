@@ -6,7 +6,9 @@ import type { RideInput, RideState } from '../game/model';
 import { buildJourneyRoute, getJourneyFrame } from '../game/route';
 import ClevelandSkyline from './ClevelandSkyline';
 import JetskiSprite from './JetskiSprite';
+import { JetskiSplash } from './JetskiWater';
 import JourneyStory from './JourneyStory';
+import JourneyProgress from './JourneyProgress';
 import './jetski.css';
 
 const route = buildJourneyRoute(experience, MAX_SPEED);
@@ -69,12 +71,15 @@ function Scene({
 }) {
   const waterline = height - 155;
   const progress = state.position / route.length;
-  const docking = Math.max(0, (progress - 0.7) / 0.3);
   const dockScale = width < 560 ? 0.98 : width < 1000 ? 1.25 : 1.65;
   const dockX = width - 204 * dockScale - (width < 560 ? 10 : 24);
   const startX = width * 0.28;
   const dockedX = Math.max(startX, dockX - 100 * dockScale);
-  const boatX = width < 560 ? width * 0.26 : startX + docking * (dockedX - startX);
+  const boatXAt = (position: number) => {
+    const docking = Math.max(0, (position / route.length - 0.7) / 0.3);
+    return width < 560 ? width * 0.26 : startX + docking * (dockedX - startX);
+  };
+  const boatX = boatXAt(state.position);
   return (
     <svg
       className="journey-scene"
@@ -132,6 +137,13 @@ function Scene({
         y={waterline + 86}
         reduced={reduced}
         scale={width < 560 ? 1.65 : 2.3}
+      />
+      <JetskiSplash
+        state={state}
+        x={boatXAt(state.splash?.position ?? state.position)}
+        y={waterline + 111}
+        scale={width < 560 ? 1.65 : 2.3}
+        reduced={reduced}
       />
       <g
         transform={`translate(${width - 27} ${waterline + 117})`}
@@ -411,16 +423,7 @@ export default function JetskiJourney() {
               </button>
             ))}
           </div>
-          <div
-            className="journey-progress"
-            role="progressbar"
-            aria-label="Shoreline progress"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round((ride.position / route.length) * 100)}
-          >
-            <span style={{ width: `${(ride.position / route.length) * 100}%` }} />
-          </div>
+          <JourneyProgress route={route} position={ride.position} chapters={experience} />
           <div
             className="journey-stage"
             ref={stage}
