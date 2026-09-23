@@ -2,7 +2,7 @@
 
 Agreed direction recorded September 23, 2026.
 
-Implementation update: the React/TypeScript/Vite build includes the portfolio, playable jetski timeline, Revision Marine dock, and interactive protein explorer. GitHub Pages hosts the frontend; a paid Render FastAPI/pandas/NetworkX service supplies live STRING data automatically for two random proteins on page load. Two curated selectors expose real association hints, and neighborhood sizes include just the selected pair. Small and disconnected results remain visible. AI explanations and an embedded molecular viewer remain later stages. See the root README for current setup and validation instructions; the scope below continues to describe the full intended product.
+Implementation update: the React/TypeScript/Vite build includes the portfolio, playable jetski timeline, Revision Marine dock, and interactive protein explorer. GitHub Pages hosts the frontend; a paid Render FastAPI/pandas/NetworkX service supplies live STRING data automatically for two random proteins on page load. Two curated selectors expose real association hints, and neighborhood sizes include just the selected pair. Small and disconnected results remain visible. On-demand comparisons retrieve Ensembl 112 orthologues for chimpanzee, mouse, zebrafish, and fruit fly. Optional OpenAI explanations use server-composed evidence and a $5/month project budget; activation requires server configuration and live provider verification. An embedded molecular viewer remains a later stage. See the root README for current setup and validation instructions; the scope below describes the full intended product.
 
 The intended public domain is **jake-costello.com**, purchased through Wix. Publication requires connecting the GitHub repository, setting the custom domain in GitHub Pages, and updating its DNS records in Wix.
 
@@ -129,7 +129,7 @@ Initial scope: a few curated examples, approximately 30–60 proteins per networ
 | RCSB PDB and a molecular viewer such as Mol* | Retrieve and display an existing structure for a selected protein when available |
 | AI explanation | Explain the supplied data and computed results with references to the underlying sources |
 
-The implementation uses React/TypeScript for the frontend and FastAPI, pandas, and seeded NetworkX Louvain for the live STRING service. Existing molecular structures are linked externally; the embedded molecular viewer and AI explanation remain planned. The backend runs on one paid Render service; the AI provider remains an open decision.
+The implementation uses React/TypeScript for the frontend and FastAPI, pandas, and seeded NetworkX Louvain for the live STRING service. Molecular structures are linked externally; the embedded viewer remains planned. The same paid Render service retrieves cross-species orthologues from the named Ensembl archive and optionally calls OpenAI Responses for grounded explanations. Human sequence identity drives the ranking; the AI explains supplied results rather than inventing scores. OpenAI's monthly project budget is $5, with caching and shared application quotas.
 
 ### Scientific distinctions
 
@@ -178,7 +178,7 @@ Prioritize a complete, polished set of features. Introduce additional techniques
 - Hobbies, photographs, and real places that could inform the jetski setting.
 - Available payphone code, photographs, and demonstration material.
 - Exact palette, typography, sprite artwork, and animation treatment.
-- AI provider and AI operating budget. The frontend uses React/TypeScript/Vite with GitHub Pages; the Python/FastAPI backend uses one paid Render service as configured in `render.yaml`.
+- Live AI answer evaluation and continued source maintenance. Provider and budget are decided: OpenAI, $5/month, on the existing Render backend; see `docs/AI-EXPLANATIONS.md`.
 - Final public contact details and optional downloadable resume.
 - Git remote for Personal-Website; none was configured during the initial repository check.
 

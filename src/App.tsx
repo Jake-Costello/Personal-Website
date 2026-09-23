@@ -96,7 +96,7 @@ const projects: Project[] = [
     contribution:
       'The explorer loads two random human proteins from STRING, cleans their association data with pandas, and computes communities with NetworkX. Independent protein selectors include connection hints from the same source, with a choice of small or wider networks.',
     decisions:
-      'Real source data, retrieval times, and cached responses stay visible. Small or disconnected results remain valid results. Network layouts and physical molecular structures are different views; grounded AI explanations and an embedded molecular viewer are planned extensions.',
+      'Real source data, retrieval times, and cached responses stay visible. Compare a human protein with four animals using Ensembl sequence identity, then request a source-grounded AI explanation when enabled. The server calculates the ranking and limits paid requests. The 3D graph is a network layout; an embedded molecular viewer remains a future extension.',
   },
 ];
 

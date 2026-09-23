@@ -13,7 +13,7 @@ npm run dev
 
 Open the local address printed by Vite, normally `http://127.0.0.1:5173`.
 
-The portfolio runs without a backend, but the protein graph requires the Python service below. It only displays retrieved STRING data: a missing or unavailable service produces a loading/error state with retry, never a synthetic fallback. Running locally requires no API keys or paid services.
+The portfolio runs without a backend, but the protein graph requires the Python service below. It only displays retrieved STRING data: a missing or unavailable service produces a loading/error state with retry, never a synthetic fallback. The graph and species comparisons require no API keys. Optional AI explanations require a server-side OpenAI project key.
 
 ## Enable live protein data locally
 
@@ -38,11 +38,13 @@ The production API runs at [personal-website-protein-api.onrender.com](https://p
 - Revision Marine dock reveal, plus readable timeline navigation, keyboard and touch controls, and reduced-motion support.
 - Live protein graph with automatic random pairs, two curated selectors, actual STRING connection hints, pair-only/small/wider neighborhoods, rotation, zoom, confidence filtering, and accessible node selection. Disconnected proteins remain visible.
 - Live FastAPI service on Render: STRING identifier resolution, validated data processing, repeatable community detection, caching, request limits, and source provenance. Local frontend development can also run without it.
+- On-demand comparison of either selected human protein with chimpanzee, mouse, zebrafish, and fruit fly. Live Ensembl archive requests supply orthologues and sequence identity, with ranked bars, candidate details, and explicit missing-data states. The release is pinned to May 2024 and labelled accordingly.
+- Optional, source-grounded OpenAI explanations of the human network and species comparison. The server composes the evidence and ranking, validates source references, caches results, and bounds paid attempts. AI requires explicit activation; no paid calls occur on page load.
 - GitHub Actions workflow for checks and static publication.
 
-Still to come: confirmed personal photos and additional stories, a public Revision Marine site link, optional downloadable resume, embedded molecular structures, and grounded AI explanations. These are not represented as completed features in the interface.
+Still to come: confirmed personal photos and additional stories, a public Revision Marine site link, optional downloadable resume, and embedded molecular structures. These are not represented as completed features in the interface.
 
-The [AI explanation plan](docs/AI-EXPLANATIONS.md) describes the next integration, source grounding, account setup, and bounded usage.
+The [AI setup and evaluation guide](docs/AI-EXPLANATIONS.md) describes source grounding, activation, scientific limitations, and the $5/month OpenAI budget controls. Configuration status alone does not verify provider billing or model access; perform a live explanation check after enabling it.
 
 ## Update the resume and timeline
 

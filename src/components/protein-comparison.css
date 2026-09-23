@@ -1,0 +1,280 @@
+.protein-comparison {
+  padding: 28px 24px;
+  border-top: 1px solid #17251e;
+  background: #eceee3;
+}
+.protein-comparison-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.7fr);
+  align-items: end;
+  gap: 28px;
+}
+.protein-comparison h3 {
+  margin: 9px 0 10px;
+  font-size: clamp(22px, 2.3vw, 29px);
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+  font-weight: 500;
+}
+.protein-comparison p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.65;
+  color: #566056;
+}
+.protein-comparison a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+.protein-comparison-controls {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+.protein-comparison-controls > div {
+  flex: 1;
+  min-width: 0;
+}
+.protein-comparison label {
+  display: block;
+  margin-bottom: 9px;
+  font-size: 11px;
+}
+.protein-comparison select,
+.protein-comparison button {
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #17251e;
+  border-radius: 0;
+  color: #17251e;
+  background: #dfff7f;
+  font: inherit;
+  font-size: 12px;
+}
+.protein-comparison select {
+  width: 100%;
+  background: #f5f3ed;
+}
+.protein-comparison button {
+  cursor: pointer;
+}
+.protein-comparison button:hover:not(:disabled) {
+  background: #cee976;
+}
+.protein-comparison button:disabled,
+.protein-comparison select:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.protein-comparison .protein-comparison-status {
+  margin-top: 15px;
+}
+.protein-comparison .protein-comparison-error {
+  margin-top: 15px;
+  padding: 12px;
+  border: 1px solid #b27663;
+  color: #823322;
+  background: #faf0e8;
+}
+.protein-comparison-results {
+  margin-top: 24px;
+}
+.protein-comparison-metric h4 {
+  font-size: 16px;
+  margin: 0 0 6px;
+}
+.protein-species-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0;
+  margin: 20px 0;
+  list-style: none;
+}
+.protein-species-list > li {
+  min-width: 0;
+  padding: 17px 14px;
+  border: 1px solid #9ca493;
+  background: #f5f3ed;
+}
+.protein-species-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+}
+.protein-species-label > span {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+}
+.protein-identity-track {
+  height: 7px;
+  margin: 14px 0 10px;
+  background: #d7dbcf;
+}
+.protein-identity-track > span {
+  display: block;
+  height: 100%;
+  background: #3c6749;
+}
+.protein-highest-identity {
+  display: block;
+  font-size: 10px;
+  line-height: 1.5;
+  color: #31513a;
+}
+.protein-species-list .is-missing > p {
+  margin-top: 14px;
+  font-size: 11px;
+}
+.protein-orthologue-details {
+  margin-top: 14px;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.protein-orthologue-details summary {
+  cursor: pointer;
+}
+.protein-orthologue-details > ul {
+  padding: 0;
+  margin: 14px 0 0;
+  list-style: none;
+}
+.protein-orthologue-details li {
+  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 1px solid #c9cdc3;
+  overflow-wrap: anywhere;
+}
+.protein-orthologue-details p {
+  margin: 7px 0;
+  font-size: 10px;
+}
+.protein-orthologue-details dl {
+  margin: 12px 0 0;
+  font-size: 10px;
+}
+.protein-orthologue-details dl > div {
+  margin-top: 9px;
+}
+.protein-orthologue-details dt {
+  color: #566056;
+}
+.protein-orthologue-details dd {
+  margin: 0;
+}
+.protein-comparison-provenance {
+  padding-bottom: 22px;
+}
+.protein-comparison-provenance p {
+  margin-top: 7px;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.protein-explanation {
+  border-top: 1px solid #9ca493;
+  padding-top: 23px;
+}
+.protein-explanation-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.protein-explanation-heading h4 {
+  margin: 8px 0 0;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+.protein-explanation .protein-ai-availability {
+  margin-top: 14px;
+  font-size: 11px;
+}
+.protein-explanation-copy {
+  margin-top: 22px;
+  padding: 24px;
+  background: #17251e;
+  color: #f5f3ed;
+}
+.protein-explanation-copy p {
+  color: #cad4c7;
+  overflow-wrap: anywhere;
+}
+.protein-explanation-copy .protein-explanation-overview {
+  font-size: 16px;
+  line-height: 1.65;
+  color: #f5f3ed;
+}
+.protein-explanation-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 25px;
+  margin-top: 24px;
+}
+.protein-explanation-grid h5 {
+  margin: 0 0 9px;
+  color: #dfff7f;
+  font-size: 13px;
+  font-weight: 500;
+}
+.protein-explanation-sources {
+  margin-top: 25px;
+  font-size: 11px;
+  color: #cad4c7;
+}
+.protein-explanation-sources ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+}
+.protein-explanation-copy .protein-explanation-meta {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid #677165;
+  font-size: 10px;
+}
+@media (max-width: 1000px) {
+  .protein-comparison-intro {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .protein-comparison-controls {
+    max-width: 440px;
+  }
+  .protein-species-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 650px) {
+  .protein-comparison {
+    padding: 24px 20px;
+  }
+  .protein-comparison-controls {
+    flex-wrap: wrap;
+  }
+  .protein-comparison-controls > div {
+    flex-basis: 130px;
+  }
+  .protein-explanation-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 15px;
+  }
+  .protein-explanation-grid {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+  .protein-explanation-copy {
+    padding: 19px;
+  }
+}
+@media (max-width: 420px) {
+  .protein-species-list {
+    grid-template-columns: 1fr;
+  }
+}

@@ -8,6 +8,7 @@ import {
   projectNode,
 } from '../lib/protein';
 import type { ProteinCatalog, ProteinNetwork } from '../lib/protein';
+import ProteinComparison from './ProteinComparison';
 import './protein.css';
 
 const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
@@ -693,6 +694,16 @@ export default function ProteinExplorer() {
           </div>
         </aside>
       </div>
+      <ProteinComparison
+        key={
+          loadedQuery
+            ? loadedQuery.pair.join(',') + loadedQuery.confidence + ':' + loadedQuery.neighbors
+            : 'empty'
+        }
+        apiBase={apiBase}
+        query={loadedQuery}
+        disabled={loading || Boolean(pendingChanges)}
+      />
       <div className="protein-notes">
         <p>
           {network ? (
@@ -755,8 +766,9 @@ export default function ProteinExplorer() {
                 be functional; they do not always mean physical contact.
               </p>
               <p>
-                Communities are algorithmic groups, not established biological pathways.
-                Source-grounded AI explanations are a future stage; no AI service is connected.
+                Communities are algorithmic groups, not established biological pathways. Species
+                comparisons use Ensembl orthologues; AI explanations, when enabled, interpret this
+                evidence without determining the similarity scores.
               </p>
               <a href="https://string-db.org/help/api/" target="_blank" rel="noreferrer">
                 Read the STRING API documentation ↗
