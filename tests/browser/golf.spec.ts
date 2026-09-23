@@ -99,22 +99,33 @@ test('clubs reveal personal stories with keyboard controls and a readable altern
   page,
 }) => {
   const golf = await openGolf(page);
-  await expect(golf.getByRole('button', { name: 'Take a swing', exact: true })).toBeEnabled();
-  await golf.getByRole('button', { name: clubs[0], exact: true }).focus();
-  await page.keyboard.press('Space');
-  await expect(golf.getByRole('button', { name: clubs[0], exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await golf.getByRole('button', { name: 'Take a swing', exact: true }).focus();
+  const driver = golf.getByRole('button', { name: clubs[0], exact: true });
+  await driver.focus();
+  await expect(driver.locator('.golf-club-tooltip')).toHaveCSS('opacity', '1');
+  await expect(driver.locator('.golf-club-tooltip')).toContainText('Creative beginnings');
   await page.keyboard.press('Enter');
   await expect(golf).toHaveAttribute('data-phase', 'reading');
-  await expect(golf.locator('.golf-fact-copy')).toContainText(/animation/i);
-  await expect(golf.locator('.golf-fact-copy')).toContainText(/computer science/i);
-  await expect(golf).toContainText('1 / 6 discovered');
-  await golf.getByRole('button', { name: 'Next shot', exact: true }).click();
+  await expect(page.locator('.golf-fact-copy')).toContainText(/animation/i);
+  await expect(page.locator('.golf-fact-copy')).toContainText(/computer science/i);
+  await page.getByRole('button', { name: 'Next shot', exact: true }).click();
   await expect(golf).toHaveAttribute('data-phase', 'idle');
-  await expect(golf.getByRole('button', { name: 'Take a swing', exact: true })).toBeFocused();
+  await expect(driver).toBeFocused();
+
+  const putter = golf.getByRole('button', { name: clubs[4], exact: true });
+  await putter.focus();
+  await page.keyboard.press('Space');
+  await expect(page.locator('.golf-fact-copy')).toContainText(/two cats|2 cats/i);
+  await page.getByRole('button', { name: 'Next shot', exact: true }).click();
+  await expect(putter).toBeFocused();
+
+  // Every illustrated club must be independently clickable, including clubs beside it.
+  for (const index of [1, 2, 3, 5]) {
+    const club = golf.getByRole('button', { name: clubs[index], exact: true });
+    await club.click();
+    await expect(page.locator('.golf-fact-kicker')).toContainText(clubs[index].split(' — ')[1]);
+    await page.getByRole('button', { name: 'Next shot', exact: true }).click();
+    await expect(club).toBeFocused();
+  }
 
   await golf.getByText('Read all 6 facts', { exact: true }).click();
   const facts = golf.locator('details[open]');
@@ -140,18 +151,15 @@ test('reduced motion leaves each fact readable until the visitor requests the ne
   const golf = await openGolf(page);
   await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));
   await golf.getByRole('button', { name: clubs[4], exact: true }).click();
-  await golf.getByRole('button', { name: 'Take a swing', exact: true }).click();
   await expect(golf).toHaveAttribute('data-phase', 'reading');
-  await expect(golf.locator('.golf-fact-copy')).toContainText(/two cats|2 cats/i);
+  await expect(page.locator('.golf-fact-copy')).toContainText(/two cats|2 cats/i);
   await page.mouse.move(1, 1);
   await page.clock.runFor(12_000);
   await expect(golf).toHaveAttribute('data-phase', 'reading');
-  await expect(golf).toContainText('1 / 6 discovered');
-  await golf.getByRole('button', { name: 'Next shot', exact: true }).click();
+  await page.getByRole('button', { name: 'Next shot', exact: true }).click();
   await expect(golf).toHaveAttribute('data-phase', 'idle');
   await page.clock.runFor(12_000);
-  await expect(golf.locator('.golf-fact-ball')).toHaveCount(0);
-  await expect(golf).toContainText('1 / 6 discovered');
+  await expect(page.locator('.golf-fact-ball')).toHaveCount(0);
 });
 
 test('dragging a club to the golfer plays its story, while a missed drop does not swing', async ({
@@ -171,8 +179,9 @@ test('dragging a club to the golfer plays its story, while a missed drop does no
     testInfo.project.name === 'mobile',
   );
   await expect(golf).toHaveAttribute('data-phase', 'reading');
-  await expect(golf.locator('.golf-fact-copy')).toContainText(/beach volleyball/i);
-  await golf.getByRole('button', { name: 'Next shot', exact: true }).click();
+  await expect(page.locator('.golf-fact-copy')).toContainText(/beach volleyball/i);
+  await page.getByRole('button', { name: 'Next shot', exact: true }).click();
+  await expect(club).toBeFocused();
 
   const otherClub = golf.getByRole('button', { name: clubs[1], exact: true });
   await otherClub.scrollIntoViewIfNeeded();
@@ -184,36 +193,35 @@ test('dragging a club to the golfer plays its story, while a missed drop does no
     testInfo.project.name === 'mobile',
   );
   await expect(golf).toHaveAttribute('data-phase', 'idle');
-  await expect(golf).toContainText('1 / 6 discovered');
-  await expect(golf.locator('.golf-fact-ball')).toHaveCount(0);
+  await expect(page.locator('.golf-fact-ball')).toHaveCount(0);
 });
 
 test('a shot swings, approaches the screen, waits to be read, then falls away', async ({
   page,
 }) => {
   const golf = await beginTimedGolf(page);
-  await golf.getByRole('button', { name: 'Take a swing', exact: true }).click();
+  const driver = golf.getByRole('button', { name: clubs[0], exact: true });
+  await driver.click();
   await page.mouse.move(1, 1);
   await expect(golf).toHaveAttribute('data-phase', 'swing');
   await page.clock.runFor(950);
   await expect(golf).toHaveAttribute('data-phase', 'flight');
   await page.clock.runFor(700);
   await expect(golf).toHaveAttribute('data-phase', 'reading');
-  await expect(golf.locator('.golf-fact-copy')).toContainText(/animation/i);
-  await expect(golf).toContainText('1 / 6 discovered');
+  await expect(page.locator('.golf-fact-copy')).toContainText(/animation/i);
   await page.clock.runFor(6_000);
   await expect(golf).toHaveAttribute('data-phase', 'reading');
   await page.clock.runFor(1_100);
   await expect(golf).toHaveAttribute('data-phase', 'falling');
   await page.clock.runFor(1_150);
   await expect(golf).toHaveAttribute('data-phase', 'idle');
-  await expect(golf.locator('.golf-fact-ball')).toHaveCount(0);
-  await expect(golf.getByRole('button', { name: 'Take a swing', exact: true })).toBeEnabled();
+  await expect(page.locator('.golf-fact-ball')).toHaveCount(0);
+  await expect(driver).toBeEnabled();
 });
 
 test('keep reading pauses expiry and repeated swing input cannot stack shots', async ({ page }) => {
   const golf = await beginTimedGolf(page);
-  const swing = golf.getByRole('button', { name: 'Take a swing', exact: true });
+  const swing = golf.getByRole('button', { name: clubs[0], exact: true });
   // Dispatch several activations in one event-loop turn to exercise the in-flight guard.
   await swing.evaluate((button) => {
     for (let click = 0; click < 4; click += 1) (button as HTMLButtonElement).click();
@@ -225,54 +233,109 @@ test('keep reading pauses expiry and repeated swing input cannot stack shots', a
   await page.clock.runFor(950);
   await page.clock.runFor(700);
   await expect(golf).toHaveAttribute('data-phase', 'reading');
-  await expect(golf.locator('.golf-fact-copy')).toContainText(/animation/i);
-  await expect(golf).toContainText('1 / 6 discovered');
-  await golf.getByRole('button', { name: 'Keep reading', exact: true }).click();
+  await expect(page.locator('.golf-fact-copy')).toContainText(/animation/i);
+  await expect(page.locator('.golf-fact-ball')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Keep reading', exact: true }).click();
   await page.mouse.move(1, 1);
-  await expect(golf.getByRole('button', { name: 'Reading paused', exact: true })).toHaveAttribute(
+  await expect(page.getByRole('button', { name: 'Reading paused', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
   await page.clock.runFor(15_000);
   await expect(golf).toHaveAttribute('data-phase', 'reading');
-  await golf.getByRole('button', { name: 'Next shot', exact: true }).click();
+  await page.getByRole('button', { name: 'Reading paused', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Keep reading', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  // The ball naturally arrives beneath the cursor; hover must not stop its countdown.
+  const viewport = page.viewportSize()!;
+  await page.mouse.move(viewport.width / 2, viewport.height / 2);
+  await page.clock.runFor(6_000);
+  await expect(golf).toHaveAttribute('data-phase', 'reading');
+  await page.clock.runFor(1_100);
+  await expect(golf).toHaveAttribute('data-phase', 'falling');
+  await page.clock.runFor(1_150);
+  await expect(golf).toHaveAttribute('data-phase', 'idle');
+
+  await swing.click();
+  await page.clock.runFor(950);
+  await page.clock.runFor(700);
+  await expect(golf).toHaveAttribute('data-phase', 'reading');
+  await page.getByRole('button', { name: 'Next shot', exact: true }).click();
   await expect(golf).toHaveAttribute('data-phase', 'falling');
   await page.clock.runFor(1_150);
   await expect(golf).toHaveAttribute('data-phase', 'idle');
   await page.clock.runFor(15_000);
   await expect(golf).toHaveAttribute('data-phase', 'idle');
-  await expect(golf).toContainText('1 / 6 discovered');
+  await expect(page.locator('.golf-fact-ball')).toHaveCount(0);
 });
 
-test('the fact card fits the screen and Escape restores the golf controls', async ({
+test('the fact ball fills the viewport independently of the scene and Escape restores its club', async ({
   page,
 }, testInfo) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   const golf = await openGolf(page);
-  // The decorative ball can extend past the scene; its text and controls must fit.
-  await golf.getByRole('button', { name: clubs[0], exact: true }).click();
-  await golf.getByRole('button', { name: 'Take a swing', exact: true }).click();
+  const driver = golf.getByRole('button', { name: clubs[0], exact: true });
+  await driver.click();
   await expect(golf).toHaveAttribute('data-phase', 'reading');
-  const ball = golf.locator('.golf-fact-ball');
+  const ball = page.locator('.golf-fact-ball');
   await expect(ball).toBeInViewport();
-  const sceneBounds = await golf.locator('.golf-facts-scene').boundingBox();
+  // The overlay must escape any layout clipping applied to the little golf scene.
+  await expect(golf.locator('.golf-fact-ball')).toHaveCount(0);
+  const viewport = page.viewportSize()!;
+  const ballBounds = await ball.boundingBox();
+  expect(Math.abs(ballBounds!.x + ballBounds!.width / 2 - viewport.width / 2)).toBeLessThan(2);
+  expect(Math.abs(ballBounds!.y + ballBounds!.height / 2 - viewport.height / 2)).toBeLessThan(2);
+  expect(ballBounds!.width).toBeGreaterThan(Math.min(viewport.width, viewport.height) * 0.7);
   for (const selector of ['.golf-fact-content', '.golf-fact-actions']) {
-    const content = golf.locator(selector);
+    const content = page.locator(selector);
     await expect(content).toBeInViewport({ ratio: 1 });
     const bounds = await content.boundingBox();
-    expect(bounds!.x).toBeGreaterThanOrEqual(Math.max(0, sceneBounds!.x));
-    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(
-      Math.min(page.viewportSize()!.width, sceneBounds!.x + sceneBounds!.width) + 1,
-    );
-    expect(bounds!.y).toBeGreaterThanOrEqual(sceneBounds!.y);
-    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(sceneBounds!.y + sceneBounds!.height);
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width + 1);
+    expect(bounds!.y).toBeGreaterThanOrEqual(0);
+    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height + 1);
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await golf.getByRole('button', { name: 'Next shot', exact: true }).focus();
-  await page.screenshot({ path: `.cache/golf-${testInfo.project.name}.png` });
+  await page.getByRole('button', { name: 'Next shot', exact: true }).focus();
+  await page.screenshot({ path: `.cache/golf-tests-${testInfo.project.name}.png` });
   await page.keyboard.press('Escape');
   await expect(golf).toHaveAttribute('data-phase', 'idle');
-  await expect(golf.getByRole('button', { name: 'Take a swing', exact: true })).toBeFocused();
+  await expect(driver).toBeFocused();
   expect(errors).toEqual([]);
+});
+
+test('the introduction sits beside an unboxed golf scene with directly playable clubs', async ({
+  page,
+}, testInfo) => {
+  const golf = await openGolf(page);
+  const intro = page.locator('#about > .about-heading');
+  const introBounds = await intro.boundingBox();
+  const golfBounds = await golf.boundingBox();
+  expect(introBounds).not.toBeNull();
+  expect(golfBounds).not.toBeNull();
+  if (testInfo.project.name === 'desktop') {
+    expect(introBounds!.x + introBounds!.width).toBeLessThanOrEqual(golfBounds!.x);
+    expect(
+      Math.min(introBounds!.y + introBounds!.height, golfBounds!.y + golfBounds!.height),
+    ).toBeGreaterThan(Math.max(introBounds!.y, golfBounds!.y));
+  } else {
+    expect(introBounds!.y + introBounds!.height).toBeLessThanOrEqual(golfBounds!.y);
+  }
+  await expect(golf).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(golf).toHaveCSS('border-top-width', '0px');
+  await expect(golf.locator('.golf-facts-scene')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(golf.getByRole('button', { name: 'Take a swing', exact: true })).toHaveCount(0);
+  for (const club of clubs)
+    await expect(golf.getByRole('button', { name: club, exact: true })).toBeVisible();
+  if (testInfo.project.name === 'desktop') {
+    const iron = golf.getByRole('button', { name: clubs[1], exact: true });
+    await iron.hover();
+    await expect(iron.locator('.golf-club-tooltip')).toHaveCSS('opacity', '1');
+    await expect(iron.locator('.golf-club-tooltip')).toContainText('Rock climbing');
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: `.cache/golf-tests-idle-${testInfo.project.name}.png` });
 });

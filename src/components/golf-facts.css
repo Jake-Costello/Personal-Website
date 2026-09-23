@@ -1,115 +1,140 @@
 .golf-facts {
-  --golf-coral: #f8a186;
-  margin-top: 44px;
-  background: var(--ink);
-  color: var(--paper);
-  border: 1px solid var(--ink);
-}
-.golf-facts-heading {
-  display: flex;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 30px 34px;
-  align-items: center;
-}
-.golf-eyebrow {
-  font: 10px/1.4 var(--mono);
-  letter-spacing: 0.1em;
-  color: var(--golf-coral);
-}
-.golf-facts-heading h3 {
-  font-size: clamp(27px, 3.3vw, 47px);
-  letter-spacing: -0.06em;
-  line-height: 1.05;
-  margin-top: 12px;
-  font-weight: 500;
-}
-.golf-facts-heading h3 span {
-  color: var(--lime);
-}
-.golf-discovered {
-  display: grid;
-  justify-items: end;
-  flex-shrink: 0;
-}
-.golf-discovered strong {
-  font-size: 51px;
-  line-height: 1;
-  font-weight: 400;
-  letter-spacing: -0.06em;
-}
-.golf-discovered span {
-  font: 10px/1.5 var(--mono);
-  margin-top: 6px;
-  color: #c3cbbb;
-}
-.golf-playground {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 268px;
-  border-block: 1px solid #637061;
+  min-width: 0;
+  color: var(--ink);
 }
 .golf-facts-scene {
   position: relative;
+  width: 100%;
+  aspect-ratio: 600 / 480;
   isolation: isolate;
-  min-width: 0;
-  min-height: 493px;
-  overflow: hidden;
-  background: #d2dcba;
-  color: var(--ink);
 }
-.golf-facts-scene > .golf-scene {
+.golf-facts-scene > .golf-scene,
+.golf-bag-overlay {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
 }
-.golf-scene-stamp {
-  position: absolute;
-  top: 20px;
-  left: 22px;
-  font: 10px/1.5 var(--mono);
-  letter-spacing: 0.04em;
-  z-index: 1;
+.golf-bag-overlay {
+  z-index: 3;
 }
-.golf-scene-caption {
+.golf-clubs {
   position: absolute;
-  inset: auto 22px 19px;
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  font: 9px/1.5 var(--mono);
-  z-index: 1;
+  inset: 0;
   pointer-events: none;
+  z-index: 2;
+}
+.golf-club-button {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  transform: translate(-50%, -50%);
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+.golf-club-button::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: var(--lime);
+  opacity: 0;
+  transform: scale(0.8);
+  transition:
+    transform 0.15s,
+    opacity 0.15s;
+}
+.golf-club-button:hover:not([aria-disabled='true'])::before,
+.golf-club-button:focus-visible::before {
+  opacity: 0.8;
+  transform: scale(1);
+}
+.golf-club-button:focus-visible {
+  outline: 2px dashed var(--ink);
+  outline-offset: 2px;
+}
+.golf-club-button[aria-disabled='true'] {
+  cursor: default;
+}
+.golf-club-icon {
+  position: absolute;
+  left: 50%;
+  top: 10px;
+  width: 34px;
+  height: var(--club-length);
+  transform: translateX(-50%) rotate(var(--club-angle));
+  transform-origin: 50% 12px;
+  pointer-events: none;
+  filter: drop-shadow(1px 1px 0 #17251e18);
+}
+.golf-club-button.is-picked-up .golf-club-icon {
+  opacity: 0.15;
+}
+.golf-club-tooltip {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  display: grid;
+  gap: 3px;
+  width: max-content;
+  max-width: 152px;
+  padding: 8px 10px;
+  background: var(--ink);
+  color: var(--paper);
+  font: 10px/1.3 var(--mono);
+  text-align: center;
+  transform: translateX(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+}
+.golf-club-tooltip strong {
+  font-weight: 500;
+  color: var(--lime);
+}
+.golf-club-tooltip > span {
+  font-size: 8px;
+}
+.golf-club-button:hover:not([aria-disabled='true']) .golf-club-tooltip,
+.golf-club-button:focus-visible .golf-club-tooltip {
+  opacity: 1;
+}
+.golf-club-button:nth-last-child(-n + 2) .golf-club-tooltip {
+  left: auto;
+  right: 0;
+  transform: none;
 }
 .golf-drop-zone {
   position: absolute;
-  left: 41%;
-  top: 34%;
-  width: 28%;
-  height: 48%;
   border: 2px dashed transparent;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 12px;
-  z-index: 2;
+  z-index: 1;
   pointer-events: none;
+  border-radius: 40%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 8px;
   transition:
-    background 0.15s,
-    border-color 0.15s;
+    border-color 0.15s,
+    background 0.15s;
 }
 .golf-drop-zone span {
   opacity: 0;
-  font: 9px/1.5 var(--mono);
+  padding: 5px 7px;
+  font: 8px/1.3 var(--mono);
   background: var(--ink);
   color: var(--paper);
-  padding: 8px;
-  text-align: center;
 }
 .is-dragging .golf-drop-zone {
-  border-color: var(--ink);
-  background: #f5f3ed33;
+  border-color: #17251e88;
+  background: #dfff7f22;
 }
 .is-dragging .golf-drop-zone span {
   opacity: 1;
@@ -118,197 +143,167 @@
   border-style: solid;
   background: #dfff7f55;
 }
-.golf-bag-panel {
-  padding: 20px 18px 18px;
-  border-left: 1px solid #637061;
-  background: #202f26;
-}
-.golf-bag-label {
-  display: flex;
-  gap: 13px;
-  margin-bottom: 16px;
-  align-items: flex-start;
-}
-.golf-bag-label > span {
-  font-size: 31px;
-  line-height: 1;
-  color: var(--golf-coral);
-}
-.golf-bag-label p {
-  font: 10px/1.4 var(--mono);
-  letter-spacing: 0.035em;
-}
-.golf-bag-label small {
-  display: block;
-  font:
-    11px/1.5 'Space Grotesk Variable',
-    sans-serif;
-  color: #c3cbbb;
-  margin-top: 5px;
-  letter-spacing: 0;
-}
-.golf-club-rack {
-  display: grid;
-  gap: 5px;
-}
-.golf-club-button {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  min-height: 50px;
-  padding: 5px 10px 5px 8px;
-  border: 1px solid #586252;
-  background: transparent;
-  color: var(--paper);
-  text-align: left;
-  touch-action: none;
-  user-select: none;
-}
-.golf-club-button:hover:not([aria-disabled='true']) {
-  border-color: var(--golf-coral);
-  background: #f8a1860c;
-}
-.golf-club-button[aria-pressed='true'] {
-  border-color: var(--lime);
-  background: #dfff7f12;
-}
-.golf-club-button[aria-disabled='true'] {
-  cursor: default;
-}
-.golf-club-button > span:nth-child(2) {
-  display: grid;
-  gap: 2px;
-}
-.golf-club-button strong {
-  font-size: 13px;
-  font-weight: 500;
-}
-.golf-club-button small {
-  font: 9px/1.2 var(--mono);
-  color: #c3cbbb;
-}
-.golf-club-icon {
-  width: 27px;
-  height: 37px;
-  flex-shrink: 0;
-}
-.golf-club-seen {
-  margin-left: auto;
-  font-size: 13px;
-  color: #a5ad9a;
-}
-.golf-club-button[data-discovered='true'] .golf-club-seen {
-  color: var(--lime);
-}
-.golf-swing-button {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  min-height: 46px;
-  padding: 10px 13px;
-  border: 1px solid var(--lime);
-  background: var(--lime);
-  color: var(--ink);
-  margin-top: 14px;
-  font-size: 13px;
-  font-weight: 600;
-}
-.golf-swing-button[aria-disabled='true'] {
-  background: #62704a;
-  border-color: #62704a;
-  color: #eef4e4;
-  cursor: default;
-}
-.golf-swing-button > span {
-  font-size: 21px;
-  line-height: 1;
-}
 .golf-instructions {
-  margin-top: 9px;
-  font-size: 10px;
-  line-height: 1.5;
-  color: #c3cbbb;
+  margin-top: -9px;
+  text-align: center;
+  font: 11px/1.5 var(--mono);
+  color: #5f6d58;
+}
+.golf-readable-facts {
+  margin-top: 16px;
+}
+.golf-readable-facts summary {
+  width: fit-content;
+  margin: 0 auto;
+  font-size: 11px;
+  color: #5f6d58;
+  cursor: pointer;
+  padding: 8px;
+}
+.golf-readable-facts summary:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.golf-facts-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+  padding: 26px 0 8px;
+}
+.golf-facts-list article > span {
+  font: 9px/1.5 var(--mono);
+  color: #5f6d58;
+}
+.golf-facts-list h4 {
+  margin: 8px 0;
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+.golf-facts-list p {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.golf-drag-ghost {
+  visibility: hidden;
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 40px;
+  height: 140px;
+  pointer-events: none;
+  z-index: 90;
+  filter: drop-shadow(3px 5px 0 #17251e33);
+  will-change: transform;
+  transform-origin: 20px 12px;
+}
+.golf-drag-ghost svg {
+  width: 100%;
+  height: 100%;
 }
 .golf-ball-layer {
-  position: absolute;
+  --golf-launch-x: 0px;
+  --golf-launch-y: 0px;
+  position: fixed;
   inset: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   place-items: center;
-  z-index: 3;
+  overflow: hidden;
+  z-index: 90;
   pointer-events: none;
 }
 .golf-fact-ball {
-  width: min(440px, 94%);
+  width: clamp(380px, min(88vw, 84dvh), 840px);
   aspect-ratio: 1;
-  border-radius: 50%;
+  flex-shrink: 0;
   display: grid;
   place-items: center;
-  padding: 40px;
-  background-color: #fffdf0;
-  background-image: radial-gradient(circle, #c4c3b12e 1px, transparent 2px);
-  background-size: 14px 14px;
+  position: relative;
+  border-radius: 50%;
+  background-color: #fff;
+  background-image: url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2248%22%20height%3D%2248%22%20viewBox%3D%220%200%2048%2048%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22d%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23a7b2bd%22%2F%3E%3Cstop%20offset%3D%22.25%22%20stop-color%3D%22%23d2d9df%22%2F%3E%3Cstop%20offset%3D%22.8%22%20stop-color%3D%22%23f4f6f8%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23fff%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Cg%20fill%3D%22url(%23d)%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%225.2%22%2F%3E%3Ccircle%20cx%3D%2236%22%20cy%3D%2236%22%20r%3D%225.2%22%2F%3E%3C%2Fg%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%23fff%22%20stroke-width%3D%221.1%22%3E%3Cpath%20d%3D%22M7%2013a5.1%205.1%200%200%200%2010%200M31%2037a5.1%205.1%200%200%200%2010%200%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E');
+  background-size: 48px 48px;
   box-shadow:
-    inset -19px -18px 0 #e1e3ca,
-    inset 10px 12px 0 #fffff8,
-    0 23px 36px #17251e38;
-  border: 1px solid #fdfdf6;
+    inset -27px -30px 38px #697c9426,
+    inset 15px 19px 27px #ffffff,
+    0 25px 65px #17251e28;
+  border: 1px solid #e2e6e8;
   color: var(--ink);
   text-align: center;
-  transform-origin: center;
   pointer-events: auto;
+  transform-origin: center;
+}
+.golf-fact-ball::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    ellipse at center,
+    #ffffffeb 0%,
+    #ffffffdf 35%,
+    #ffffff22 63%,
+    #ffffff00 75%
+  );
+  pointer-events: none;
 }
 .golf-fact-content {
-  width: 100%;
+  position: relative;
+  width: min(65%, 540px, calc(100vw - 48px));
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  padding: 8px 0;
+  scrollbar-width: thin;
 }
 .golf-fact-kicker {
   display: block;
-  font: 9px/1.5 var(--mono);
+  font: 10px/1.5 var(--mono);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 10px;
+  letter-spacing: 0.035em;
+  margin-bottom: 18px;
 }
 .golf-fact-title {
-  margin: 0 0 13px;
-  font-size: clamp(25px, 2.2vw, 33px);
+  margin: 0 0 22px;
+  font-size: clamp(30px, 4vw, 57px);
   font-weight: 500;
-  letter-spacing: -0.05em;
+  letter-spacing: -0.055em;
   line-height: 1.05;
 }
 .golf-fact-copy {
-  font-size: 19px;
-  line-height: 1.4;
-  letter-spacing: -0.02em;
+  font-size: clamp(20px, 2.1vw, 29px);
+  line-height: 1.42;
+  letter-spacing: -0.025em;
 }
 .golf-fact-actions {
   display: flex;
   justify-content: center;
-  gap: 8px;
-  margin-top: 20px;
+  gap: 10px;
+  margin-top: 27px;
 }
 .golf-fact-actions button {
-  border: 1px solid #c0c4ac;
-  background: transparent;
-  padding: 9px 10px;
+  border: 0;
+  border-bottom: 1px solid #a5afa5;
+  padding: 9px 7px;
   min-height: 44px;
-  font-size: 11px;
-  line-height: 1.15;
+  background: transparent;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.2;
 }
 .golf-fact-actions button:last-child {
-  background: var(--ink);
   border-color: var(--ink);
-  color: var(--paper);
 }
 .golf-fact-actions button[aria-pressed='true'] {
   background: var(--lime);
 }
 .golf-reading-note {
   display: block;
-  max-width: 245px;
-  margin: 10px auto 0;
-  font: 8px/1.5 var(--mono);
-  color: #5b6652;
+  margin: 12px auto 0;
+  font: 9px/1.5 var(--mono);
+  color: #65705e;
 }
 .golf-ball-flight .golf-fact-ball {
   animation: golf-fact-arrive 650ms cubic-bezier(0.2, 0.65, 0.25, 1) both;
@@ -324,69 +319,6 @@
   animation: golf-fact-depart 1100ms cubic-bezier(0.45, 0, 0.65, 0.65) both;
   pointer-events: none;
 }
-.golf-bottom-line {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 15px 24px;
-  border-bottom: 1px solid #637061;
-  font: 9px/1.5 var(--mono);
-  color: #c3cbbb;
-}
-.golf-bottom-line span:first-child {
-  color: var(--golf-coral);
-}
-.golf-readable-facts {
-  padding: 0 24px;
-}
-.golf-readable-facts summary {
-  padding: 18px 0;
-  font-size: 12px;
-  cursor: pointer;
-  width: fit-content;
-}
-.golf-readable-facts summary:focus-visible {
-  outline: 3px solid var(--pink);
-  outline-offset: 3px;
-}
-.golf-facts-list {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 26px;
-  padding: 8px 0 30px;
-}
-.golf-facts-list article > span {
-  font: 9px/1.5 var(--mono);
-  color: var(--golf-coral);
-}
-.golf-facts-list h4 {
-  margin: 8px 0;
-  font-size: 20px;
-  line-height: 1.2;
-  font-weight: 500;
-  letter-spacing: -0.03em;
-}
-.golf-facts-list p {
-  color: #dce0d3;
-  font-size: 13px;
-  line-height: 1.6;
-}
-.golf-drag-ghost {
-  visibility: hidden;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 48px;
-  height: 110px;
-  pointer-events: none;
-  z-index: 90;
-  filter: drop-shadow(3px 5px 0 #17251e55);
-  will-change: transform;
-}
-.golf-drag-ghost svg {
-  width: 100%;
-  height: 100%;
-}
 .golf-sr-only {
   position: absolute;
   width: 1px;
@@ -400,7 +332,7 @@
 }
 @keyframes golf-fact-arrive {
   from {
-    transform: translate(var(--golf-launch-x), var(--golf-launch-y)) scale(0.025);
+    transform: translate(var(--golf-launch-x), var(--golf-launch-y)) scale(0.015);
   }
   to {
     transform: translate(0, 0) scale(1);
@@ -424,158 +356,84 @@
   }
   100% {
     opacity: 0;
-    transform: translateY(110%) rotate(7deg);
-  }
-}
-@media (max-width: 980px) {
-  .golf-playground {
-    grid-template-columns: minmax(0, 1fr) 230px;
-  }
-  .golf-bag-panel {
-    padding-inline: 13px;
-  }
-  .golf-fact-ball {
-    padding: 32px;
-  }
-  .golf-fact-copy {
-    font-size: 18px;
-  }
-  .golf-fact-title {
-    font-size: 27px;
+    transform: translateY(100dvh) rotate(7deg);
   }
 }
 @media (max-width: 760px) {
-  .golf-facts-heading {
-    padding: 23px 20px;
-    gap: 14px;
-  }
-  .golf-facts-heading h3 {
-    font-size: clamp(27px, 5.4vw, 38px);
-  }
-  .golf-eyebrow {
-    font-size: 8px;
-  }
-  .golf-discovered strong {
-    font-size: 38px;
-  }
-  .golf-discovered span {
-    font-size: 8px;
-  }
-  .golf-playground {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .golf-facts-scene {
-    min-height: 470px;
-  }
-  .golf-bag-panel {
-    padding: 18px;
-    border-left: 0;
-    border-top: 1px solid #637061;
-  }
-  .golf-bag-label {
-    margin-bottom: 12px;
-  }
-  .golf-club-rack {
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-  .golf-club-button {
-    min-height: 61px;
-    gap: 8px;
-    padding-inline: 7px;
-  }
-  .golf-club-button small {
-    font-size: 8px;
-  }
-  .golf-club-icon {
-    width: 22px;
-    height: 38px;
-  }
-  .golf-instructions {
-    font-size: 11px;
-  }
   .golf-fact-ball {
-    width: min(400px, calc(100% + 48px));
-    padding: 35px 43px;
+    width: max(390px, min(82dvh, calc(100vw + 90px)));
+    background-size: 42px 42px;
+  }
+  .golf-fact-content {
+    width: min(68%, calc(100vw - 54px));
   }
   .golf-fact-title {
-    font-size: 28px;
-    margin-bottom: 12px;
+    font-size: 31px;
+    margin-bottom: 17px;
   }
   .golf-fact-copy {
-    font-size: 18px;
+    font-size: 20px;
+    line-height: 1.4;
   }
   .golf-fact-kicker {
-    font-size: 8px;
-    margin-bottom: 9px;
+    font-size: 9px;
+    margin-bottom: 12px;
   }
   .golf-fact-actions {
-    position: absolute;
-    inset: auto 0 15px;
-    margin: 0;
-  }
-  .golf-fact-actions button {
-    background: var(--paper);
+    margin-top: 21px;
   }
   .golf-reading-note {
-    display: none;
-  }
-  .golf-facts[data-phase='reading'] .golf-scene-caption,
-  .golf-facts[data-phase='falling'] .golf-scene-caption {
-    visibility: hidden;
-  }
-  .golf-scene-caption {
-    inset-inline: 16px;
     font-size: 8px;
-  }
-  .golf-scene-caption span:last-child {
-    display: none;
-  }
-  .golf-bottom-line {
-    flex-direction: column;
-    gap: 5px;
-    padding: 15px 18px;
-    font-size: 8px;
-  }
-  .golf-readable-facts {
-    padding-inline: 18px;
-  }
-  .golf-facts-list {
-    grid-template-columns: 1fr 1fr;
-    gap: 22px;
   }
 }
 @media (max-width: 400px) {
-  .golf-fact-ball {
-    padding: 31px 43px;
-  }
   .golf-fact-title {
-    font-size: 24px;
+    font-size: 29px;
   }
   .golf-fact-copy {
     font-size: 18px;
-    line-height: 1.32;
-  }
-  .golf-fact-kicker {
-    margin-bottom: 6px;
   }
   .golf-fact-actions {
-    gap: 6px;
+    gap: 8px;
+    margin-top: 17px;
   }
   .golf-fact-actions button {
-    font-size: 10px;
-    padding-inline: 7px;
-  }
-  .golf-reading-note {
-    font-size: 7px;
-    margin-top: 6px;
+    font-size: 11px;
   }
   .golf-facts-list {
     grid-template-columns: 1fr;
   }
 }
+@media (max-height: 500px) and (orientation: landscape) {
+  .golf-fact-ball {
+    width: max(420px, 85dvh);
+  }
+  .golf-fact-content {
+    width: min(72%, calc(100vw - 70px));
+    max-height: calc(100dvh - 26px);
+  }
+  .golf-fact-title {
+    font-size: 26px;
+    margin-bottom: 10px;
+  }
+  .golf-fact-copy {
+    font-size: 18px;
+    line-height: 1.3;
+  }
+  .golf-fact-kicker {
+    font-size: 8px;
+    margin-bottom: 8px;
+  }
+  .golf-fact-actions {
+    margin-top: 12px;
+  }
+  .golf-reading-note {
+    display: none;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .golf-facts *,
+  .golf-ball-layer *,
   .golf-facts *::before,
   .golf-facts *::after {
     animation: none !important;

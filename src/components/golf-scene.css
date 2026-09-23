@@ -52,7 +52,7 @@
 
 .golf-scene--flight .golf-scene__impact {
   animation: golf-scene-impact 240ms steps(3, end) both;
-  transform-origin: 535px 327px;
+  transform-origin: 313px 375px;
 }
 
 @keyframes golf-scene-address {

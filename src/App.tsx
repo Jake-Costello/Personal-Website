@@ -547,22 +547,20 @@ function App() {
 
         <section id="about" className="about-section section-shell" aria-labelledby="about-title">
           <div className="about-heading">
-            <div>
-              <p className="eyebrow">04 / OFF THE CLOCK</p>
-              <h2 id="about-title">
-                The person behind
-                <br /> the <em>projects.</em>
-              </h2>
-            </div>
+            <p className="eyebrow">04 / OFF THE CLOCK</p>
+            <h2 id="about-title">
+              The person
+              <br />
+              behind the
+              <br />
+              <em>projects.</em>
+            </h2>
             <div className="about-copy">
               <p>
                 I’m Jacob—a computer science graduate from Ohio University, a full-stack developer,
-                and the founding engineer at Revision Marine. I like making things, whether that
-                means a software system, a drawing, or an idea that brings the two together.
-              </p>
-              <p>
-                Away from the keyboard, there’s usually a climbing wall, a volleyball court, a
-                sketchbook, or some time on the water involved. And two cats back at home.
+                and the founding engineer at Revision Marine. I like making things that bring
+                engineering and creativity together. There’s a little more to me away from the
+                keyboard, too.
               </p>
               <a href={revisionMarine.url} className="text-link" target="_blank" rel="noreferrer">
                 Visit Revision Marine <Arrow diagonal />

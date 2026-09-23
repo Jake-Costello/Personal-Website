@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, PointerEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { personalFacts } from '../data/personal';
 import type { PersonalFact } from '../data/personal';
-import GolfScene, { GolfClubIcon } from './GolfScene';
+import GolfScene, { GolfBagOverlay, GolfClubIcon, GOLF_SCENE_GEOMETRY } from './GolfScene';
 import './golf-facts.css';
 
 type Phase = 'idle' | 'swing' | 'flight' | 'reading' | 'falling';
@@ -17,15 +18,11 @@ interface ClubDrag {
 }
 
 export default function GolfFacts() {
-  const [selected, setSelected] = useState(personalFacts[0]);
   const [shot, setShot] = useState(personalFacts[0]);
   const [phase, setPhase] = useState<Phase>('idle');
   const phaseRef = useRef<Phase>('idle');
-  const [discovered, setDiscovered] = useState<Set<string>>(() => new Set());
   const [held, setHeld] = useState(false);
-  const [hovering, setHovering] = useState(false);
   const [focused, setFocused] = useState(false);
-  const [inView, setInView] = useState(true);
   const [pageVisible, setPageVisible] = useState(() => !document.hidden);
   const [reducedMotion, setReducedMotion] = useState(
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -33,13 +30,13 @@ export default function GolfFacts() {
   const [dragging, setDragging] = useState(false);
   const [dropHot, setDropHot] = useState(false);
   const [dragFact, setDragFact] = useState(personalFacts[0]);
-  const [launchOffset, setLaunchOffset] = useState({ x: 85, y: 112 });
+  const [sceneWidth, setSceneWidth] = useState(600);
   const rootRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<HTMLDivElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
   const ghostRef = useRef<HTMLDivElement>(null);
-  const swingRef = useRef<HTMLButtonElement>(null);
-  const ballRef = useRef<HTMLDivElement>(null);
+  const layerRef = useRef<HTMLDivElement>(null);
+  const originRef = useRef<HTMLButtonElement | null>(null);
   const dragRef = useRef<ClubDrag | null>(null);
   const suppressClick = useRef(false);
 
@@ -51,9 +48,8 @@ export default function GolfFacts() {
   const endDrag = useCallback(() => {
     const drag = dragRef.current;
     dragRef.current = null;
-    if (drag?.element.hasPointerCapture(drag.pointerId)) {
+    if (drag?.element.hasPointerCapture(drag.pointerId))
       drag.element.releasePointerCapture(drag.pointerId);
-    }
     if (ghostRef.current) ghostRef.current.style.visibility = 'hidden';
     setDragging(false);
     setDropHot(false);
@@ -65,20 +61,12 @@ export default function GolfFacts() {
     const onVisibility = () => setPageVisible(!document.hidden);
     media.addEventListener('change', onMotion);
     document.addEventListener('visibilitychange', onVisibility);
-    const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), {
-      threshold: 0.1,
-    });
+    const observer = new ResizeObserver(([entry]) => setSceneWidth(entry.contentRect.width));
     if (sceneRef.current) observer.observe(sceneRef.current);
-    const resizeObserver = new ResizeObserver(([entry]) => {
-      const scale = Math.max(entry.contentRect.width / 900, entry.contentRect.height / 430);
-      setLaunchOffset({ x: 85 * scale, y: 112 * scale });
-    });
-    if (sceneRef.current) resizeObserver.observe(sceneRef.current);
     return () => {
       media.removeEventListener('change', onMotion);
       document.removeEventListener('visibilitychange', onVisibility);
       observer.disconnect();
-      resizeObserver.disconnect();
       const drag = dragRef.current;
       dragRef.current = null;
       if (drag?.element.hasPointerCapture(drag.pointerId))
@@ -86,12 +74,19 @@ export default function GolfFacts() {
     };
   }, []);
 
+  useLayoutEffect(() => {
+    if (phase !== 'flight') return;
+    const svg = sceneRef.current?.querySelector<SVGSVGElement>('.golf-scene');
+    const transform = svg?.getScreenCTM();
+    if (!transform || !layerRef.current) return;
+    const tee = new DOMPoint(GOLF_SCENE_GEOMETRY.tee.x, GOLF_SCENE_GEOMETRY.tee.y).matrixTransform(
+      transform,
+    );
+    layerRef.current.style.setProperty('--golf-launch-x', `${tee.x - window.innerWidth / 2}px`);
+    layerRef.current.style.setProperty('--golf-launch-y', `${tee.y - window.innerHeight / 2}px`);
+  }, [phase]);
+
   useEffect(() => {
-    if (phase === 'reading') {
-      setDiscovered((previous) =>
-        previous.has(shot.id) ? previous : new Set([...previous, shot.id]),
-      );
-    }
     if (reducedMotion && phase !== 'idle' && phase !== 'reading') {
       changePhase(phase === 'falling' ? 'idle' : 'reading');
       return;
@@ -99,42 +94,25 @@ export default function GolfFacts() {
     let timer: number | undefined;
     if (phase === 'swing') timer = window.setTimeout(() => changePhase('flight'), 900);
     if (phase === 'flight') timer = window.setTimeout(() => changePhase('reading'), 650);
-    if (
-      phase === 'reading' &&
-      !reducedMotion &&
-      !held &&
-      !hovering &&
-      !focused &&
-      inView &&
-      pageVisible
-    ) {
+    if (phase === 'reading' && !reducedMotion && !held && !focused && pageVisible)
       timer = window.setTimeout(() => changePhase('falling'), 7000);
-    }
     if (phase === 'falling') timer = window.setTimeout(() => changePhase('idle'), 1100);
     return () => window.clearTimeout(timer);
-  }, [phase, shot.id, reducedMotion, held, hovering, focused, inView, pageVisible, changePhase]);
+  }, [phase, reducedMotion, held, focused, pageVisible, changePhase]);
 
-  function startShot(fact: PersonalFact) {
+  function startShot(fact: PersonalFact, origin: HTMLButtonElement) {
     if (phaseRef.current !== 'idle') return;
     endDrag();
-    setSelected(fact);
+    originRef.current = origin;
     setShot(fact);
     setHeld(false);
-    setHovering(false);
     setFocused(false);
     changePhase(reducedMotion ? 'reading' : 'swing');
-    const scene = sceneRef.current;
-    const bounds = scene?.getBoundingClientRect();
-    if (bounds && (bounds.top < 0 || bounds.bottom > window.innerHeight)) {
-      scene?.scrollIntoView({ block: 'center', behavior: reducedMotion ? 'instant' : 'smooth' });
-    }
   }
 
   function dismissShot() {
     if (phaseRef.current === 'idle') return;
-    if (ballRef.current?.contains(document.activeElement))
-      swingRef.current?.focus({ preventScroll: true });
-    setHovering(false);
+    originRef.current?.focus({ preventScroll: true });
     setFocused(false);
     changePhase(reducedMotion ? 'idle' : 'falling');
   }
@@ -143,10 +121,10 @@ export default function GolfFacts() {
     const bounds = dropRef.current?.getBoundingClientRect();
     return Boolean(
       bounds &&
-      x >= bounds.left - 16 &&
-      x <= bounds.right + 16 &&
-      y >= bounds.top - 16 &&
-      y <= bounds.bottom + 16,
+      x >= bounds.left - 14 &&
+      x <= bounds.right + 14 &&
+      y >= bounds.top - 14 &&
+      y <= bounds.bottom + 14,
     );
   }
 
@@ -176,7 +154,7 @@ export default function GolfFacts() {
     }
     if (ghostRef.current) {
       ghostRef.current.style.visibility = 'visible';
-      ghostRef.current.style.transform = `translate(${event.clientX - 24}px, ${event.clientY - 72}px) rotate(-16deg)`;
+      ghostRef.current.style.transform = `translate(${event.clientX - 20}px, ${event.clientY - 12}px) rotate(-16deg)`;
     }
     setDropHot(isOverGolfer(event.clientX, event.clientY));
   }
@@ -187,7 +165,7 @@ export default function GolfFacts() {
     const validDrop = drag.moved && isOverGolfer(event.clientX, event.clientY);
     suppressClick.current = drag.moved;
     endDrag();
-    if (validDrop) startShot(drag.fact);
+    if (validDrop) startShot(drag.fact, drag.element);
   }
 
   function cancelDrag() {
@@ -207,7 +185,29 @@ export default function GolfFacts() {
 
   const busy = phase !== 'idle';
   const showingBall = phase === 'flight' || phase === 'reading' || phase === 'falling';
-  const paused = held || hovering || focused || reducedMotion;
+  const paused = held || focused || reducedMotion;
+  const geometry = GOLF_SCENE_GEOMETRY;
+  const scale = sceneWidth / geometry.width;
+  const anchor = { x: geometry.bagAnchor.x * scale, y: geometry.bagAnchor.y * scale };
+  const compactBag = sceneWidth < 320;
+  const mobileFan = compactBag
+    ? [
+        [-40, -80],
+        [-30, -126],
+        [16, -130],
+        [40, -86],
+        [40, -40],
+        [-6, -40],
+      ]
+    : [
+        [-62, -40],
+        [-54, -85],
+        [-15, -115],
+        [29, -111],
+        [57, -75],
+        [54, -30],
+      ];
+  const mobileShift = Math.min(0, sceneWidth - 24 - (anchor.x + (compactBag ? 40 : 57)));
 
   return (
     <div
@@ -218,121 +218,48 @@ export default function GolfFacts() {
       data-phase={phase}
       onKeyDown={onEscape}
     >
-      <div className="golf-facts-heading">
-        <div>
-          <p className="golf-eyebrow">THE PERSONAL BAG / SIX LITTLE STORIES</p>
-          <h3>
-            Pick a club.
-            <br />
-            <span>Meet a different side.</span>
-          </h3>
+      <div ref={sceneRef} className={`golf-facts-scene${dragging ? ' is-dragging' : ''}`}>
+        <GolfScene phase={phase} clubColor={shot.color} />
+        <div
+          ref={dropRef}
+          className={`golf-drop-zone${dropHot ? ' is-over' : ''}`}
+          style={{
+            left: `${(geometry.golferDrop.x / geometry.width) * 100}%`,
+            top: `${(geometry.golferDrop.y / geometry.height) * 100}%`,
+            width: `${(geometry.golferDrop.width / geometry.width) * 100}%`,
+            height: `${(geometry.golferDrop.height / geometry.height) * 100}%`,
+          }}
+          aria-hidden="true"
+        >
+          <span>OVER HERE ↓</span>
         </div>
-        <p className="golf-discovered">
-          <strong>{discovered.size.toString().padStart(2, '0')}</strong>
-          <span>
-            {discovered.size} / {personalFacts.length} discovered
-          </span>
-        </p>
-      </div>
-
-      <div className={`golf-playground${dragging ? ' is-dragging' : ''}`}>
-        <div ref={sceneRef} className="golf-facts-scene">
-          <GolfScene phase={phase} clubColor={(busy ? shot : selected).color} />
-          <span className="golf-scene-stamp" aria-hidden="true">
-            JC / OFF THE CLOCK
-          </span>
-          <div
-            ref={dropRef}
-            className={`golf-drop-zone${dropHot ? ' is-over' : ''}`}
-            aria-hidden="true"
-          >
-            <span>HAND ME A CLUB ↓</span>
-          </div>
-
-          {showingBall && (
-            <div
-              className={`golf-ball-layer golf-ball-${phase}`}
-              style={
-                {
-                  '--golf-launch-x': `${launchOffset.x}px`,
-                  '--golf-launch-y': `${launchOffset.y}px`,
-                } as CSSProperties
-              }
-            >
-              <div
-                ref={ballRef}
-                className="golf-fact-ball"
-                data-visible={phase === 'reading' ? 'true' : 'false'}
-                onPointerEnter={(event) => {
-                  if (event.pointerType === 'mouse') setHovering(true);
-                }}
-                onPointerLeave={() => setHovering(false)}
-                onFocusCapture={() => setFocused(true)}
-                onBlurCapture={(event) => {
-                  if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
-                }}
-              >
-                <div
-                  className="golf-fact-content"
-                  aria-hidden={phase !== 'reading'}
-                  inert={phase !== 'reading'}
-                >
-                  <span className="golf-fact-kicker">
-                    {shot.club} / {shot.topic}
-                  </span>
-                  <h4 className="golf-fact-title">{shot.title}</h4>
-                  <p className="golf-fact-copy">{shot.text}</p>
-                  <div className="golf-fact-actions">
-                    {!reducedMotion && (
-                      <button type="button" aria-pressed={held} onClick={() => setHeld(!held)}>
-                        {held ? 'Reading paused' : 'Keep reading'}
-                      </button>
-                    )}
-                    <button type="button" onClick={dismissShot}>
-                      Next shot <span aria-hidden="true">↗</span>
-                    </button>
-                  </div>
-                  <span className="golf-reading-note">
-                    {reducedMotion
-                      ? 'Yours to read. Take the next shot when ready.'
-                      : paused
-                        ? 'No rush. The ball can wait.'
-                        : 'Here for 7 seconds. Keep reading to stay a while.'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="golf-scene-caption" aria-hidden="true">
-            <span>
-              {phase === 'idle'
-                ? 'A LITTLE MORE HUMAN.'
-                : phase === 'swing' || phase === 'flight'
-                  ? 'FORE! A FACT IS ON ITS WAY.'
-                  : 'THERE’S A STORY IN EVERY SHOT.'}
-            </span>
-            <span>EST. OFFLINE</span>
-          </div>
-        </div>
-
-        <div className="golf-bag-panel">
-          <div className="golf-bag-label">
-            <span aria-hidden="true">↙</span>
-            <p>
-              YOUR CLUB SELECTION<small>Different clubs. Different stories.</small>
-            </p>
-          </div>
-          <div className="golf-club-rack" role="group" aria-label="Choose a club">
-            {personalFacts.map((fact) => (
+        <div className="golf-clubs" role="group" aria-label="Choose a club">
+          {personalFacts.map((fact, index) => {
+            const slot = geometry.clubSlots[index];
+            const head =
+              sceneWidth <= 480
+                ? {
+                    x: anchor.x + mobileFan[index][0] + mobileShift,
+                    y: anchor.y + mobileFan[index][1],
+                  }
+                : { x: slot.x * scale, y: slot.y * scale };
+            const length = Math.hypot(anchor.x - head.x, anchor.y - head.y);
+            const angle = (-Math.atan2(anchor.x - head.x, anchor.y - head.y) * 180) / Math.PI;
+            return (
               <button
                 key={fact.id}
                 type="button"
-                className="golf-club-button"
+                className={`golf-club-button${dragging && dragFact.id === fact.id ? ' is-picked-up' : ''}`}
+                style={
+                  {
+                    left: head.x,
+                    top: head.y,
+                    '--club-angle': `${angle}deg`,
+                    '--club-length': `${length + 18}px`,
+                  } as CSSProperties
+                }
                 aria-label={`${fact.club} — ${fact.topic}`}
-                aria-pressed={selected.id === fact.id}
                 aria-disabled={busy}
-                data-discovered={discovered.has(fact.id) ? 'true' : 'false'}
                 onPointerDown={(event) => pointerDown(event, fact)}
                 onPointerMove={pointerMove}
                 onPointerUp={pointerUp}
@@ -343,43 +270,21 @@ export default function GolfFacts() {
                     suppressClick.current = false;
                     return;
                   }
-                  if (phaseRef.current === 'idle') setSelected(fact);
+                  startShot(fact, event.currentTarget);
                 }}
               >
                 <GolfClubIcon color={fact.color} kind={fact.kind} className="golf-club-icon" />
-                <span>
+                <span className="golf-club-tooltip" aria-hidden="true">
                   <strong>{fact.club}</strong>
-                  <small>{fact.topic}</small>
-                </span>
-                <span className="golf-club-seen" aria-hidden="true">
-                  {discovered.has(fact.id) ? '✓' : '↗'}
+                  <span>{fact.topic}</span>
                 </span>
               </button>
-            ))}
-          </div>
-          <button
-            ref={swingRef}
-            className="golf-swing-button"
-            type="button"
-            aria-disabled={busy}
-            onClick={() => startShot(selected)}
-          >
-            Take a swing <span aria-hidden="true">↗</span>
-          </button>
-          <p className="golf-instructions">
-            Pick a club, then take a swing. Or drag a club over to the golfer.
-          </p>
+            );
+          })}
         </div>
+        <GolfBagOverlay className="golf-bag-overlay" />
       </div>
-
-      <div className="golf-bottom-line">
-        <span>NO SCORECARD. JUST A FEW THINGS ABOUT ME.</span>
-        <span>
-          {discovered.size === personalFacts.length
-            ? 'Full bag explored. Thanks for playing.'
-            : 'Six clubs. Six sides of life.'}
-        </span>
-      </div>
+      <p className="golf-instructions">Drag a club. Meet a different side.</p>
       <details className="golf-readable-facts">
         <summary>Read all 6 facts</summary>
         <div className="golf-facts-list">
@@ -398,6 +303,58 @@ export default function GolfFacts() {
       <div ref={ghostRef} className="golf-drag-ghost" aria-hidden="true">
         <GolfClubIcon color={dragFact.color} kind={dragFact.kind} />
       </div>
+      {showingBall &&
+        createPortal(
+          <div ref={layerRef} className={`golf-ball-layer golf-ball-${phase}`} onKeyDown={onEscape}>
+            <div
+              className="golf-fact-ball"
+              data-visible={phase === 'reading' ? 'true' : 'false'}
+              role="region"
+              aria-label="Personal fact"
+              onFocusCapture={(event) => setFocused(event.target.matches(':focus-visible'))}
+              onBlurCapture={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
+              }}
+            >
+              <div
+                className="golf-fact-content"
+                aria-hidden={phase !== 'reading'}
+                inert={phase !== 'reading'}
+              >
+                <span className="golf-fact-kicker">
+                  {shot.club} / {shot.topic}
+                </span>
+                <h4 className="golf-fact-title">{shot.title}</h4>
+                <p className="golf-fact-copy">{shot.text}</p>
+                <div className="golf-fact-actions">
+                  {!reducedMotion && (
+                    <button
+                      type="button"
+                      aria-pressed={held}
+                      onClick={(event) => {
+                        if (event.detail > 0) setFocused(false);
+                        setHeld(!held);
+                      }}
+                    >
+                      {held ? 'Reading paused' : 'Keep reading'}
+                    </button>
+                  )}
+                  <button type="button" onClick={dismissShot}>
+                    Next shot <span aria-hidden="true">↗</span>
+                  </button>
+                </div>
+                <span className="golf-reading-note">
+                  {reducedMotion
+                    ? 'Take the next shot when you’re ready.'
+                    : paused
+                      ? 'No rush. The ball can wait.'
+                      : 'Here for 7 seconds. Keep reading to stay a while.'}
+                </span>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

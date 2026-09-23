@@ -602,24 +602,25 @@ article[id] {
   font-size: 12px;
 }
 .about-section {
-  padding-top: 100px;
-  padding-bottom: 100px;
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: clamp(32px, 5vw, 90px);
+  align-items: center;
+  padding-top: clamp(90px, 10vw, 160px);
+  padding-bottom: clamp(90px, 10vw, 160px);
 }
 .about-heading {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: clamp(40px, 7vw, 110px);
-  align-items: center;
-  margin-bottom: 44px;
+  min-width: 0;
 }
 .about-heading .eyebrow {
   margin-bottom: 23px;
 }
 .about-heading h2 {
-  font-size: clamp(40px, 4.6vw, 67px);
+  font-size: clamp(44px, 5vw, 76px);
   line-height: 1.04;
   font-weight: 500;
   letter-spacing: -0.055em;
+  margin-bottom: 26px;
 }
 .about-copy p:not(.eyebrow) {
   font-size: 14px;
@@ -1009,11 +1010,15 @@ article[id] {
   .revision-wordmark {
     font-size: 43px;
   }
-  .about-heading {
-    gap: 38px;
-  }
   .about-heading h2 {
     font-size: 43px;
+  }
+  .about-section {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .about-heading {
+    max-width: 560px;
   }
   .contact-top .eyebrow:last-child {
     display: none;
@@ -1226,9 +1231,9 @@ article[id] {
   .tag-list span {
     font-size: 9px;
   }
-  .about-heading {
+  .about-section {
     grid-template-columns: 1fr;
-    gap: 32px;
+    gap: 24px;
   }
   .about-heading h2 {
     font-size: 45px;

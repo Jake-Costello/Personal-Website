@@ -106,10 +106,12 @@ Each case study should explain the need, Jacob's role, implementation choices, i
 
 ## Off the clock: the personal golf bag
 
-The about section introduces Jacob as a developer, founding engineer, and creative person. A separate golf interaction reveals personal facts without repeating the timeline's driving mechanics.
+The about section introduces Jacob as a developer, founding engineer, and creative person. Its desktop layout places the heading and short biography on the left and a separate golf interaction on the right, with generous open space and no enclosing rectangular panel. Stack these on small screens.
 
-- Select a club with a click or keyboard, then swing; alternatively drag a club from the bag to the golfer. Keep ordinary scrolling available outside the club handles.
-- An original pixel golfer swings, the ball approaches the viewer, and a large readable ball reveals the chosen fact for seven seconds before falling and fading away. Provide **Keep reading** and **Next shot** controls.
+- Show only a small circular grass tee, two markers, the golfer, and a bag to his right near the grass edge. Remove the course backdrop, dashboard framing, and club selection panel.
+- The pixel character wears a black hat, blue shirt with white flowers, black pants, and tan shoes, with a light skin tone. Pose his left shoulder toward the viewer so the swing sends the ball toward the screen.
+- Highlight the actual clubs in the bag on hover/focus; dragging a club to the golfer starts the swing. Clicking, tapping, or keyboard activation provides an equivalent action. Use minimal instructions and keep ordinary scrolling available outside club handles.
+- The ball flies from the tee out of the local artwork to the center of the viewport. Its classic white surface has recessed dimples, and its large readable face reveals the chosen fact for seven seconds before falling and fading away. Provide **Keep reading**, **Next shot**, and Escape dismissal; text and controls remain visible on small screens.
 - Reduced motion skips the approach/fall and keeps the fact available until dismissed. A readable list exposes every story without playing.
 - Start with six user-confirmed subjects: originally pursuing animation before choosing computer science, rock climbing, beach volleyball, drawing, two cats, and jetskis. The animation story may mention skills learned at school, but must not imply a completed animation minor.
 - Keep facts and their club mapping in `src/data/personal.ts` so new stories can be added without editing animation code. Do not invent cat names, hobby skill levels, travel details, or dates.
