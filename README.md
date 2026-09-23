@@ -25,7 +25,7 @@ VITE_API_BASE_URL=http://127.0.0.1:8000
 
 Restart Vite. In the explorer, select **Fetch live network** to retrieve STRING data and calculate communities with pandas and NetworkX. This setting applies only to development; it does not bake a localhost address into the production build.
 
-For public hosting, the ready-to-deploy [`render.yaml`](render.yaml) provisions one paid Python service. Follow the [Render setup](backend/README.md#deploy-on-render), then connect its public URL through `VITE_API_BASE_URL`. The portfolio stays on GitHub Pages; Render account setup and the first service deployment are still required.
+The production API runs at [personal-website-protein-api.onrender.com](https://personal-website-protein-api.onrender.com/health) on one paid Render Python service configured by [`render.yaml`](render.yaml). The repository Actions variable `VITE_API_BASE_URL` connects the published playground to this service; the portfolio stays on GitHub Pages. The graph starts in illustrative mode, and **Fetch live network** loads real STRING data. See the [Render setup](backend/README.md#deploy-on-render) for deployment and maintenance instructions.
 
 ## What is implemented
 
@@ -37,10 +37,10 @@ For public hosting, the ready-to-deploy [`render.yaml`](render.yaml) provisions 
 - A roughly 80-second route at full speed, a shoreline progress indicator with dots at actual story locations, a larger Revision Marine workshop, and a Back to start control at the destination. Story text keeps revealing when the rider stops.
 - Revision Marine dock reveal, plus readable timeline navigation, keyboard and touch controls, and reduced-motion support.
 - Interactive protein graph with rotation, zoom, confidence filtering, and accessible node selection.
-- Optional FastAPI service: STRING identifier resolution, validated data processing, repeatable community detection, caching, and source provenance.
+- Live FastAPI service on Render: STRING identifier resolution, validated data processing, repeatable community detection, caching, request limits, and source provenance. Local frontend development can also run without it.
 - GitHub Actions workflow for checks and static publication.
 
-Still to come: confirmed personal photos and additional stories, a public Revision Marine site link, optional downloadable resume, embedded molecular structures, grounded AI explanations, and production backend hosting. These are not represented as completed features in the interface.
+Still to come: confirmed personal photos and additional stories, a public Revision Marine site link, optional downloadable resume, embedded molecular structures, and grounded AI explanations. These are not represented as completed features in the interface.
 
 ## Update the resume and timeline
 
