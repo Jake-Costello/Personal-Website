@@ -540,7 +540,12 @@ export default function JetskiJourney() {
                   ))}
                 </ul>
                 {item.link && (
-                  <a className="journey-story-link" href={item.link.href}>
+                  <a
+                    className="journey-story-link"
+                    href={item.link.href}
+                    target={item.link.href.startsWith('https://') ? '_blank' : undefined}
+                    rel={item.link.href.startsWith('https://') ? 'noreferrer' : undefined}
+                  >
                     {item.link.label} ↗
                   </a>
                 )}

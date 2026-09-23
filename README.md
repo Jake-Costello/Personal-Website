@@ -29,20 +29,21 @@ The production API runs at [personal-website-protein-api.onrender.com](https://p
 
 ## What is implemented
 
-- Responsive portfolio, project detail dialogs, about content, and contact links.
+- Responsive portfolio, project detail dialogs, about content, and contact links. Revision Marine identifies Jacob as its founding engineer, describes his software/infrastructure and design responsibilities, and links to its currently private storefront preview from the project, timeline, and about section.
 - Original SVG pixel-art stand-up jetski with articulated cruising, crouching, and extended jump poses; acceleration, reversal, pump/jump controls, and five career chapters. A three-frame rear jet/wake animates while riding; takeoff and landing produce separate splashes anchored to the lake. Reduced-motion mode uses static spray and smaller foam bursts.
 - Cleveland lakefront pixel skyline including the Browns stadium, Sherwin-Williams headquarters, generic muted red crown accents on Key Tower, and the Rock Hall's glass pyramid. Includes a taller responsive scene and optional browser full-screen mode. No stock photography or generated image assets are used for the game.
 - An unbranded pixel blimp makes one 24-second flyover from right to left when the rider first reaches 84% progress, including jumping directly to NOW. Its timer continues while the rider stops, reverses, changes chapters, or switches to the readable timeline. Only **Back to start** resets the flyover for another ride. Reduced-motion mode shows a stationary blimp during the same timed event.
 - Larger career stories revealed in stages: title, year, then details at about 250 words per minute. Departure fades details, year, and title in sequence, with 1.8 seconds of open water between stops at full speed. Reduced-motion mode and the readable timeline show each active story immediately.
 - A roughly 80-second route at full speed, a shoreline progress indicator with dots at actual story locations, a larger Revision Marine workshop, and a Back to start control at the destination. Story text keeps revealing when the rider stops.
 - Revision Marine dock reveal, plus readable timeline navigation, keyboard and touch controls, and reduced-motion support.
+- A personal golf bag with six clubs and stories: animation to computer science, climbing, beach volleyball, drawing, two cats, and jetskis. Select and swing or drag a club to the pixel golfer; the ball approaches with a fact, stays for seven seconds, then falls away. Keep reading pauses the story. Reduced motion and a readable list offer alternatives without timed animation.
 - Live protein graph with automatic random pairs, two curated selectors, actual STRING connection hints, pair-only/small/wider neighborhoods, rotation, zoom, confidence filtering, and accessible node selection. Disconnected proteins remain visible.
 - Live FastAPI service on Render: STRING identifier resolution, validated data processing, repeatable community detection, caching, request limits, and source provenance. Local frontend development can also run without it.
 - On-demand comparison of either selected human protein with chimpanzee, mouse, zebrafish, and fruit fly. Live Ensembl archive requests supply orthologues and sequence identity, with ranked bars, candidate details, and explicit missing-data states. The release is pinned to May 2024 and labelled accordingly.
 - Optional, source-grounded OpenAI explanations of the human network and species comparison. The server composes the evidence and ranking, validates source references, caches results, and bounds paid attempts. AI requires explicit activation; no paid calls occur on page load.
 - GitHub Actions workflow for checks and static publication.
 
-Still to come: confirmed personal photos and additional stories, a public Revision Marine site link, optional downloadable resume, and embedded molecular structures. These are not represented as completed features in the interface.
+Still to come: confirmed personal photos and additional stories, optional downloadable resume, and embedded molecular structures. These are not represented as completed features in the interface.
 
 The [AI setup and evaluation guide](docs/AI-EXPLANATIONS.md) describes source grounding, activation, scientific limitations, and the $5/month OpenAI budget controls. Configuration status alone does not verify provider billing or model access; perform a live explanation check after enabling it.
 
@@ -117,5 +118,7 @@ Keep Wix nameservers and unrelated MX/TXT records. Do not leave the old Wix apex
 Reference: [GitHub custom-domain setup](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site) and [Wix DNS management](https://support.wix.com/en/article/managing-dns-records-in-your-wix-account).
 
 ## Project reference
+
+Personal golf stories and club mappings live in `src/data/personal.ts`. Revision Marine's URL and preview label live in `src/data/revision.ts`; update the label when the storefront becomes public. Career content remains in `src/data/experience.ts`.
 
 See [the requirements and build plan](docs/REQUIREMENTS.md) for the agreed direction. All portfolio work belongs here. Revision Marine is a separate repository and is featured as a case study.

@@ -50,11 +50,11 @@ The reference homepage was visually inspected: bright yellow, large charcoal tex
 
 ### Revision Marine reveal
 
-Near the end of the experience, the rider pulls up beside a Revision Marine dock or workshop. Reveal Jacob's role as cofounder of a jetski parts company and connect the setting to his real interests and work.
+Near the end of the experience, the rider pulls up beside a Revision Marine dock or workshop. Reveal Jacob's role as **founding engineer** of a jetski parts company and connect the setting to his real interests and work. This describes his engineering responsibility, not an ownership claim.
 
 Provide a link to the confirmed company website and a link to the portfolio's Revision Marine case study. The timeline tells the personal story; the case study explains business needs, technical contributions, and implementation decisions.
 
-The founding date and public website URL still need confirmation. Do not imply the business or storefront has launched without evidence.
+The confirmed website is [revision-marine.com](https://revision-marine.com/). On September 23, 2026 it opened a password-protected storefront preview; label links accordingly. The founding date remains unconfirmed. Do not imply a public commerce launch without evidence.
 
 ### Access and usability
 
@@ -68,13 +68,13 @@ The founding date and public website URL still need confirmation. Do not imply t
 
 Use the supplied resume as the starting source. Each story should explain the problem, Jacob's contribution, and the outcome, with technical details available when useful.
 
-| Milestone | Confirmed source material |
-| --- | --- |
-| Component Repair Technologies, August 2021–January 2022 | Python machine-utilization and scheduling analytics; enterprise identity and deployment work |
-| University projects, 2023–2024 | Multifunctional payphone with Python, SIP/VoIP, Asterisk, concert information, Spotify queueing, and recordings |
-| Ohio University, May 2024 | B.S. in Computer Science |
-| Sherwin-Williams, July 2024–present | Picking-cart integration, robotics order lifecycle, REST APIs, PL/SQL, exception handling, device management, documentation, and training |
-| Revision Marine, date to confirm | Cofounding a jetski parts company and developing its commerce website |
+| Milestone                                               | Confirmed source material                                                                                                                         |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Component Repair Technologies, August 2021–January 2022 | Python machine-utilization and scheduling analytics; enterprise identity and deployment work                                                      |
+| University projects, 2023–2024                          | Multifunctional payphone with Python, SIP/VoIP, Asterisk, concert information, Spotify queueing, and recordings                                   |
+| Ohio University, May 2024                               | B.S. in Computer Science                                                                                                                          |
+| Sherwin-Williams, July 2024–present                     | Picking-cart integration, robotics order lifecycle, REST APIs, PL/SQL, exception handling, device management, documentation, and training         |
+| Revision Marine, date to confirm                        | Founding engineer: built the technology stack; responsible for website, infrastructure, warehousing system, internal apps, and merchandise design |
 
 Do not invent dates for individual projects within the current job, personal milestones, or results. Describe order throughput as system scale; do not turn it into an unmeasured efficiency gain. Use public-safe descriptions and original explanatory diagrams for employer work.
 
@@ -86,10 +86,10 @@ Each case study should explain the need, Jacob's role, implementation choices, i
 
 ### Revision Marine
 
-- Explain the cofounder role and the business problem behind the storefront.
+- Explain the founding engineer role and the business needs behind the storefront and internal systems. Jacob confirmed building the entire technology stack and taking responsibility for the website, infrastructure, warehousing system, internal apps, and merchandise design. Avoid claiming company ownership.
 - Show the relevant commerce data flow and selected engineering decisions.
 - A read-only review found a separate Next.js storefront and Medusa backend, including a product page connected to Medusa and cart-related components.
-- Confirm ownership of specific contributions and the current deployed behavior before publishing claims.
+- Link the confirmed website from the project, timeline, and about section. Identify its current private-preview status. Specific technical contributions are user-confirmed; public checkout/warehouse functionality has not been evaluated here.
 - Work in this portfolio repository does not authorize changes to the separate Revision Marine repository.
 
 ### Multifunctional payphone
@@ -103,6 +103,16 @@ Each case study should explain the need, Jacob's role, implementation choices, i
 - Present the working demo alongside a short explanation of its data flow and decisions.
 - Demonstrate reliable integration, repeatable computation, useful AI output, and understandable results.
 - Document acceptance criteria, representative evaluation cases, limitations, and a short setup/handoff guide.
+
+## Off the clock: the personal golf bag
+
+The about section introduces Jacob as a developer, founding engineer, and creative person. A separate golf interaction reveals personal facts without repeating the timeline's driving mechanics.
+
+- Select a club with a click or keyboard, then swing; alternatively drag a club from the bag to the golfer. Keep ordinary scrolling available outside the club handles.
+- An original pixel golfer swings, the ball approaches the viewer, and a large readable ball reveals the chosen fact for seven seconds before falling and fading away. Provide **Keep reading** and **Next shot** controls.
+- Reduced motion skips the approach/fall and keeps the fact available until dismissed. A readable list exposes every story without playing.
+- Start with six user-confirmed subjects: originally pursuing animation before choosing computer science, rock climbing, beach volleyball, drawing, two cats, and jetskis. The animation story may mention skills learned at school, but must not imply a completed animation minor.
+- Keep facts and their club mapping in `src/data/personal.ts` so new stories can be added without editing animation code. Do not invent cat names, hobby skill levels, travel details, or dates.
 
 ## Protein-network explorer
 
@@ -120,14 +130,14 @@ Initial scope: a few curated examples, approximately 30–60 proteins per networ
 
 ### Planned technical responsibilities
 
-| Part | Responsibility |
-| --- | --- |
-| STRING API | Resolve protein identifiers and retrieve relationships, scores, and annotations |
-| Python and pandas | Validate and normalize tables, remove duplicates, filter edges, and summarize data |
-| NetworkX community detection | Compute groups from the graph, using a fixed seed where supported for repeatability |
-| Interactive network view | Show connections and communities with selection, rotation, and zoom |
-| RCSB PDB and a molecular viewer such as Mol* | Retrieve and display an existing structure for a selected protein when available |
-| AI explanation | Explain the supplied data and computed results with references to the underlying sources |
+| Part                                         | Responsibility                                                                           |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| STRING API                                   | Resolve protein identifiers and retrieve relationships, scores, and annotations          |
+| Python and pandas                            | Validate and normalize tables, remove duplicates, filter edges, and summarize data       |
+| NetworkX community detection                 | Compute groups from the graph, using a fixed seed where supported for repeatability      |
+| Interactive network view                     | Show connections and communities with selection, rotation, and zoom                      |
+| RCSB PDB and a molecular viewer such as Mol* | Retrieve and display an existing structure for a selected protein when available         |
+| AI explanation                               | Explain the supplied data and computed results with references to the underlying sources |
 
 The implementation uses React/TypeScript for the frontend and FastAPI, pandas, and seeded NetworkX Louvain for the live STRING service. Molecular structures are linked externally; the embedded viewer remains planned. The same paid Render service retrieves cross-species orthologues from the named Ensembl archive and optionally calls OpenAI Responses for grounded explanations. Human sequence identity drives the ranking; the AI explains supplied results rather than inventing scores. OpenAI's monthly project budget is $5, with caching and shared application quotas.
 
@@ -174,12 +184,11 @@ Prioritize a complete, polished set of features. Introduce additional techniques
 ## Inputs and decisions still open
 
 - Timeline copy, any additional life milestones, and the Revision Marine founding date.
-- Revision Marine's public URL, launch status, and Jacob's specific contributions to describe.
-- Hobbies, photographs, and real places that could inform the jetski setting.
+- Revision Marine's public commerce launch status; the confirmed URL currently serves a private preview.
+- Personal photographs and additional hobby stories; the initial six golf stories are confirmed.
 - Available payphone code, photographs, and demonstration material.
 - Exact palette, typography, sprite artwork, and animation treatment.
 - Live AI answer evaluation and continued source maintenance. Provider and budget are decided: OpenAI, $5/month, on the existing Render backend; see `docs/AI-EXPLANATIONS.md`.
 - Final public contact details and optional downloadable resume.
-- Git remote for Personal-Website; none was configured during the initial repository check.
 
 Resolve these as their build stages approach. They do not reopen the agreed site concept or require another general planning round.

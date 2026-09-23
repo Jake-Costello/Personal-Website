@@ -112,7 +112,13 @@ function StoryContent({
             ))}
           </ul>
           {chapter.link && (
-            <a className="journey-story-link" href={chapter.link.href} onClick={onFollowLink}>
+            <a
+              className="journey-story-link"
+              href={chapter.link.href}
+              target={chapter.link.href.startsWith('https://') ? '_blank' : undefined}
+              rel={chapter.link.href.startsWith('https://') ? 'noreferrer' : undefined}
+              onClick={onFollowLink}
+            >
               {chapter.link.label} <span aria-hidden="true">↗</span>
             </a>
           )}

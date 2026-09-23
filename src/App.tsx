@@ -1,7 +1,9 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import JetskiJourney from './components/JetskiJourney';
 import ContactForm from './components/ContactForm';
+import GolfFacts from './components/GolfFacts';
 import { getContactEndpoint, linkedInUrl } from './lib/contact';
+import { revisionMarine } from './data/revision';
 
 const ProteinExplorer = lazy(() => import('./components/ProteinExplorer'));
 const contactEndpoint = getContactEndpoint(import.meta.env.VITE_CONTACT_FORM_ENDPOINT);
@@ -47,6 +49,7 @@ type Project = {
   problem: string;
   contribution: string;
   decisions: string;
+  website?: { href: string; label: string; note: string };
 };
 
 const projects: Project[] = [
@@ -54,17 +57,22 @@ const projects: Project[] = [
     id: 'revision',
     number: '01',
     title: 'Revision Marine',
-    category: 'COFOUNDING / COMMERCE',
+    category: 'FOUNDING ENGINEER / COMMERCE',
     summary:
-      'From a love of jetskis to a parts company. Building the business and the digital experience behind it.',
+      'The technology behind a jetski parts company. From the storefront to the software that supports the work behind it.',
     tags: ['Next.js', 'TypeScript', 'Medusa'],
-    status: 'In development',
+    status: 'Founding engineer · Storefront in private preview',
     problem:
-      'A jetski parts company needs a clear way to connect its products with the people who use them. Revision Marine brings my interest in the water together with building a business.',
+      'A jetski parts company needs more than a storefront. Products, warehouse operations, and day-to-day work all need software that fits the business. Revision Marine brings that challenge together with my love of the water.',
     contribution:
-      'I’m cofounding Revision Marine and developing its commerce website. The current codebase includes a Next.js storefront, product pages connected to Medusa, and cart-related components.',
+      'As founding engineer, I built the entire technology stack and lead the software: our website, infrastructure, warehousing system, and internal apps. My work also extends into merchandise design, connecting my engineering and creative interests.',
     decisions:
-      'Using a commerce platform gives the storefront a foundation for product and variant data. The project is still in development; a public store link and a fuller implementation story will follow as it takes shape.',
+      'The Next.js storefront uses Medusa for commerce data, including products and variants. My responsibility spans the customer-facing website and the systems behind it. The storefront is currently a password-protected preview while development continues.',
+    website: {
+      href: revisionMarine.url,
+      label: 'Visit Revision Marine',
+      note: revisionMarine.websiteNote,
+    },
   },
   {
     id: 'payphone',
@@ -104,7 +112,7 @@ function ProjectArt({ kind }: { kind: string }) {
   if (kind === 'revision')
     return (
       <div className="project-art revision-art" aria-hidden="true">
-        <span className="art-corner">RM—001 / UNDER CONSTRUCTION</span>
+        <span className="art-corner">RM—001 / FOUNDING ENGINEER</span>
         <span className="revision-wordmark">
           REVISION
           <br />
@@ -282,6 +290,19 @@ function ProjectDialog({ project, close }: { project: Project | null; close: () 
             <a className="button button-dark dialog-cta" href="#lab" onClick={close}>
               Explore the lab <Arrow />
             </a>
+          )}
+          {project.website && (
+            <div className="project-website">
+              <a
+                className="button button-dark dialog-cta"
+                href={project.website.href}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {project.website.label} <Arrow diagonal />
+              </a>
+              <p>{project.website.note}</p>
+            </div>
           )}
         </div>
       )}
@@ -481,6 +502,19 @@ function App() {
                     <span key={tag}>{tag}</span>
                   ))}
                 </div>
+                {project.website && (
+                  <div className="project-website">
+                    <a
+                      className="text-link"
+                      href={project.website.href}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {project.website.label} <Arrow diagonal />
+                    </a>
+                    <p>{project.website.note}</p>
+                  </div>
+                )}
               </article>
             ))}
           </div>
@@ -512,46 +546,31 @@ function App() {
         </section>
 
         <section id="about" className="about-section section-shell" aria-labelledby="about-title">
-          <div className="about-art" aria-hidden="true">
-            <span className="eyebrow">THERE’S MORE OUT THERE.</span>
-            <div className="about-sun">
-              <Asterisk />
+          <div className="about-heading">
+            <div>
+              <p className="eyebrow">04 / OFF THE CLOCK</p>
+              <h2 id="about-title">
+                The person behind
+                <br /> the <em>projects.</em>
+              </h2>
             </div>
-            <svg viewBox="0 0 480 240" className="about-waves">
-              <path
-                d="M-50 110Q10 45 70 110T190 110T310 110T430 110T550 110V260H-50Z"
-                fill="#17251e"
-              />
-              <path
-                d="M-50 157Q10 92 70 157T190 157T310 157T430 157T550 157M-50 196Q10 131 70 196T190 196T310 196T430 196T550 196"
-                stroke="#dfff7f"
-                strokeWidth="2"
-                fill="none"
-              />
-            </svg>
-            <span className="about-art-caption">KEEP EXPLORING. ↗</span>
+            <div className="about-copy">
+              <p>
+                I’m Jacob—a computer science graduate from Ohio University, a full-stack developer,
+                and the founding engineer at Revision Marine. I like making things, whether that
+                means a software system, a drawing, or an idea that brings the two together.
+              </p>
+              <p>
+                Away from the keyboard, there’s usually a climbing wall, a volleyball court, a
+                sketchbook, or some time on the water involved. And two cats back at home.
+              </p>
+              <a href={revisionMarine.url} className="text-link" target="_blank" rel="noreferrer">
+                Visit Revision Marine <Arrow diagonal />
+              </a>
+              <p className="about-link-note">{revisionMarine.websiteNote}</p>
+            </div>
           </div>
-          <div className="about-copy">
-            <p className="eyebrow">04 / OFF THE CLOCK</p>
-            <h2 id="about-title">
-              The person
-              <br />
-              behind the <br />
-              <em>projects.</em>
-            </h2>
-            <p>
-              I’m Jacob, a computer science graduate from Ohio University, a full-stack developer,
-              and a cofounder of Revision Marine.
-            </p>
-            <p>
-              My interest in jetskis is becoming something I get to build. Revision Marine connects
-              that part of my life with the same curiosity I bring to software: how does this work,
-              and how could it work better?
-            </p>
-            <a href="#project-revision" className="text-link">
-              Meet Revision Marine <Arrow diagonal />
-            </a>
-          </div>
+          <GolfFacts />
         </section>
 
         <section

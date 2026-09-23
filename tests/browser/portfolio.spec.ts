@@ -26,11 +26,11 @@ test('all experience is reachable without playing, with the dock at the final ch
   page,
 }) => {
   await page.goto('/#experience');
-  await page.getByRole('button', { name: 'NOW: Revision Marine · Cofounder' }).click();
+  await page.getByRole('button', { name: 'NOW: Revision Marine · Founding Engineer' }).click();
   await expect(page.getByRole('heading', { name: 'And that explains the jetski.' })).toBeVisible();
   await expect(
-    page.locator('.journey-stage').getByRole('link', { name: 'Meet Revision Marine' }),
-  ).toHaveAttribute('href', '#project-revision');
+    page.locator('.journey-stage').getByRole('link', { name: 'Visit Revision Marine' }),
+  ).toHaveAttribute('href', 'https://revision-marine.com/');
   await page.getByRole('button', { name: 'Read as a timeline ↗' }).click();
   await expect(page.locator('.journey-overview > li')).toHaveCount(5);
   await expect(
@@ -89,7 +89,7 @@ test('animated chapters reveal text, allow skipping, and settle on the latest se
   await expect(page.locator('.journey-untyped')).toHaveCount(0);
   await expect(page.locator('.journey-story').getByText('Asterisk', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '2024: Ohio University · Athens, Ohio' }).click();
-  await page.getByRole('button', { name: 'NOW: Revision Marine · Cofounder' }).click();
+  await page.getByRole('button', { name: 'NOW: Revision Marine · Founding Engineer' }).click();
   await expect(page.getByRole('heading', { name: 'And that explains the jetski.' })).toBeVisible();
   await page.getByRole('button', { name: 'Show full story' }).click();
   await expect(page.locator('.journey-story').getByText('Medusa', { exact: true })).toBeVisible();
@@ -148,7 +148,7 @@ test('shoreline dots locate real story starts and reset with the journey', async
     expect(percentage).toBeCloseTo((stop.start / route.length) * 100, 3);
   }
   await expect(progress).toHaveAttribute('aria-valuetext', /Next checkpoint: 2023/);
-  await page.getByRole('button', { name: 'NOW: Revision Marine · Cofounder' }).click();
+  await page.getByRole('button', { name: 'NOW: Revision Marine · Founding Engineer' }).click();
   await expect(page.locator('.journey-progress-marker.is-reached')).toHaveCount(experience.length);
   await expect(markers.last()).toHaveClass(/is-current/);
   await page.getByRole('button', { name: 'Back to start' }).click();
@@ -277,7 +277,7 @@ test('reduced motion keeps the timed blimp stationary until its flyover ends', a
 
 test('back to start clears the ride and restores its first checkpoint', async ({ page }) => {
   await page.goto('/#experience');
-  await page.getByRole('button', { name: 'NOW: Revision Marine · Cofounder' }).click();
+  await page.getByRole('button', { name: 'NOW: Revision Marine · Founding Engineer' }).click();
   await expect(page.getByRole('progressbar', { name: 'Shoreline progress' })).toHaveAttribute(
     'aria-valuenow',
     '100',
@@ -295,9 +295,11 @@ test('back to start clears the ride and restores its first checkpoint', async ({
 
 test('reduced motion shows the full story and tools immediately', async ({ page }) => {
   await page.goto('/#experience');
-  await page.getByRole('button', { name: 'NOW: Revision Marine · Cofounder' }).click();
+  await page.getByRole('button', { name: 'NOW: Revision Marine · Founding Engineer' }).click();
   await expect(page.locator('.journey-untyped')).toHaveCount(0);
-  await expect(page.locator('.journey-typed')).toContainText('onto the same shoreline.');
+  await expect(page.locator('.journey-typed')).toHaveText(
+    experience.find((chapter) => chapter.id === 'revision')!.story,
+  );
   await expect(page.locator('.journey-story').getByText('Medusa', { exact: true })).toBeVisible();
 });
 
@@ -306,7 +308,7 @@ test('full screen preserves the chapter, focuses the ride, and offers an exit', 
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop');
   await page.goto('/#experience');
-  await page.getByRole('button', { name: 'NOW: Revision Marine · Cofounder' }).click();
+  await page.getByRole('button', { name: 'NOW: Revision Marine · Founding Engineer' }).click();
   const enter = page.getByRole('button', { name: 'Full screen ↗', exact: true });
   await enter.click();
   await expect

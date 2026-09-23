@@ -1,0 +1,143 @@
+.golf-scene {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: hidden;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.golf-scene__pose {
+  opacity: 0;
+}
+
+.golf-scene__pose--address {
+  opacity: 1;
+}
+
+.golf-scene--swing .golf-scene__pose--address {
+  animation: golf-scene-address 900ms steps(1, end) both;
+}
+
+.golf-scene--swing .golf-scene__pose--backswing {
+  animation: golf-scene-backswing 900ms steps(1, end) both;
+}
+
+.golf-scene--swing .golf-scene__pose--downswing {
+  animation: golf-scene-downswing 900ms steps(1, end) both;
+}
+
+.golf-scene--swing .golf-scene__pose--followthrough {
+  animation: golf-scene-followthrough 900ms steps(1, end) both;
+}
+
+.golf-scene--flight .golf-scene__pose--address,
+.golf-scene--reading .golf-scene__pose--address,
+.golf-scene--falling .golf-scene__pose--address,
+.golf-scene--flight .golf-scene__tee-ball,
+.golf-scene--reading .golf-scene__tee-ball,
+.golf-scene--falling .golf-scene__tee-ball {
+  opacity: 0;
+}
+
+.golf-scene--flight .golf-scene__pose--followthrough,
+.golf-scene--reading .golf-scene__pose--followthrough,
+.golf-scene--falling .golf-scene__pose--followthrough {
+  opacity: 1;
+}
+
+.golf-scene__impact {
+  opacity: 0;
+}
+
+.golf-scene--flight .golf-scene__impact {
+  animation: golf-scene-impact 240ms steps(3, end) both;
+  transform-origin: 535px 327px;
+}
+
+@keyframes golf-scene-address {
+  0%,
+  13% {
+    opacity: 1;
+  }
+  14%,
+  80% {
+    opacity: 0;
+  }
+  81%,
+  99% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes golf-scene-backswing {
+  0%,
+  13% {
+    opacity: 0;
+  }
+  14%,
+  57% {
+    opacity: 1;
+  }
+  58%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes golf-scene-downswing {
+  0%,
+  57% {
+    opacity: 0;
+  }
+  58%,
+  80% {
+    opacity: 1;
+  }
+  81%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes golf-scene-followthrough {
+  0%,
+  99% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes golf-scene-impact {
+  0% {
+    opacity: 1;
+    transform: scale(0.65);
+  }
+  75% {
+    opacity: 0.65;
+    transform: scale(1.4);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .golf-scene--swing .golf-scene__pose {
+    animation: none;
+  }
+
+  .golf-scene--swing .golf-scene__pose--address {
+    opacity: 1;
+  }
+
+  .golf-scene--flight .golf-scene__impact {
+    animation: none;
+  }
+}

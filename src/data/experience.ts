@@ -1,3 +1,5 @@
+import { revisionMarine } from './revision';
+
 export type ExperienceChapter = {
   id: string;
   year: string;
@@ -55,11 +57,11 @@ export const experience: ExperienceChapter[] = [
     id: 'revision',
     year: 'NOW',
     date: 'The next chapter',
-    place: 'Revision Marine · Cofounder',
+    place: `Revision Marine · ${revisionMarine.role}`,
     title: 'And that explains the jetski.',
     story:
-      'I’m cofounding Revision Marine, a jetski parts company, and building its commerce website. A chance to bring engineering, a business idea, and something I love onto the same shoreline.',
-    skills: ['Next.js', 'TypeScript', 'Medusa', 'Entrepreneurship'],
-    link: { href: '#project-revision', label: 'Meet Revision Marine' },
+      'As Revision Marine’s founding engineer, I built the technology stack behind a jetski parts company. I lead the website, infrastructure, warehouse software, and internal apps—and bring my creative side to merchandise design. That’s why this story ends on the water.',
+    skills: ['Next.js', 'TypeScript', 'Medusa', 'Infrastructure', 'Internal tools'],
+    link: { href: revisionMarine.url, label: 'Visit Revision Marine · private preview' },
   },
 ];
