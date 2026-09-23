@@ -1,33 +1,23 @@
 // Original pixel silhouettes, looking south from Lake Erie: east is on the left.
 // The spacing is compressed for the game; these are drawn shapes, not traced assets.
-function GoodyearBlimp({ x, y, scale }: { x: number; y: number; scale: number }) {
+function Blimp({ x, y, scale }: { x: number; y: number; scale: number }) {
   return (
-    <g className="skyline-goodyear-blimp" transform={`translate(${x} ${y}) scale(${scale})`}>
-      {/* Original pixel airship: classic blue envelope, gold wordmark, fins and gondola. */}
-      <path d="M11 13V-8H2v-5h-8v25h9v10zM10 32v26H1v5h-8V37h10z" fill="#6b8790" />
-      <path
-        d="M24 0h101v4h18v5h13v6h9v8h5v12h-5v8h-9v6h-13v5h-18v4H24v-4H12v-8H5V35H0V23h5V12h7V4h12z"
-        fill="#567684"
-      />
-      <path d="M24 4h99v4h19v5H17V8h7z" fill="#86a3ab" />
-      <path d="M13 41h143v5h-14v5h-20v3H25v-4H13z" fill="#d5ca83" />
-      <path d="M3 22h20v5H3zm1 9h19v5H4z" fill="#abc0b7" />
-      <text
-        x="88"
-        y="33"
-        textAnchor="middle"
-        fill="#e8dc91"
-        fontFamily="monospace"
-        fontSize="15"
-        fontWeight="700"
-        letterSpacing="0.7"
-      >
-        GOODYEAR
-      </text>
-      <path d="M82 56h4v7h-4zm31 0h4v7h-4z" fill="#5a7477" />
-      <path d="M79 63h43v10h-5v4H84v-4h-5z" fill="#c1d1c4" />
-      <path d="M85 65h8v5h-8zm11 0h8v5h-8zm11 0h8v5h-8z" fill="#567684" />
-      <path d="M69 60h7v4h-7zm-3-5h3v14h-3z" fill="#789094" />
+    <g className="skyline-blimp" transform={`translate(${x} ${y}) scale(${scale})`}>
+      {/* An unbranded blue/gold airship, facing into its entrance from the right. */}
+      <g transform="translate(170 0) scale(-1 1)">
+        <path d="M11 13V-8H2v-5h-8v25h9v10zM10 32v26H1v5h-8V37h10z" fill="#6b8790" />
+        <path
+          d="M24 0h101v4h18v5h13v6h9v8h5v12h-5v8h-9v6h-13v5h-18v4H24v-4H12v-8H5V35H0V23h5V12h7V4h12z"
+          fill="#567684"
+        />
+        <path d="M24 4h99v4h19v5H17V8h7z" fill="#86a3ab" />
+        <path d="M13 41h143v5h-14v5h-20v3H25v-4H13z" fill="#d5ca83" />
+        <path d="M3 22h20v5H3zm1 9h19v5H4z" fill="#abc0b7" />
+        <path d="M82 56h4v7h-4zm31 0h4v7h-4z" fill="#5a7477" />
+        <path d="M79 63h43v10h-5v4H84v-4h-5z" fill="#c1d1c4" />
+        <path d="M85 65h8v5h-8zm11 0h8v5h-8zm11 0h8v5h-8z" fill="#567684" />
+        <path d="M69 60h7v4h-7zm-3-5h3v14h-3z" fill="#789094" />
+      </g>
     </g>
   );
 }
@@ -45,16 +35,22 @@ export default function ClevelandSkyline({
   const scale = width < 560 ? width / 720 : Math.min(1.12, width / 1120);
   const x = width * 0.5 - 320 * scale;
   const parallax = Math.min(40, width * 0.04);
-  // The airship shares the ride's gentle parallax, with no independent animation.
-  const blimpX = width < 560 ? 442 : 635;
+  const skylineX = x + (0.5 - progress) * parallax;
+  // Enter during the final chapter. Riding backward naturally sends the airship
+  // back out, and restarting clears the sky without an extra animation timer.
+  const arrival = Math.max(0, Math.min(1, (progress - 0.84) / 0.13));
+  const easedArrival = arrival * arrival * (3 - 2 * arrival);
+  const blimpDestination = width < 560 ? 442 : 635;
+  const blimpOffscreen = (width + 24 - skylineX) / scale;
+  const blimpX = blimpOffscreen + (blimpDestination - blimpOffscreen) * easedArrival;
   const blimpY = -Math.min(350, (waterline - 155) / scale);
   return (
     <g
       className="cleveland-skyline"
-      transform={`translate(${x + (0.5 - progress) * parallax} ${waterline}) scale(${scale})`}
+      transform={`translate(${skylineX} ${waterline}) scale(${scale})`}
       shapeRendering="crispEdges"
     >
-      <GoodyearBlimp x={blimpX} y={blimpY} scale={width < 560 ? 1.04 : 0.95} />
+      {arrival > 0 && <Blimp x={blimpX} y={blimpY} scale={width < 560 ? 1.04 : 0.95} />}
       <g fill="#b5cbbf">
         <path d="M-650 0v-24h100v-14h50v14h90v-36h48v16h70v-19h65v34h54v-17h63v-15h33v24h72v-31h41v15h43v-22h51v27h55v-17h39v20h50V0z" />
         <path d="M320 0v-49h37v-24h45v17h34v-32h26v15h51v-17h38v50h64v-29h47v32h39v-12h47v14h120v35z" />
@@ -80,11 +76,10 @@ export default function ClevelandSkyline({
           d="M250-190h5v173h-5zm13-22h5v195h-5zm13-22h5v217h-5zm13 22h5v195h-5zm13 22h5v173h-5z"
           fill="#a7c0b1"
         />
-        {/* A small, softened red key sign below the crown. */}
+        {/* Soft red facade accents step upward toward the crown. */}
         <path
-          d="M263-211h9v3h18v4h-5v5h-4v-5h-9v3h-9v-3h-3v-4h3zM264-207v3h5v-3z"
+          d="M252-207h5v12h-5zm12-13h5v13h-5zm12-13h5v13h-5zm12 13h5v13h-5zm12 13h5v12h-5z"
           fill="#b57370"
-          fillRule="evenodd"
         />
       </g>
       <g transform="translate(-280 0)">
