@@ -90,13 +90,13 @@ const projects: Project[] = [
     summary:
       'Explore how proteins connect. An interactive lab for public data, graph communities, and clear explanations.',
     tags: ['Python / pandas', 'Networks', 'Public APIs'],
-    status: 'Interactive prototype',
+    status: 'Live data explorer',
     problem:
       'Biological relationship data can be difficult to make sense of as a table. This new project makes a small network tangible through exploration and community detection.',
     contribution:
-      'The explorer combines an interactive graph with a Python service designed to retrieve STRING data, clean it with pandas, and compute communities with NetworkX. The static site begins with a clearly labeled illustrative example.',
+      'The explorer loads two random human proteins from STRING, cleans their association data with pandas, and computes communities with NetworkX. Independent protein selectors include connection hints from the same source, with a choice of small or wider networks.',
     decisions:
-      'Network layouts and physical molecular structures are different views. Results identify their source and whether they are illustrative or live. Grounded AI explanations and an embedded molecular viewer are planned extensions, not completed features.',
+      'Real source data, retrieval times, and cached responses stay visible. Small or disconnected results remain valid results. Network layouts and physical molecular structures are different views; grounded AI explanations and an embedded molecular viewer are planned extensions.',
   },
 ];
 

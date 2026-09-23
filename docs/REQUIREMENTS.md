@@ -2,7 +2,7 @@
 
 Agreed direction recorded September 23, 2026.
 
-Implementation update: the React/TypeScript/Vite build includes the portfolio, playable jetski timeline, Revision Marine dock, and interactive protein explorer. GitHub Pages hosts the static frontend, and a paid Render FastAPI/pandas/NetworkX service supplies live STRING data when visitors select **Fetch live network**. AI explanations and an embedded molecular viewer remain later stages. See the root README for current setup and validation instructions; the scope below continues to describe the full intended product.
+Implementation update: the React/TypeScript/Vite build includes the portfolio, playable jetski timeline, Revision Marine dock, and interactive protein explorer. GitHub Pages hosts the frontend; a paid Render FastAPI/pandas/NetworkX service supplies live STRING data automatically for two random proteins on page load. Two curated selectors expose real association hints, and neighborhood sizes include just the selected pair. Small and disconnected results remain visible. AI explanations and an embedded molecular viewer remain later stages. See the root README for current setup and validation instructions; the scope below continues to describe the full intended product.
 
 The intended public domain is **jake-costello.com**, purchased through Wix. Publication requires connecting the GitHub repository, setting the custom domain in GitHub Pages, and updating its DNS records in Wix.
 

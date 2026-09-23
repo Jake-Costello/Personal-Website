@@ -2,6 +2,11 @@ import { expect, test } from '@playwright/test';
 import { experience } from '../../src/data/experience';
 import { MAX_SPEED } from '../../src/game/model';
 import { buildJourneyRoute } from '../../src/game/route';
+import { installProteinApi } from './protein-fixtures';
+
+test.beforeEach(async ({ page }) => {
+  await installProteinApi(page);
+});
 
 test('the portfolio renders without errors or horizontal overflow', async ({ page }, testInfo) => {
   const errors: string[] = [];
@@ -324,11 +329,12 @@ test('project details are accessible and the dialog closes with Escape', async (
   await expect(dialog).not.toBeVisible();
 });
 
-test('protein prototype filters connections and supports accessible selection', async ({
+test('live protein network loads automatically and supports filtering and selection', async ({
   page,
 }) => {
   await page.goto('/#lab');
-  await expect(page.getByText('ILLUSTRATIVE DEMO', { exact: true })).toBeVisible();
+  await expect(page.getByText('LIVE STRING DATA', { exact: true })).toBeVisible();
+  await expect(page.locator('.protein-explorer')).not.toContainText(/demo|illustrative/i);
   const readout = page
     .locator('.protein-readout > div')
     .filter({ hasText: 'CONNECTIONS' })
@@ -341,9 +347,9 @@ test('protein prototype filters connections and supports accessible selection', 
   await page.getByText('Explore the data & how it works').click();
   await page
     .locator('.protein-node-list')
-    .getByRole('button', { name: 'CDK2', exact: true })
+    .getByRole('button', { name: 'BRCA1', exact: true })
     .click();
-  await expect(page.locator('.protein-selected-heading h4')).toHaveText('CDK2');
+  await expect(page.locator('.protein-selected-heading h4')).toHaveText('BRCA1');
   await page.getByRole('button', { name: 'Rotate network right' }).click();
   await expect(page.getByRole('button', { name: 'Reset network view' })).toBeEnabled();
   const labels = page.getByRole('button', { name: 'Show all protein labels' });

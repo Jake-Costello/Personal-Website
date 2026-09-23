@@ -1,79 +1,212 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { communityColors, demoNetwork, proteinStructures } from '../data/proteins';
-import { parseNetwork, projectNode } from '../lib/protein';
-import type { ProteinNetwork } from '../lib/protein';
+import { communityColors, proteinStructures } from '../data/proteins';
+import {
+  chooseRandomProteinPair,
+  parseNetwork,
+  parseProteinCatalog,
+  projectNode,
+} from '../lib/protein';
+import type { ProteinCatalog, ProteinNetwork } from '../lib/protein';
 import './protein.css';
 
 const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
 const initialView = { yaw: -0.15, pitch: 0.1, zoom: 1 };
 
+interface NetworkQuery {
+  pair: [string, string];
+  confidence: number;
+  neighbors: number;
+}
+
+function serviceError(status: number) {
+  return new Error(
+    status === 429
+      ? 'The playground is busy. Wait a minute, then try again.'
+      : status === 504
+        ? 'STRING took too long to respond. Please try again.'
+        : 'Live protein data is temporarily unavailable. Please try again.',
+  );
+}
+
 export default function ProteinExplorer() {
-  const [network, setNetwork] = useState<ProteinNetwork>(demoNetwork);
+  const [catalog, setCatalog] = useState<ProteinCatalog | null>(null);
+  const [network, setNetwork] = useState<ProteinNetwork | null>(null);
+  const [loadedQuery, setLoadedQuery] = useState<NetworkQuery | null>(null);
+  const [requestedQuery, setRequestedQuery] = useState<NetworkQuery | null>(null);
   const [confidence, setConfidence] = useState(0.4);
-  const [selection, setSelection] = useState('TP53');
-  const [pair, setPair] = useState('TP53,CDK2');
+  const [selection, setSelection] = useState('');
+  const [pair, setPair] = useState<[string, string]>(['', '']);
+  const [neighbors, setNeighbors] = useState(8);
   const [view, setView] = useState(initialView);
   const [showLabels, setShowLabels] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [stage, setStage] = useState<'catalog' | 'network'>('catalog');
   const [error, setError] = useState('');
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const activeRequest = useRef<AbortController | null>(null);
-  const isDemo = network.source.mode === 'demo';
-  const selected = network.nodes.find((node) => node.id === selection) ?? network.nodes[0];
+  const requestSequence = useRef(0);
+  const selected = network?.nodes.find((node) => node.id === selection) ?? network?.nodes[0];
   const structure = selected ? proteinStructures[selected.label] : undefined;
+  const selectedDescription = catalog?.proteins.find(
+    (protein) => protein.symbol === selected?.label,
+  )?.name;
   const edges = useMemo(
-    () => network.edges.filter((edge) => edge.score >= confidence),
+    () => network?.edges.filter((edge) => edge.score >= confidence) ?? [],
     [network, confidence],
   );
   const projected = useMemo(
-    () => network.nodes.map((node) => projectNode(node, view.yaw, view.pitch, view.zoom)),
+    () => network?.nodes.map((node) => projectNode(node, view.yaw, view.pitch, view.zoom)) ?? [],
     [network, view],
   );
   const positions = new Map(projected.map((node) => [node.id, node]));
   const selectedEdges = selected
     ? edges.filter((edge) => edge.source === selected.id || edge.target === selected.id)
     : [];
+  const pendingChanges =
+    loadedQuery &&
+    (pair[0] !== loadedQuery.pair[0] ||
+      pair[1] !== loadedQuery.pair[1] ||
+      neighbors !== loadedQuery.neighbors ||
+      confidence !== loadedQuery.confidence);
+  const connections = useMemo(() => {
+    const scores = new Map<string, number>();
+    for (const edge of catalog?.connections ?? []) {
+      if (edge.source === pair[0]) scores.set(edge.target, edge.score);
+      if (edge.target === pair[0]) scores.set(edge.source, edge.score);
+    }
+    return scores;
+  }, [catalog, pair]);
+  const secondOptions = useMemo(() => {
+    const options = (catalog?.proteins ?? []).filter((protein) => protein.symbol !== pair[0]);
+    return options.sort((a, b) => {
+      const aScore = connections.get(a.symbol) ?? 0;
+      const bScore = connections.get(b.symbol) ?? 0;
+      return (
+        Number(bScore >= confidence) - Number(aScore >= confidence) ||
+        bScore - aScore ||
+        a.symbol.localeCompare(b.symbol)
+      );
+    });
+  }, [catalog, pair, connections, confidence]);
 
-  useEffect(() => () => activeRequest.current?.abort(), []);
-
-  async function fetchNetwork() {
+  const fetchNetwork = useCallback(async (query: NetworkQuery) => {
     if (!apiBase) return;
+    const sequence = ++requestSequence.current;
     activeRequest.current?.abort();
     const controller = new AbortController();
     activeRequest.current = controller;
-    const timeout = window.setTimeout(() => controller.abort(), 35_000);
+    let timedOut = false;
+    const timeout = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 35_000);
     setLoading(true);
+    setStage('network');
+    setRequestedQuery(query);
     setError('');
     try {
-      const query = new URLSearchParams({ proteins: pair, confidence: confidence.toString() });
-      const response = await fetch(`${apiBase}/api/network?${query}`, {
+      const params = new URLSearchParams({
+        proteins: query.pair.join(','),
+        confidence: query.confidence.toString(),
+        neighbors: query.neighbors.toString(),
+      });
+      const response = await fetch(`${apiBase}/api/network?${params}`, {
         signal: controller.signal,
       });
-      if (!response.ok)
-        throw new Error(
-          response.status === 429
-            ? 'The playground is busy. Wait a minute and try again; your current network is still available.'
-            : response.status === 504
-              ? 'The data source took too long. Your current network is still available; try again.'
-              : 'The live network is unavailable. Your current network is still available; try again.',
-        );
+      if (!response.ok) throw serviceError(response.status);
       const next = parseNetwork(await response.json());
+      if (sequence !== requestSequence.current || controller.signal.aborted) return;
       setNetwork(next);
+      setLoadedQuery(query);
       setSelection(
-        next.nodes.find((node) => node.label === pair.split(',')[0])?.id ?? next.nodes[0]?.id ?? '',
+        next.nodes.find((node) => node.label === query.pair[0])?.id ?? next.nodes[0]?.id ?? '',
       );
       setView(initialView);
     } catch (failure) {
+      if (sequence !== requestSequence.current || (controller.signal.aborted && !timedOut)) return;
       setError(
-        failure instanceof Error && failure.name !== 'AbortError'
-          ? failure.message
-          : 'The request timed out. Your current network is still available; try again.',
+        timedOut
+          ? 'The request timed out. Please try again.'
+          : failure instanceof Error && failure.name !== 'TypeError'
+            ? failure.message
+            : 'Could not reach the live data service. Check your connection and try again.',
       );
     } finally {
       window.clearTimeout(timeout);
-      setLoading(false);
+      if (sequence === requestSequence.current) {
+        setLoading(false);
+        activeRequest.current = null;
+      }
     }
+  }, []);
+
+  const initialize = useCallback(async () => {
+    if (!apiBase) {
+      setLoading(false);
+      setError('The live data service is not configured yet. Please check back soon.');
+      return;
+    }
+    const sequence = ++requestSequence.current;
+    activeRequest.current?.abort();
+    const controller = new AbortController();
+    activeRequest.current = controller;
+    let timedOut = false;
+    const timeout = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 35_000);
+    setLoading(true);
+    setStage('catalog');
+    setError('');
+    try {
+      const response = await fetch(`${apiBase}/api/proteins`, { signal: controller.signal });
+      if (!response.ok) throw serviceError(response.status);
+      const next = parseProteinCatalog(await response.json());
+      if (sequence !== requestSequence.current || controller.signal.aborted) return;
+      const nextPair = chooseRandomProteinPair(next.proteins);
+      setCatalog(next);
+      setPair(nextPair);
+      setConfidence(0.4);
+      setNeighbors(8);
+      window.clearTimeout(timeout);
+      await fetchNetwork({ pair: nextPair, confidence: 0.4, neighbors: 8 });
+    } catch (failure) {
+      if (sequence !== requestSequence.current || (controller.signal.aborted && !timedOut)) return;
+      setError(
+        timedOut
+          ? 'The protein list took too long to load. Please try again.'
+          : failure instanceof Error && failure.name !== 'TypeError'
+            ? failure.message
+            : 'Could not reach the live data service. Check your connection and try again.',
+      );
+    } finally {
+      window.clearTimeout(timeout);
+      if (sequence === requestSequence.current) {
+        setLoading(false);
+        activeRequest.current = null;
+      }
+    }
+  }, [fetchNetwork]);
+
+  useEffect(() => {
+    // A queued start lets StrictMode cancel its first setup before any API request.
+    const start = window.setTimeout(() => {
+      void initialize();
+    }, 0);
+    return () => {
+      window.clearTimeout(start);
+      ++requestSequence.current;
+      activeRequest.current?.abort();
+      activeRequest.current = null;
+    };
+  }, [initialize]);
+
+  function exploreRandomPair() {
+    if (!catalog) return;
+    const nextPair = chooseRandomProteinPair(catalog.proteins);
+    setPair(nextPair);
+    void fetchNetwork({ pair: nextPair, confidence, neighbors });
   }
 
   function startDrag(event: ReactPointerEvent<SVGSVGElement>) {
@@ -102,21 +235,172 @@ export default function ProteinExplorer() {
         <span className="protein-app-label">
           <span aria-hidden="true">✳</span> THE PROTEIN PLAYGROUND
         </span>
-        <span className={`protein-status${isDemo ? '' : ' is-live'}`}>
+        <span className={`protein-status${network ? ' is-live' : ''}`}>
           <i aria-hidden="true" />
-          {isDemo
-            ? 'ILLUSTRATIVE DEMO'
-            : network.source.cached
+          {network
+            ? network.source.cached
               ? 'CACHED STRING DATA'
-              : 'LIVE STRING DATA'}
+              : 'LIVE STRING DATA'
+            : loading
+              ? 'LOADING STRING DATA'
+              : 'DATA UNAVAILABLE'}
         </span>
       </div>
+      <form
+        className="protein-query"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (catalog) void fetchNetwork({ pair: [...pair], confidence, neighbors });
+        }}
+      >
+        <div className="protein-query-fields">
+          <div>
+            <label htmlFor="protein-first">First protein</label>
+            <select
+              id="protein-first"
+              value={pair[0]}
+              disabled={!catalog}
+              onChange={(event) => setPair([event.target.value, pair[1]])}
+            >
+              {!catalog && <option value="">Loading proteins…</option>}
+              {catalog?.proteins.map((protein) => (
+                <option
+                  key={protein.symbol}
+                  value={protein.symbol}
+                  disabled={protein.symbol === pair[1]}
+                  title={protein.name}
+                >
+                  {protein.symbol}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="protein-second">Second protein</label>
+            <select
+              id="protein-second"
+              value={pair[1]}
+              disabled={!catalog}
+              aria-describedby="protein-connection-hint"
+              onChange={(event) => setPair([pair[0], event.target.value])}
+            >
+              {!catalog && <option value="">Loading proteins…</option>}
+              {secondOptions.some(
+                (protein) => (connections.get(protein.symbol) ?? 0) >= confidence,
+              ) && (
+                <optgroup label={`Associated with ${pair[0]} at ≥ ${confidence.toFixed(2)}`}>
+                  {secondOptions
+                    .filter((protein) => (connections.get(protein.symbol) ?? 0) >= confidence)
+                    .map((protein) => (
+                      <option key={protein.symbol} value={protein.symbol} title={protein.name}>
+                        {protein.symbol} · {connections.get(protein.symbol)!.toFixed(3)}
+                      </option>
+                    ))}
+                </optgroup>
+              )}
+              {secondOptions.some(
+                (protein) => (connections.get(protein.symbol) ?? 0) < confidence,
+              ) && (
+                <optgroup label="Other proteins">
+                  {secondOptions
+                    .filter((protein) => (connections.get(protein.symbol) ?? 0) < confidence)
+                    .map((protein) => (
+                      <option key={protein.symbol} value={protein.symbol} title={protein.name}>
+                        {protein.symbol} ·{' '}
+                        {connections.has(protein.symbol)
+                          ? `Below threshold (${connections.get(protein.symbol)!.toFixed(2)})`
+                          : 'No link returned'}
+                      </option>
+                    ))}
+                </optgroup>
+              )}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="protein-network-size">Network size</label>
+            <select
+              id="protein-network-size"
+              value={neighbors}
+              disabled={!catalog}
+              onChange={(event) => setNeighbors(Number(event.target.value))}
+            >
+              <option value="0">Just these two</option>
+              <option value="8">Small neighborhood</option>
+              <option value="24">Wider neighborhood</option>
+            </select>
+          </div>
+          <div className="protein-query-actions">
+            <button className="protein-fetch" type="submit" disabled={!catalog}>
+              Explore network ↗
+            </button>
+            <button
+              className="protein-random"
+              type="button"
+              onClick={exploreRandomPair}
+              disabled={!catalog}
+            >
+              Random pair
+            </button>
+          </div>
+        </div>
+        <p id="protein-connection-hint" className="protein-query-hint">
+          {catalog
+            ? `${catalog.proteins.length} starting proteins, with association hints from STRING. `
+            : ''}
+          Scores describe direct associations returned for this list; unlisted links may still
+          exist.
+        </p>
+        <p className="protein-query-status" role="status" aria-live="polite">
+          {loading
+            ? stage === 'catalog'
+              ? 'Loading the protein list from STRING…'
+              : `Finding communities for ${requestedQuery?.pair.join(' + ')}…`
+            : pendingChanges
+              ? 'Selection changed. Explore network to apply it and recompute communities.'
+              : network
+                ? 'Network ready. Choose proteins or try another random pair.'
+                : ''}
+          {loading && network ? ' The previous network remains visible below.' : ''}
+        </p>
+        {error && (
+          <div className="protein-error" role="alert">
+            <p>
+              {error}
+              {network ? ' Your previous network is still available below.' : ''}
+            </p>
+            <button
+              className="protein-retry"
+              type="button"
+              disabled={loading}
+              onClick={() => {
+                if (catalog) void fetchNetwork({ pair: [...pair], confidence, neighbors });
+                else void initialize();
+              }}
+            >
+              Try again
+            </button>
+          </div>
+        )}
+      </form>
       <div className="protein-layout">
-        <div className="protein-canvas-panel">
+        <div className="protein-canvas-panel" aria-busy={loading}>
           <div className="protein-canvas-heading">
             <div>
               <span className="protein-eyebrow">HOMO SAPIENS / 9606</span>
-              <h3>A little connected thinking.</h3>
+              <h3>
+                {loadedQuery
+                  ? `${loadedQuery.pair[0]} + ${loadedQuery.pair[1]}`
+                  : 'Connecting the dots.'}
+              </h3>
+              <p className="protein-loaded-query">
+                {loadedQuery
+                  ? `${
+                      loadedQuery.neighbors === 0
+                        ? 'Two-protein network'
+                        : `Up to ${loadedQuery.neighbors} additional proteins`
+                    } · computed at ${network!.confidence.toFixed(2)} confidence`
+                  : 'Real STRING associations, grouped as they arrive.'}
+              </p>
             </div>
             <span className="protein-orbit-symbol" aria-hidden="true">
               ↗
@@ -231,12 +515,35 @@ export default function ProteinExplorer() {
                   </text>
                 </g>
               ))}
-            {network.nodes.length === 0 && (
-              <text x="330" y="210" textAnchor="middle" fill="#f5f3ed">
-                No proteins returned. Try the other example.
+            {!network && (
+              <text
+                className="protein-empty-label"
+                x="330"
+                y="210"
+                textAnchor="middle"
+                fill="#f5f3ed"
+              >
+                {loading ? 'Loading real protein data…' : 'Waiting for live data'}
+              </text>
+            )}
+            {network && network.nodes.length === 0 && (
+              <text
+                className="protein-empty-label"
+                x="330"
+                y="210"
+                textAnchor="middle"
+                fill="#f5f3ed"
+              >
+                No proteins returned for this query.
               </text>
             )}
           </svg>
+          {network && edges.length === 0 && (
+            <p className="protein-empty-connections">
+              No links meet this confidence in the returned network. Proteins remain visible; this
+              does not prove that no biological relationship exists.
+            </p>
+          )}
           <div className="protein-graph-footer">
             <span>
               DRAG TO ROTATE <span aria-hidden="true">↔</span>
@@ -303,16 +610,16 @@ export default function ProteinExplorer() {
         <aside className="protein-sidebar" aria-label="Network controls and selected protein">
           <div className="protein-readout">
             <div>
-              <strong>{network.nodes.length}</strong>
+              <strong>{network?.nodes.length ?? '—'}</strong>
               <span>PROTEINS</span>
             </div>
             <div>
-              <strong>{edges.length}</strong>
+              <strong>{network ? edges.length : '—'}</strong>
               <span>CONNECTIONS</span>
             </div>
             <div>
-              <strong>{network.communities}</strong>
-              <span>{isDemo ? 'DEMO GROUPS' : 'COMMUNITIES'}</span>
+              <strong>{network?.communities ?? '—'}</strong>
+              <span>COMMUNITIES</span>
             </div>
           </div>
           <div className="protein-control-block">
@@ -330,11 +637,11 @@ export default function ProteinExplorer() {
               onChange={(event) => setConfidence(Number(event.target.value))}
             />
             <p>
-              {isDemo
-                ? 'Raise the threshold to filter this illustrative network.'
+              {!network
+                ? 'Higher scores keep stronger STRING associations. Communities are computed when you explore.'
                 : confidence < network.confidence
-                  ? `This result starts at ${network.confidence.toFixed(2)} confidence. Fetch again to include lower-confidence connections.`
-                  : `Links are filtered locally. Communities were computed at ${network.confidence.toFixed(2)}; fetch again to recompute them.`}
+                  ? `This result starts at ${network.confidence.toFixed(2)} confidence. Explore again to include lower-confidence connections.`
+                  : `Links are filtered locally. Communities were computed at ${network.confidence.toFixed(2)}; explore again to recompute them.`}
             </p>
           </div>
           <div className="protein-selection" aria-live="polite">
@@ -354,8 +661,21 @@ export default function ProteinExplorer() {
             <p>
               {selected
                 ? `${selectedEdges.length} visible connections in this network. Select another node to follow its relationships.`
-                : 'No proteins are available for this query.'}
+                : network
+                  ? 'No proteins are available for this query.'
+                  : 'Choose a protein once the network loads.'}
             </p>
+            {selectedDescription && (
+              <details className="protein-annotation" key={selected?.id}>
+                <summary>About this protein</summary>
+                <p>
+                  {selectedDescription.length === 500
+                    ? `${selectedDescription.slice(0, selectedDescription.lastIndexOf(' '))}…`
+                    : selectedDescription}
+                </p>
+                <span>Source: STRING{selectedDescription.length === 500 ? ' · excerpt' : ''}</span>
+              </details>
+            )}
             {structure ? (
               <a
                 href={`https://www.rcsb.org/structure/${structure.code}`}
@@ -371,54 +691,20 @@ export default function ProteinExplorer() {
             )}
             {structure && <p className="protein-structure-caption">{structure.description}</p>}
           </div>
-          <div className="protein-source">
-            {apiBase ? (
-              <>
-                <label htmlFor="protein-example">Starting proteins</label>
-                <select
-                  id="protein-example"
-                  value={pair}
-                  onChange={(event) => setPair(event.target.value)}
-                  disabled={loading}
-                >
-                  <option value="TP53,CDK2">TP53 + CDK2</option>
-                  <option value="BRCA1,BRCA2">BRCA1 + BRCA2</option>
-                </select>
-                <button
-                  className="protein-fetch"
-                  type="button"
-                  onClick={fetchNetwork}
-                  disabled={loading}
-                >
-                  {loading ? 'Fetching & finding communities…' : 'Fetch live network ↗'}
-                </button>
-              </>
-            ) : (
-              <p>
-                <strong>Explore the prototype.</strong> Live STRING data will be available when the
-                Python service is connected.
-              </p>
-            )}
-            {error && (
-              <p role="alert" className="protein-error">
-                {error}
-              </p>
-            )}
-          </div>
         </aside>
       </div>
       <div className="protein-notes">
         <p>
-          {isDemo ? (
-            'Demo data: connections, scores, and groups are illustrative.'
-          ) : (
+          {network ? (
             <>
               <a href={network.source.url} target="_blank" rel="noreferrer">
                 {network.source.name}
-              </a>{' '}
-              · Retrieved {new Date(network.source.retrievedAt!).toLocaleString()}
+              </a>
+              {' · '}Retrieved {new Date(network.source.retrievedAt).toLocaleString()}
               {network.source.cached ? ' · cached response' : ''}.
             </>
+          ) : (
+            'Data will come from STRING. No network has loaded yet.'
           )}{' '}
           Positions show a network layout, not molecular structure.
         </p>
@@ -430,7 +716,8 @@ export default function ProteinExplorer() {
             <div>
               <h4>Follow a protein</h4>
               <div className="protein-node-list">
-                {network.nodes.map((node) => (
+                {!network && <p>The protein list appears when the network is ready.</p>}
+                {network?.nodes.map((node) => (
                   <button
                     type="button"
                     key={node.id}
@@ -450,6 +737,18 @@ export default function ProteinExplorer() {
             </div>
             <div>
               <h4>From data to discovery</h4>
+              {catalog && (
+                <p>
+                  Selector hints:{' '}
+                  <a href={catalog.source.url} target="_blank" rel="noreferrer">
+                    {catalog.source.name}
+                  </a>
+                  {' · '}retrieved {new Date(catalog.source.retrievedAt).toLocaleString()}
+                  {catalog.source.cached ? ' · cached response' : ''}. Hints cover direct
+                  associations in this curated list at scores of 0.40 and above, not all possible
+                  relationships.
+                </p>
+              )}
               <p>
                 The Python service resolves identifiers with STRING, cleans the data with pandas,
                 and finds communities using seeded Louvain clustering in NetworkX. Associations can

@@ -1,6 +1,6 @@
 # Jacob Costello — Personal Website
 
-A portfolio with a playable jetski career journey, project case studies, and a protein-network explorer. Built with React, TypeScript, and Vite for static hosting on GitHub Pages, with an optional Python API service.
+A portfolio with a playable jetski career journey, project case studies, and a live protein-network explorer. Built with React, TypeScript, and Vite for static hosting on GitHub Pages, with a Python API service on Render.
 
 ## Run the site
 
@@ -13,7 +13,7 @@ npm run dev
 
 Open the local address printed by Vite, normally `http://127.0.0.1:5173`.
 
-The portfolio and interactive graph work without a backend. The graph starts with explicitly labeled illustrative data. No AI calls, API keys, or paid services are required.
+The portfolio runs without a backend, but the protein graph requires the Python service below. It only displays retrieved STRING data: a missing or unavailable service produces a loading/error state with retry, never a synthetic fallback. Running locally requires no API keys or paid services.
 
 ## Enable live protein data locally
 
@@ -23,9 +23,9 @@ Follow [the backend setup](backend/README.md) to start the Python service on por
 VITE_API_BASE_URL=http://127.0.0.1:8000
 ```
 
-Restart Vite. In the explorer, select **Fetch live network** to retrieve STRING data and calculate communities with pandas and NetworkX. This setting applies only to development; it does not bake a localhost address into the production build.
+Restart Vite. The explorer automatically retrieves the protein catalog, chooses two distinct random proteins, and loads their STRING network. Two selectors offer a curated list of 12 human proteins with source-backed direct-association hints. **Explore network** applies the chosen pair, confidence, and neighborhood size; **Random pair** starts another exploration. This setting applies only to development; it does not bake a localhost address into the production build.
 
-The production API runs at [personal-website-protein-api.onrender.com](https://personal-website-protein-api.onrender.com/health) on one paid Render Python service configured by [`render.yaml`](render.yaml). The repository Actions variable `VITE_API_BASE_URL` connects the published playground to this service; the portfolio stays on GitHub Pages. The graph starts in illustrative mode, and **Fetch live network** loads real STRING data. See the [Render setup](backend/README.md#deploy-on-render) for deployment and maintenance instructions.
+The production API runs at [personal-website-protein-api.onrender.com](https://personal-website-protein-api.onrender.com/health) on one paid Render Python service configured by [`render.yaml`](render.yaml). The repository Actions variable `VITE_API_BASE_URL` connects the published playground to this service; the portfolio stays on GitHub Pages. Source retrieval times and cached responses remain visible. See the [Render setup](backend/README.md#deploy-on-render) for deployment and maintenance instructions.
 
 ## What is implemented
 
@@ -36,11 +36,13 @@ The production API runs at [personal-website-protein-api.onrender.com](https://p
 - Larger career stories revealed in stages: title, year, then details at about 250 words per minute. Departure fades details, year, and title in sequence, with 1.8 seconds of open water between stops at full speed. Reduced-motion mode and the readable timeline show each active story immediately.
 - A roughly 80-second route at full speed, a shoreline progress indicator with dots at actual story locations, a larger Revision Marine workshop, and a Back to start control at the destination. Story text keeps revealing when the rider stops.
 - Revision Marine dock reveal, plus readable timeline navigation, keyboard and touch controls, and reduced-motion support.
-- Interactive protein graph with rotation, zoom, confidence filtering, and accessible node selection.
+- Live protein graph with automatic random pairs, two curated selectors, actual STRING connection hints, pair-only/small/wider neighborhoods, rotation, zoom, confidence filtering, and accessible node selection. Disconnected proteins remain visible.
 - Live FastAPI service on Render: STRING identifier resolution, validated data processing, repeatable community detection, caching, request limits, and source provenance. Local frontend development can also run without it.
 - GitHub Actions workflow for checks and static publication.
 
 Still to come: confirmed personal photos and additional stories, a public Revision Marine site link, optional downloadable resume, embedded molecular structures, and grounded AI explanations. These are not represented as completed features in the interface.
+
+The [AI explanation plan](docs/AI-EXPLANATIONS.md) describes the next integration, source grounding, account setup, and bounded usage.
 
 ## Update the resume and timeline
 

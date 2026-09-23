@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseNetwork, projectNode } from './protein';
+import { chooseRandomProteinPair, parseNetwork, parseProteinCatalog, projectNode } from './protein';
 
 function validNetwork() {
   return {
@@ -61,5 +61,75 @@ test('projection responds to rotation while staying finite at permitted coordina
     const projected = projectNode({ ...node, x: 2, y: 2, z: 2 }, yaw, 1.2, 1.35);
     assert.ok(Number.isFinite(projected.px) && Number.isFinite(projected.py));
     assert.ok(projected.radius > 0);
+  }
+});
+
+function validCatalog() {
+  return {
+    proteins: [
+      { symbol: 'TP53', name: 'Test annotation one' },
+      { symbol: 'CDK2', name: 'Test annotation two' },
+      { symbol: 'BRCA1', name: 'Test annotation three' },
+    ],
+    connections: [{ source: 'TP53', target: 'CDK2', score: 0.8 }],
+    source: validNetwork().source,
+  };
+}
+
+test('catalog accepts disconnected selectable proteins and real source metadata', () => {
+  const catalog = parseProteinCatalog(validCatalog());
+  assert.equal(catalog.proteins.length, 3);
+  assert.equal(catalog.connections.length, 1);
+  assert.equal(parseProteinCatalog({ ...validCatalog(), connections: [] }).connections.length, 0);
+});
+
+test('catalog rejects ambiguous identities, invalid hints, and untrusted provenance', () => {
+  const value = validCatalog();
+  for (const bad of [
+    { ...value, proteins: [value.proteins[0]] },
+    { ...value, proteins: [...value.proteins, value.proteins[0]] },
+    { ...value, proteins: value.proteins.map((item) => ({ ...item, name: 'x'.repeat(501) })) },
+    { ...value, connections: [{ source: 'TP53', target: 'UNKNOWN', score: 0.8 }] },
+    { ...value, connections: [{ source: 'TP53', target: 'TP53', score: 0.8 }] },
+    { ...value, connections: [{ source: 'TP53', target: 'CDK2', score: Number.NaN }] },
+    { ...value, connections: [{ source: 'TP53', target: 'CDK2', score: 0.3 }] },
+    {
+      ...value,
+      connections: [...value.connections, { source: 'CDK2', target: 'TP53', score: 0.9 }],
+    },
+    { ...value, source: { ...value.source, mode: 'demo' } },
+    { ...value, source: { ...value.source, url: 'https://string-db.org.evil.example/' } },
+  ])
+    assert.throws(() => parseProteinCatalog(bad));
+});
+
+test('random selection reaches every ordered distinct pair without retry loops', () => {
+  const proteins = validCatalog().proteins;
+  const pairs = new Set<string>();
+  for (let first = 0; first < proteins.length; first++) {
+    for (let second = 0; second < proteins.length - 1; second++) {
+      const samples = [(first + 0.5) / proteins.length, (second + 0.5) / (proteins.length - 1)];
+      const pair = chooseRandomProteinPair(proteins, () => samples.shift()!);
+      assert.notEqual(pair[0], pair[1]);
+      pairs.add(pair.join(','));
+    }
+  }
+  assert.equal(pairs.size, proteins.length * (proteins.length - 1));
+  assert.deepEqual(
+    chooseRandomProteinPair(proteins, () => 0),
+    ['TP53', 'CDK2'],
+  );
+  assert.deepEqual(
+    chooseRandomProteinPair(proteins, () => 0.999999),
+    ['BRCA1', 'CDK2'],
+  );
+});
+
+test('random selection rejects impossible lists and invalid random samples', () => {
+  const proteins = validCatalog().proteins;
+  assert.throws(() => chooseRandomProteinPair([]));
+  assert.throws(() => chooseRandomProteinPair([proteins[0], proteins[0]]));
+  for (const sample of [Number.NaN, -0.1, 1, Number.POSITIVE_INFINITY]) {
+    assert.throws(() => chooseRandomProteinPair(proteins, () => sample));
   }
 });

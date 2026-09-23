@@ -13,18 +13,31 @@ export interface ProteinEdge {
   score: number;
 }
 
+export interface ProteinSource {
+  name: string;
+  url: string;
+  mode: 'live';
+  retrievedAt: string;
+  cached?: boolean;
+}
+
+export interface ProteinCatalogItem {
+  symbol: string;
+  name: string;
+}
+
+export interface ProteinCatalog {
+  proteins: ProteinCatalogItem[];
+  connections: ProteinEdge[];
+  source: ProteinSource;
+}
+
 export interface ProteinNetwork {
   nodes: ProteinNode[];
   edges: ProteinEdge[];
   communities: number;
   confidence: number;
-  source: {
-    name: string;
-    url: string;
-    mode: 'demo' | 'live';
-    retrievedAt: string | null;
-    cached?: boolean;
-  };
+  source: ProteinSource;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -47,6 +60,93 @@ function isStringSource(value: unknown): boolean {
   }
 }
 
+function isProteinSource(value: unknown): value is ProteinSource {
+  return (
+    isRecord(value) &&
+    value.mode === 'live' &&
+    typeof value.name === 'string' &&
+    value.name.trim().length > 0 &&
+    value.name.length <= 120 &&
+    isStringSource(value.url) &&
+    typeof value.retrievedAt === 'string' &&
+    value.retrievedAt.length <= 64 &&
+    Number.isFinite(Date.parse(value.retrievedAt)) &&
+    (value.cached === undefined || typeof value.cached === 'boolean')
+  );
+}
+
+export function parseProteinCatalog(value: unknown): ProteinCatalog {
+  const invalid = () =>
+    new Error('The service returned an unexpected protein list. Please try again.');
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.proteins) ||
+    value.proteins.length < 2 ||
+    value.proteins.length > 40 ||
+    !Array.isArray(value.connections) ||
+    value.connections.length > 780 ||
+    !isProteinSource(value.source)
+  )
+    throw invalid();
+
+  const symbols = new Set<string>();
+  for (const protein of value.proteins) {
+    if (
+      !isRecord(protein) ||
+      typeof protein.symbol !== 'string' ||
+      !/^[A-Z0-9][A-Z0-9-]{0,19}$/.test(protein.symbol) ||
+      symbols.has(protein.symbol) ||
+      typeof protein.name !== 'string' ||
+      !protein.name.trim() ||
+      protein.name.length > 500
+    )
+      throw invalid();
+    symbols.add(protein.symbol);
+  }
+  const pairs = new Set<string>();
+  for (const connection of value.connections) {
+    if (
+      !isRecord(connection) ||
+      typeof connection.source !== 'string' ||
+      typeof connection.target !== 'string' ||
+      !symbols.has(connection.source) ||
+      !symbols.has(connection.target) ||
+      connection.source === connection.target ||
+      typeof connection.score !== 'number' ||
+      !Number.isFinite(connection.score) ||
+      connection.score < 0.4 ||
+      connection.score > 1
+    )
+      throw invalid();
+    const pair = [connection.source, connection.target].sort().join(',');
+    if (pairs.has(pair)) throw invalid();
+    pairs.add(pair);
+  }
+  return value as unknown as ProteinCatalog;
+}
+
+export function chooseRandomProteinPair(
+  proteins: readonly ProteinCatalogItem[],
+  random: () => number = Math.random,
+): [string, string] {
+  if (
+    proteins.length < 2 ||
+    new Set(proteins.map((protein) => protein.symbol)).size !== proteins.length
+  ) {
+    throw new Error('At least two distinct proteins are needed.');
+  }
+  const sample = (length: number) => {
+    const value = random();
+    if (!Number.isFinite(value) || value < 0 || value >= 1)
+      throw new Error('Invalid random value.');
+    return Math.floor(value * length);
+  };
+  const first = sample(proteins.length);
+  const candidate = sample(proteins.length - 1);
+  const second = candidate >= first ? candidate + 1 : candidate;
+  return [proteins[first].symbol, proteins[second].symbol];
+}
+
 export function parseNetwork(value: unknown): ProteinNetwork {
   if (
     !isRecord(value) ||
@@ -67,6 +167,7 @@ export function parseNetwork(value: unknown): ProteinNetwork {
         !node.id ||
         node.id.length > 80 ||
         typeof node.label !== 'string' ||
+        !node.label.trim() ||
         node.label.length > 80 ||
         !Number.isInteger(node.community) ||
         Number(node.community) < 0 ||
@@ -100,18 +201,13 @@ export function parseNetwork(value: unknown): ProteinNetwork {
     throw new Error('The service returned invalid connections. Please try again.');
   }
   if (
-    value.source.mode !== 'live' ||
-    typeof value.source.name !== 'string' ||
-    !isStringSource(value.source.url) ||
-    typeof value.source.retrievedAt !== 'string' ||
-    !Number.isFinite(Date.parse(value.source.retrievedAt)) ||
+    !isProteinSource(value.source) ||
     typeof value.confidence !== 'number' ||
     !Number.isFinite(value.confidence) ||
     value.confidence < 0.4 ||
     value.confidence > 0.95 ||
     !Number.isInteger(value.communities) ||
-    Number(value.communities) < 0 ||
-    (value.source.cached !== undefined && typeof value.source.cached !== 'boolean')
+    Number(value.communities) < 0
   ) {
     throw new Error('The service returned incomplete source information. Please try again.');
   }
