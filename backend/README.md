@@ -14,7 +14,7 @@ In the frontend's root `.env.development.local`, set `VITE_API_BASE_URL=http://1
 
 For a separate HTTPS deployment, set `ALLOWED_ORIGINS` to exact frontend origins, comma-separated. For GitHub Pages this is `https://YOUR-USERNAME.github.io` (no repository path). Local defaults allow `http://localhost:5173` and `http://127.0.0.1:5173`. Never use `*` to solve a configuration error. Run a single application worker so its upstream request spacing and cache are shared; a multiple-worker deployment needs an external cache and shared limiter first.
 
-GitHub Pages cannot run this Python service. The repository includes a ready-to-deploy Render Blueprint; creating the Render service and connecting its production URL remain launch tasks. No paid provider or account is needed to run it locally.
+GitHub Pages hosts the frontend, and the production Python service runs on Render at [personal-website-protein-api.onrender.com](https://personal-website-protein-api.onrender.com/health). The repository Actions variable `VITE_API_BASE_URL` connects the two. No paid provider or account is needed to run the service locally.
 
 ## Deploy on Render
 

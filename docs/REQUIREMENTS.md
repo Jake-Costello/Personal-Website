@@ -2,7 +2,7 @@
 
 Agreed direction recorded September 23, 2026.
 
-Implementation update: the first React/TypeScript/Vite build now includes the portfolio, playable jetski timeline, Revision Marine dock, and interactive protein prototype. An optional FastAPI/pandas/NetworkX service supports live STRING data. GitHub Pages will host the static frontend. Production backend hosting, AI explanations, and an embedded molecular viewer remain later stages. See the root README for current setup and validation instructions; the scope below continues to describe the full intended product.
+Implementation update: the React/TypeScript/Vite build includes the portfolio, playable jetski timeline, Revision Marine dock, and interactive protein explorer. GitHub Pages hosts the static frontend, and a paid Render FastAPI/pandas/NetworkX service supplies live STRING data when visitors select **Fetch live network**. AI explanations and an embedded molecular viewer remain later stages. See the root README for current setup and validation instructions; the scope below continues to describe the full intended product.
 
 The intended public domain is **jake-costello.com**, purchased through Wix. Publication requires connecting the GitHub repository, setting the custom domain in GitHub Pages, and updating its DNS records in Wix.
 
@@ -129,7 +129,7 @@ Initial scope: a few curated examples, approximately 30–60 proteins per networ
 | RCSB PDB and a molecular viewer such as Mol* | Retrieve and display an existing structure for a selected protein when available |
 | AI explanation | Explain the supplied data and computed results with references to the underlying sources |
 
-The first implementation uses React/TypeScript for the frontend and FastAPI, pandas, and seeded NetworkX Louvain for the optional live STRING service. Existing molecular structures are linked externally; the embedded molecular viewer and AI explanation remain planned. Production hosting for the backend and an AI provider remain open decisions.
+The implementation uses React/TypeScript for the frontend and FastAPI, pandas, and seeded NetworkX Louvain for the live STRING service. Existing molecular structures are linked externally; the embedded molecular viewer and AI explanation remain planned. The backend runs on one paid Render service; the AI provider remains an open decision.
 
 ### Scientific distinctions
 
@@ -178,7 +178,7 @@ Prioritize a complete, polished set of features. Introduce additional techniques
 - Hobbies, photographs, and real places that could inform the jetski setting.
 - Available payphone code, photographs, and demonstration material.
 - Exact palette, typography, sprite artwork, and animation treatment.
-- Production backend hosting, AI provider, and operating budget. The frontend uses React/TypeScript/Vite with GitHub Pages; the backend uses Python/FastAPI.
+- AI provider and AI operating budget. The frontend uses React/TypeScript/Vite with GitHub Pages; the Python/FastAPI backend uses one paid Render service as configured in `render.yaml`.
 - Final public contact details and optional downloadable resume.
 - Git remote for Personal-Website; none was configured during the initial repository check.
 
