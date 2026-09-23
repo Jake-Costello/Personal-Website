@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 import httpx
 
-from backend.app import app
+from backend.app import app, NetworkRequestLimiter
 from backend.network import build_network, clean_edges, parse_proteins
 
 
@@ -67,7 +67,14 @@ class NetworkProcessingTests(unittest.TestCase):
 
 class ApiContractTests(unittest.TestCase):
     def setUp(self):
+        # An isolated, fixed clock prevents rate-limit state leaking between tests.
+        self.now = 100.0
+        self.limiter = NetworkRequestLimiter(clock=lambda: self.now)
+        limiter_patch = patch("backend.app.network_request_limiter", self.limiter)
+        limiter_patch.start()
+        self.addCleanup(limiter_patch.stop)
         self.client = TestClient(app)
+        self.addCleanup(self.client.close)
 
     def test_invalid_requests_never_call_upstream(self):
         with patch("backend.app.retrieve_network", new_callable=AsyncMock) as retrieve:
@@ -100,6 +107,74 @@ class ApiContractTests(unittest.TestCase):
         self.assertNotIn("access-control-allow-origin", response.headers)
         approved = self.client.get("/health", headers={"Origin": "http://localhost:5173"})
         self.assertEqual(approved.headers["access-control-allow-origin"], "http://localhost:5173")
+
+    def test_sixty_requests_then_rejection_never_reaches_upstream(self):
+        payload = {"records": [], "seeds": [{"id": "9606.A", "label": "TP53"}],
+                   "retrievedAt": "2026-09-23T12:00:00+00:00"}
+        with patch("backend.app.retrieve_network", new_callable=AsyncMock,
+                   return_value=(payload, True)) as retrieve:
+            for _ in range(60):
+                self.assertEqual(self.client.get("/api/network").status_code, 200)
+            rejected = self.client.get("/api/network", headers={"Origin": "http://localhost:5173"})
+            self.assertEqual(rejected.status_code, 429)
+            self.assertEqual(rejected.headers["retry-after"], "60")
+            self.assertEqual(rejected.headers["cache-control"], "no-store")
+            self.assertEqual(rejected.headers["access-control-allow-origin"], "http://localhost:5173")
+            self.assertIn("Retry-After", rejected.headers["access-control-expose-headers"])
+            self.assertEqual(retrieve.await_count, 60)
+            # Expiry is inclusive: a full window later the same client recovers.
+            self.now += 60
+            self.assertEqual(self.client.get("/api/network").status_code, 200)
+            self.assertEqual(retrieve.await_count, 61)
+
+    def test_health_and_preflight_remain_available_when_network_is_limited(self):
+        for _ in range(60):
+            self.limiter.try_acquire()
+        with patch("backend.app.retrieve_network", new_callable=AsyncMock) as retrieve:
+            self.assertEqual(self.client.get("/api/network").status_code, 429)
+            for _ in range(65):
+                self.assertEqual(self.client.get("/health").status_code, 200)
+            preflight = self.client.options("/api/network", headers={
+                "Origin": "http://localhost:5173", "Access-Control-Request-Method": "GET"
+            })
+            self.assertEqual(preflight.status_code, 200)
+            retrieve.assert_not_called()
+
+    def test_invalid_queries_are_also_limited_before_upstream_work(self):
+        with patch("backend.app.retrieve_network", new_callable=AsyncMock) as retrieve:
+            for _ in range(60):
+                self.assertEqual(self.client.get("/api/network?confidence=2").status_code, 422)
+            self.assertEqual(self.client.get("/api/network?confidence=2").status_code, 429)
+            retrieve.assert_not_called()
+
+
+class NetworkRequestLimiterTests(unittest.TestCase):
+    def test_rolling_window_expires_only_old_requests_and_rounds_retry_up(self):
+        now = [100.0]
+        limiter = NetworkRequestLimiter(limit=2, clock=lambda: now[0])
+        self.assertIsNone(limiter.try_acquire())
+        now[0] = 130
+        self.assertIsNone(limiter.try_acquire())
+        self.assertEqual(limiter.try_acquire(), 30)
+        now[0] = 159.1
+        self.assertEqual(limiter.try_acquire(), 1)
+        now[0] = 160
+        self.assertIsNone(limiter.try_acquire())
+        self.assertEqual(limiter.try_acquire(), 30)
+
+    def test_rejected_traffic_never_extends_window_or_grows_memory(self):
+        now = [100.0]
+        limiter = NetworkRequestLimiter(clock=lambda: now[0])
+        for _ in range(60):
+            self.assertIsNone(limiter.try_acquire())
+        now[0] = 159
+        for _ in range(1000):
+            self.assertEqual(limiter.try_acquire(), 1)
+        self.assertEqual(len(limiter._timestamps), 60)
+        now[0] = 160
+        for _ in range(60):
+            self.assertIsNone(limiter.try_acquire())
+        self.assertEqual(limiter.try_acquire(), 60)
 
 
 if __name__ == "__main__":

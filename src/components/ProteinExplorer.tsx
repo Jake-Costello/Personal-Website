@@ -52,9 +52,11 @@ export default function ProteinExplorer() {
       });
       if (!response.ok)
         throw new Error(
-          response.status === 504
-            ? 'The data source took too long. Your current network is still available; try again.'
-            : 'The live network is unavailable. Your current network is still available; try again.',
+          response.status === 429
+            ? 'The playground is busy. Wait a minute and try again; your current network is still available.'
+            : response.status === 504
+              ? 'The data source took too long. Your current network is still available; try again.'
+              : 'The live network is unavailable. Your current network is still available; try again.',
         );
       const next = parseNetwork(await response.json());
       setNetwork(next);

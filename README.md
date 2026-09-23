@@ -25,6 +25,8 @@ VITE_API_BASE_URL=http://127.0.0.1:8000
 
 Restart Vite. In the explorer, select **Fetch live network** to retrieve STRING data and calculate communities with pandas and NetworkX. This setting applies only to development; it does not bake a localhost address into the production build.
 
+For public hosting, the ready-to-deploy [`render.yaml`](render.yaml) provisions one paid Python service. Follow the [Render setup](backend/README.md#deploy-on-render), then connect its public URL through `VITE_API_BASE_URL`. The portfolio stays on GitHub Pages; Render account setup and the first service deployment are still required.
+
 ## What is implemented
 
 - Responsive portfolio, project detail dialogs, about content, and contact links.

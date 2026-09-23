@@ -1,25 +1,78 @@
 """A small, bounded STRING proxy. No credentials or AI provider are required."""
 
 import asyncio
+from collections import deque
+from collections.abc import Callable
 from datetime import datetime, timezone
+from math import ceil
 import os
+from threading import Lock
 from time import monotonic
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 import httpx
 
 from backend.network import build_network, parse_proteins
 
 STRING_BASE = "https://version-12-0.string-db.org"
 CACHE_TTL_SECONDS = 1800
+NETWORK_REQUEST_LIMIT = 60
+NETWORK_REQUEST_WINDOW_SECONDS = 60
+
+
+class NetworkRequestLimiter:
+    """Single-process sliding window; rejected requests never grow the deque."""
+
+    def __init__(self, limit: int = NETWORK_REQUEST_LIMIT,
+                 window_seconds: float = NETWORK_REQUEST_WINDOW_SECONDS,
+                 clock: Callable[[], float] = monotonic):
+        self.limit = limit
+        self.window_seconds = window_seconds
+        self.clock = clock
+        self._timestamps: deque[float] = deque()
+        self._lock = Lock()
+
+    def try_acquire(self) -> int | None:
+        """Reserve one request, or return the whole seconds until capacity frees."""
+        with self._lock:
+            now = self.clock()
+            while self._timestamps and self._timestamps[0] <= now - self.window_seconds:
+                self._timestamps.popleft()
+            if len(self._timestamps) >= self.limit:
+                return max(1, ceil(self._timestamps[0] + self.window_seconds - now))
+            self._timestamps.append(now)
+            return None
+
+
+network_request_limiter = NetworkRequestLimiter()
 app = FastAPI(title="Jacob Costello · Protein Explorer", version="0.1.0")
+
+
+@app.middleware("http")
+async def limit_network_requests(request: Request, call_next):
+    # Shared by all visitors, with no dependence on proxy/IP headers. Limit before
+    # validation, cache lookup, graph computation, or any upstream work.
+    if request.method == "GET" and request.url.path == "/api/network":
+        retry_after = network_request_limiter.try_acquire()
+        if retry_after is not None:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": f"Network request limit reached. Please retry in {retry_after} seconds."},
+                headers={"Retry-After": str(retry_after), "Cache-Control": "no-store"},
+            )
+    return await call_next(request)
+
+
 allowed_origins = [origin.strip() for origin in os.getenv(
     "ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
 ).split(",") if origin.strip()]
+# Register CORS last so it also wraps rate-limit responses and preflight requests.
 app.add_middleware(CORSMiddleware, allow_origins=allowed_origins,
-                   allow_credentials=False, allow_methods=["GET"], allow_headers=[])
+                   allow_credentials=False, allow_methods=["GET"], allow_headers=[],
+                   expose_headers=["Retry-After"])
 cache: dict[tuple[str, str], dict[str, Any]] = {}
 upstream_lock = asyncio.Lock()
 last_upstream_call = 0.0
