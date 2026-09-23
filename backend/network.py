@@ -6,7 +6,11 @@ from typing import Any
 import networkx as nx
 import pandas as pd
 
-ALLOWED_PROTEINS = frozenset({"TP53", "CDK2", "BRCA1", "BRCA2"})
+PROTEIN_SYMBOLS = (
+    "TP53", "CDK2", "BRCA1", "BRCA2", "MDM2", "ATM", "CHEK2", "RAD51",
+    "PALB2", "EGFR", "AKT1", "MTOR",
+)
+ALLOWED_PROTEINS = frozenset(PROTEIN_SYMBOLS)
 REQUIRED_COLUMNS = (
     "stringId_A", "stringId_B", "preferredName_A", "preferredName_B", "score"
 )
@@ -17,7 +21,7 @@ def parse_proteins(raw: str) -> tuple[str, str]:
     if len(proteins) != 2 or len(set(proteins)) != 2:
         raise ValueError("Choose two different proteins, separated by a comma.")
     if any(protein not in ALLOWED_PROTEINS for protein in proteins):
-        raise ValueError("This prototype supports TP53, CDK2, BRCA1, and BRCA2.")
+        raise ValueError("Choose two proteins from the playground catalog.")
     return tuple(sorted(proteins))
 
 
@@ -55,10 +59,29 @@ def clean_edges(records: list[dict[str, Any]], confidence: float) -> pd.DataFram
             .sort_values(["source", "target"]).reset_index(drop=True))
 
 
+def build_catalog(records: list[dict[str, Any]], proteins: list[dict[str, str]]) -> dict[str, Any]:
+    """Only report associations STRING returned between validated catalog IDs."""
+    edges = clean_edges(records, 0.4)
+    symbols = {protein["id"]: protein["label"] for protein in proteins}
+    connections = []
+    for edge in edges.to_dict(orient="records"):
+        if edge["source"] not in symbols or edge["target"] not in symbols:
+            raise ValueError("The catalog response contains an unexpected protein.")
+        source, target = sorted((symbols[edge["source"]], symbols[edge["target"]]))
+        connections.append({"source": source, "target": target, "score": edge["score"]})
+    return {
+        "proteins": [{"symbol": protein["label"], "name": protein["name"]} for protein in proteins],
+        "connections": sorted(connections, key=lambda edge: (edge["source"], edge["target"])),
+    }
+
+
 def build_network(records: list[dict[str, Any]], seeds: list[dict[str, str]],
-                  confidence: float) -> dict[str, Any]:
+                  confidence: float, selected_only: bool = False) -> dict[str, Any]:
     edges = clean_edges(records, confidence)
     labels: dict[str, str] = {seed["id"]: seed["label"] for seed in seeds}
+    if selected_only and (not edges["source"].isin(labels).all()
+                          or not edges["target"].isin(labels).all()):
+        raise ValueError("A pair-only network contains an unexpected protein.")
     # Labels cannot control identity: STRING IDs remain the graph keys.
     for row in records:
         for suffix in ("A", "B"):

@@ -1,5 +1,8 @@
 """Deterministic tests with synthetic data; no calls to STRING."""
 
+import asyncio
+from collections import OrderedDict
+from itertools import combinations
 import unittest
 from unittest.mock import AsyncMock, patch
 
@@ -7,7 +10,8 @@ from fastapi.testclient import TestClient
 import httpx
 
 from backend.app import app, NetworkRequestLimiter
-from backend.network import build_network, clean_edges, parse_proteins
+from backend import app as api_module
+from backend.network import PROTEIN_SYMBOLS, build_catalog, build_network, clean_edges, parse_proteins
 
 
 def edge(left, right, score=0.9, **overrides):
@@ -16,9 +20,15 @@ def edge(left, right, score=0.9, **overrides):
             "ncbiTaxonId": 9606, "score": score, **overrides}
 
 
+def mapping(symbol, **overrides):
+    return {"queryItem": symbol, "preferredName": symbol, "ncbiTaxonId": 9606,
+            "stringId": f"9606.{symbol}", "annotation": f"Description of {symbol}", **overrides}
+
+
 class NetworkProcessingTests(unittest.TestCase):
     def test_input_is_bounded_and_normalized(self):
         self.assertEqual(parse_proteins(" tp53, cdk2 "), ("CDK2", "TP53"))
+        self.assertEqual(parse_proteins("MTOR,AKT1"), ("AKT1", "MTOR"))
         for query in ("TP53", "TP53,TP53", "TP53,XYZ", "TP53,CDK2,BRCA1"):
             with self.subTest(query=query), self.assertRaises(ValueError):
                 parse_proteins(query)
@@ -64,6 +74,24 @@ class NetworkProcessingTests(unittest.TestCase):
         self.assertEqual(result["edges"], [])
         self.assertEqual(result["communities"], 2)
 
+    def test_pair_only_rejects_unrequested_neighbors(self):
+        seeds = [{"id": "9606.A", "label": "A"}, {"id": "9606.B", "label": "B"}]
+        with self.assertRaises(ValueError):
+            build_network([edge("A", "C")], seeds, 0.4, selected_only=True)
+        pair = build_network([edge("A", "B")], seeds, 0.4, selected_only=True)
+        self.assertEqual(len(pair["nodes"]), 2)
+        self.assertEqual(pair["communities"], 1)
+
+    def test_catalog_connections_use_validated_ids_and_keep_isolated_choices(self):
+        choices = [{"id": f"9606.{symbol}", "label": symbol, "name": symbol} for symbol in PROTEIN_SYMBOLS]
+        result = build_catalog([edge("TP53", "CDK2", 0.9), edge("CDK2", "TP53", 0.7),
+                                edge("MTOR", "AKT1", 0.3)], choices)
+        self.assertEqual(len(result["proteins"]), 12)
+        self.assertEqual(result["connections"], [{"source": "CDK2", "target": "TP53", "score": 0.9}])
+        self.assertEqual(build_catalog([], choices)["connections"], [])
+        with self.assertRaises(ValueError):
+            build_catalog([edge("TP53", "OUTSIDE_CATALOG")], choices)
+
 
 class ApiContractTests(unittest.TestCase):
     def setUp(self):
@@ -78,9 +106,39 @@ class ApiContractTests(unittest.TestCase):
 
     def test_invalid_requests_never_call_upstream(self):
         with patch("backend.app.retrieve_network", new_callable=AsyncMock) as retrieve:
-            for query in ("proteins=UNKNOWN,TP53", "confidence=1.5", "proteins=TP53,TP53", "confidence=nan"):
+            for query in ("proteins=UNKNOWN,TP53", "confidence=1.5", "proteins=TP53,TP53", "confidence=nan",
+                          "neighbors=1", "neighbors=-1", "neighbors=25", "neighbors=abc"):
                 self.assertEqual(self.client.get(f"/api/network?{query}").status_code, 422)
             retrieve.assert_not_called()
+
+    def test_neighbor_options_accept_query_strings_and_preserve_empty_pairs(self):
+        payload = {"records": [], "seeds": [{"id": "9606.A", "label": "TP53"},
+                                             {"id": "9606.B", "label": "CDK2"}],
+                   "retrievedAt": "2026-09-23T12:00:00+00:00"}
+        with patch("backend.app.retrieve_network", new_callable=AsyncMock, return_value=(payload, False)) as retrieve:
+            for size in (0, 8, 24):
+                response = self.client.get(f"/api/network?neighbors={size}")
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["neighbors"], size)
+                self.assertEqual(len(response.json()["nodes"]), 2)
+                self.assertEqual(response.json()["edges"], [])
+                self.assertEqual(response.json()["communities"], 2)
+                retrieve.assert_awaited_with(("CDK2", "TP53"), size)
+            self.assertEqual(self.client.get("/api/network").status_code, 200)
+            retrieve.assert_awaited_with(("CDK2", "TP53"), 24)
+
+    def test_catalog_response_exposes_live_provenance(self):
+        payload = {"result": {"proteins": [{"symbol": "TP53", "name": "Cellular tumor antigen p53"}],
+                              "connections": []}, "retrievedAt": "2026-09-23T12:00:00+00:00"}
+        with patch("backend.app.retrieve_catalog", new_callable=AsyncMock, return_value=(payload, True)):
+            response = self.client.get("/api/proteins")
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["proteins"], payload["result"]["proteins"])
+        self.assertEqual(body["connections"], [])
+        self.assertEqual(body["source"]["mode"], "live")
+        self.assertEqual(body["source"]["retrievedAt"], payload["retrievedAt"])
+        self.assertTrue(body["source"]["cached"])
 
     def test_response_exposes_provenance_and_cache_status(self):
         payload = {"records": [edge("A", "B")],
@@ -101,6 +159,22 @@ class ApiContractTests(unittest.TestCase):
             response = self.client.get("/api/network")
         self.assertEqual(response.status_code, 504)
         self.assertIn("retry", response.json()["detail"])
+
+    def test_waiting_for_upstream_work_is_bounded_for_both_endpoints(self):
+        async def queued(*args):
+            await asyncio.Event().wait()
+
+        with patch("backend.app.UPSTREAM_WORK_TIMEOUT_SECONDS", 0.01):
+            for path, target in (("/api/network", "retrieve_network"), ("/api/proteins", "retrieve_catalog")):
+                with self.subTest(path=path), patch(f"backend.app.{target}", side_effect=queued):
+                    response = self.client.get(path)
+                    self.assertEqual(response.status_code, 504)
+
+    def test_invalid_catalog_upstream_is_not_exposed_as_live_data(self):
+        with patch("backend.app.retrieve_catalog", new_callable=AsyncMock, side_effect=ValueError("bad IDs")):
+            response = self.client.get("/api/proteins")
+        self.assertEqual(response.status_code, 502)
+        self.assertNotIn("source", response.json())
 
     def test_unapproved_origins_do_not_receive_cors_permission(self):
         response = self.client.get("/health", headers={"Origin": "https://unrelated.example"})
@@ -146,6 +220,112 @@ class ApiContractTests(unittest.TestCase):
                 self.assertEqual(self.client.get("/api/network?confidence=2").status_code, 422)
             self.assertEqual(self.client.get("/api/network?confidence=2").status_code, 429)
             retrieve.assert_not_called()
+
+    def test_catalog_and_network_share_one_request_budget(self):
+        for _ in range(59):
+            self.limiter.try_acquire()
+        payload = {"result": {"proteins": [], "connections": []}, "retrievedAt": "2026-09-23T12:00:00+00:00"}
+        with patch("backend.app.retrieve_catalog", new_callable=AsyncMock, return_value=(payload, True)) as catalog:
+            with patch("backend.app.retrieve_network", new_callable=AsyncMock) as network:
+                self.assertEqual(self.client.get("/api/proteins").status_code, 200)
+                self.assertEqual(self.client.get("/api/network").status_code, 429)
+                self.assertEqual(self.client.get("/api/proteins").status_code, 429)
+                self.assertEqual(catalog.await_count, 1)
+                network.assert_not_called()
+
+
+class UpstreamCacheTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.now = 100.0
+        self.network_cache = OrderedDict()
+        for target, value in (("cache", self.network_cache), ("catalog_cache", None),
+                              ("upstream_lock", asyncio.Lock()), ("monotonic", lambda: self.now)):
+            patcher = patch(f"backend.app.{target}", value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        client_patch = patch("backend.app.httpx.AsyncClient", return_value=AsyncMock())
+        client_patch.start()
+        self.addCleanup(client_patch.stop)
+
+    @staticmethod
+    async def respond(client, method, params):
+        if method == "get_string_ids":
+            return [mapping(symbol) for symbol in params["identifiers"].split("\r")]
+        return []
+
+    async def test_catalog_cache_keeps_original_provenance_and_refreshes_after_expiry(self):
+        with patch("backend.app.string_request", side_effect=self.respond) as request:
+            first, cached = await api_module.retrieve_catalog()
+            self.assertFalse(cached)
+            self.assertEqual(len(first["result"]["proteins"]), 12)
+            self.assertEqual(request.await_count, 2)
+            self.assertEqual(request.await_args.args[2]["add_nodes"], 0)
+            second, cached = await api_module.retrieve_catalog()
+            self.assertTrue(cached)
+            self.assertIs(first, second)
+            self.assertEqual(first["retrievedAt"], second["retrievedAt"])
+            self.assertEqual(request.await_count, 2)
+            self.now += api_module.CACHE_TTL_SECONDS
+            third, cached = await api_module.retrieve_catalog()
+            self.assertFalse(cached)
+            self.assertIsNot(first, third)
+            self.assertEqual(request.await_count, 4)
+
+    async def test_network_sizes_have_distinct_cached_results(self):
+        selected = ("CDK2", "TP53")
+        with patch("backend.app.string_request", side_effect=self.respond) as request:
+            for size in (0, 8, 24):
+                _, cached = await api_module.retrieve_network(selected, size)
+                self.assertFalse(cached)
+                self.assertEqual(request.await_args.args[2]["add_nodes"], size)
+            self.assertEqual(request.await_count, 6)
+            for size in (0, 8, 24):
+                _, cached = await api_module.retrieve_network(selected, size)
+                self.assertTrue(cached)
+            self.assertEqual(request.await_count, 6)
+            self.assertEqual(len(self.network_cache), 3)
+
+    async def test_cache_evicts_least_recently_used_at_64_entries(self):
+        pairs = [tuple(sorted(pair)) for pair in combinations(PROTEIN_SYMBOLS, 2)]
+        with patch("backend.app.string_request", side_effect=self.respond):
+            for pair in pairs[:64]:
+                await api_module.retrieve_network(pair, 0)
+            self.assertEqual(len(self.network_cache), 64)
+            await api_module.retrieve_network(pairs[0], 0)
+            await api_module.retrieve_network(pairs[64], 0)
+            self.assertEqual(len(self.network_cache), 64)
+            self.assertIn((pairs[0], 0), self.network_cache)
+            self.assertNotIn((pairs[1], 0), self.network_cache)
+            self.assertIn((pairs[64], 0), self.network_cache)
+
+    async def test_invalid_catalog_data_never_enters_cache(self):
+        choices = [mapping(symbol) for symbol in PROTEIN_SYMBOLS]
+        for records in ([{"score": 0.8}], [edge("TP53", "UNKNOWN")]):
+            with self.subTest(records=records):
+                with patch("backend.app.string_request", new_callable=AsyncMock, side_effect=[choices, records]):
+                    with self.assertRaises(ValueError):
+                        await api_module.retrieve_catalog()
+                self.assertIsNone(api_module.catalog_cache)
+
+    async def test_resolution_requires_exact_human_identities(self):
+        variants = [[], [mapping("TP53")],
+                    [mapping("TP53", ncbiTaxonId=10090), mapping("CDK2")],
+                    [mapping("TP53", preferredName="P53"), mapping("CDK2")],
+                    [mapping("TP53", queryItem="UNKNOWN"), mapping("CDK2")],
+                    [mapping("TP53", stringId="10090.TP53"), mapping("CDK2")],
+                    [mapping("TP53", stringId="9606."), mapping("CDK2")],
+                    [mapping("TP53", stringId="9606.CDK2"), mapping("CDK2")]]
+        for rows in variants:
+            with self.subTest(rows=rows), patch("backend.app.string_request", new_callable=AsyncMock, return_value=rows):
+                with self.assertRaises(ValueError):
+                    await api_module.resolve_proteins(AsyncMock(), ("TP53", "CDK2"))
+
+    async def test_annotation_length_is_bounded_and_missing_annotation_uses_symbol(self):
+        rows = [mapping("TP53", annotation="  " + "A" * 600), mapping("CDK2", annotation=None)]
+        with patch("backend.app.string_request", new_callable=AsyncMock, return_value=rows):
+            proteins = await api_module.resolve_proteins(AsyncMock(), ("TP53", "CDK2"))
+        self.assertEqual(proteins[0]["name"], "A" * 500)
+        self.assertEqual(proteins[1]["name"], "CDK2")
 
 
 class NetworkRequestLimiterTests(unittest.TestCase):
