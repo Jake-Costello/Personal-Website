@@ -242,13 +242,15 @@ test('each unlocked ball brings six distinct stories and the striped selection p
             const style = getComputedStyle(element, '::before');
             const bounds = element.getBoundingClientRect();
             return {
-              left: bounds.x + parseFloat(style.left),
-              right: bounds.x + parseFloat(style.left) + parseFloat(style.width),
+              center:
+                bounds.x +
+                parseFloat(style.left) +
+                new DOMMatrixReadOnly(style.transform).m41 +
+                parseFloat(style.width) / 2,
+              ballCenter: bounds.x + bounds.width / 2,
             };
           });
-          expect(stripeBounds.left).toBeGreaterThanOrEqual(0);
-          const words = await page.locator('.golf-fact-content').boundingBox();
-          expect(stripeBounds.right).toBeLessThan(words!.x);
+          expect(Math.abs(stripeBounds.center - stripeBounds.ballCenter)).toBeLessThan(1);
           await page.screenshot({ path: '.cache/golf-striped-320.png' });
           await page.setViewportSize({ width: 390, height: 844 });
         }
@@ -439,11 +441,11 @@ test('dragging a club to the golfer plays its story, while a missed drop does no
   await expect(page.locator('.golf-fact-ball')).toHaveCount(0);
 });
 
-test('all six club heads remain touch-reachable on narrow phones', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
-  const touchSession = await page.context().newCDPSession(page);
-  try {
-    for (const width of [320, 390]) {
+for (const width of [320, 390]) {
+  test(`all six club heads remain touch-reachable at ${width}px`, async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile');
+    const touchSession = await page.context().newCDPSession(page);
+    try {
       await page.setViewportSize({ width, height: 844 });
       const golf = await openGolf(page);
       for (const label of clubs) {
@@ -494,11 +496,11 @@ test('all six club heads remain touch-reachable on narrow phones', async ({ page
         true,
       );
       await page.screenshot({ path: `.cache/golf-tests-phone-${width}.png` });
+    } finally {
+      await touchSession.detach();
     }
-  } finally {
-    await touchSession.detach();
-  }
-});
+  });
+}
 
 test('a shot swings, approaches the screen, waits to be read, then falls away', async ({
   page,
