@@ -110,7 +110,7 @@ export const personalFactsByBall: Record<GolfBallColor, PersonalFact[]> = {
     {
       topic: 'Skiing',
       title: 'Lots of snow in Cleveland',
-      text: 'Wintertime in Cleveland can be brutal, so I’ve got to find a way to make it fun.',
+      text: 'Wintertime in Cleveland can be brutal, so I’ve got to find a way to make it fun. Taking trips out west to visit friends and ski is one of my favorite ways to enjoy the cold.',
     },
   ]),
   striped: withClubs(
