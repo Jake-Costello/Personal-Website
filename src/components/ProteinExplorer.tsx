@@ -204,13 +204,6 @@ export default function ProteinExplorer() {
     };
   }, [initialize]);
 
-  function exploreRandomPair() {
-    if (!catalog) return;
-    const nextPair = chooseRandomProteinPair(catalog.proteins);
-    setPair(nextPair);
-    void fetchNetwork({ pair: nextPair, confidence, neighbors });
-  }
-
   function startDrag(event: ReactPointerEvent<SVGSVGElement>) {
     if (event.button !== 0) return;
     drag.current = { x: event.clientX, y: event.clientY, moved: false };
@@ -333,15 +326,8 @@ export default function ProteinExplorer() {
           </div>
           <div className="protein-query-actions">
             <button className="protein-fetch" type="submit" disabled={!catalog}>
-              Explore network ↗
-            </button>
-            <button
-              className="protein-random"
-              type="button"
-              onClick={exploreRandomPair}
-              disabled={!catalog}
-            >
-              Random pair
+              Explore network
+              <span aria-hidden="true">↗</span>
             </button>
           </div>
         </div>
@@ -360,7 +346,7 @@ export default function ProteinExplorer() {
             : pendingChanges
               ? 'Selection changed. Explore network to apply it and recompute communities.'
               : network
-                ? 'Network ready. Choose proteins or try another random pair.'
+                ? 'Network ready. Choose proteins to explore another connection.'
                 : ''}
           {loading && network ? ' The previous network remains visible below.' : ''}
         </p>

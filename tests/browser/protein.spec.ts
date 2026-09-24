@@ -80,6 +80,17 @@ test('loads two distinct random proteins without a click or synthetic fallback',
   await expect(page.getByLabel('Second protein', { exact: true })).toHaveValue(pair[1]);
   await expect(page.locator('.protein-explorer')).not.toContainText(/demo|illustrative/i);
   await expect(page.locator('.protein-notes')).toContainText('Retrieved');
+  await expect(page.getByRole('button', { name: 'Random pair', exact: true })).toHaveCount(0);
+  const explore = page.getByRole('button', { name: /^Explore network/ });
+  await expect(explore).toBeVisible();
+  await expect(explore).toHaveCSS('border-radius', '50%');
+  const exploreBounds = (await explore.boundingBox())!;
+  const firstBounds = (await page.getByLabel('First protein', { exact: true }).boundingBox())!;
+  expect(Math.abs(exploreBounds.width - exploreBounds.height)).toBeLessThan(1.5);
+  expect(exploreBounds.x).toBeGreaterThanOrEqual(firstBounds.x + firstBounds.width);
+  await page
+    .locator('.protein-query')
+    .screenshot({ path: `.cache/lab-query-${page.viewportSize()!.width}.png` });
 });
 
 test('two selectors show association hints and can display an isolated pair', async ({ page }) => {
