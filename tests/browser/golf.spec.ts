@@ -23,12 +23,17 @@ async function openGolf(page: Page) {
   return golf;
 }
 
+async function freezeGolfClock(page: Page) {
+  // Pause before navigation so CI scheduling cannot overtake a timestamp
+  // read from the page while the app is already running.
+  await page.clock.install({ time: new Date('2026-01-01T00:00:00Z') });
+  await page.clock.pauseAt(new Date('2026-01-02T00:00:00Z'));
+}
+
 async function beginTimedGolf(page: Page) {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await page.clock.install();
-  const golf = await openGolf(page);
-  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));
-  return golf;
+  await freezeGolfClock(page);
+  return openGolf(page);
 }
 
 async function dragPointer(
@@ -193,9 +198,8 @@ test('clubs reveal personal stories with keyboard controls and a readable altern
 test('reduced motion leaves each fact readable until the visitor requests the next shot', async ({
   page,
 }) => {
-  await page.clock.install();
+  await freezeGolfClock(page);
   const golf = await openGolf(page);
-  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 100));
   await golf.getByRole('button', { name: clubs[4], exact: true }).click();
   await expect(golf).toHaveAttribute('data-phase', 'reading');
   await expect(page.locator('.golf-fact-copy')).toContainText(/two cats|2 cats/i);
