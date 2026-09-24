@@ -28,8 +28,6 @@ export default function GolfFacts() {
   const { selectedBall } = useAchievements();
   const personalFacts = personalFactsByBall[selectedBall];
   const [shotBall, setShotBall] = useState(selectedBall);
-  const [untimedTrivia, setUntimedTrivia] = useState(false);
-  const [shotTimed, setShotTimed] = useState(true);
   const [shot, setShot] = useState(personalFacts[0]);
   const [phase, setPhase] = useState<Phase>('idle');
   const phaseRef = useRef<Phase>('idle');
@@ -121,7 +119,6 @@ export default function GolfFacts() {
     // the selection at launch, then keep that story and ball together in flight.
     setShot(personalFacts.find((currentFact) => currentFact.id === fact.id) ?? fact);
     setShotBall(selectedBall);
-    setShotTimed(!untimedTrivia);
     setHeld(false);
     setFocused(false);
     nextShotTouchRef.current = null;
@@ -322,16 +319,6 @@ export default function GolfFacts() {
           ? 'Drag a club. Seven seconds. One biology question.'
           : 'Drag a club. Meet a different side.'}
       </p>
-      {selectedBall === 'striped' && (
-        <label className="golf-quiz-setting">
-          <input
-            type="checkbox"
-            checked={untimedTrivia}
-            onChange={(event) => setUntimedTrivia(event.target.checked)}
-          />
-          Untimed trivia (applies to your next shot)
-        </label>
-      )}
       <div className="golf-sr-only" aria-live="polite" aria-atomic="true">
         {phase === 'reading' && !shot.trivia ? `${shot.topic}. ${shot.text}` : ''}
       </div>
@@ -367,7 +354,7 @@ export default function GolfFacts() {
                 </span>
                 <h4 className="golf-fact-title">{shot.title}</h4>
                 {shot.trivia ? (
-                  phase === 'reading' && <GolfTrivia question={shot.trivia} timed={shotTimed} />
+                  phase === 'reading' && <GolfTrivia question={shot.trivia} />
                 ) : (
                   <p className="golf-fact-copy">{shot.text}</p>
                 )}

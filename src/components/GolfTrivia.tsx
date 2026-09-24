@@ -2,25 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import type { BioinformaticsQuestion } from '../data/trivia';
 import './golf-trivia.css';
 
-export default function GolfTrivia({
-  question,
-  timed,
-}: {
-  question: BioinformaticsQuestion;
-  timed: boolean;
-}) {
+export default function GolfTrivia({ question }: { question: BioinformaticsQuestion }) {
   const [remaining, setRemaining] = useState(7000);
   const [answer, setAnswer] = useState<number | null>(null);
   const remainingRef = useRef(7000);
   const lastTick = useRef(0);
   const locked = useRef(false);
   const firstAnswer = useRef<HTMLButtonElement>(null);
-  const expired = timed && remaining <= 0;
+  const expired = remaining <= 0;
   const finished = answer !== null || expired;
 
   function updateClock() {
     const now = performance.now();
-    if (timed && !locked.current && !document.hidden) {
+    if (!locked.current && !document.hidden) {
       remainingRef.current = Math.max(0, remainingRef.current - (now - lastTick.current));
       setRemaining(remainingRef.current);
       if (remainingRef.current === 0) locked.current = true;
@@ -31,7 +25,6 @@ export default function GolfTrivia({
   useEffect(() => {
     firstAnswer.current?.focus({ preventScroll: true });
     lastTick.current = performance.now();
-    if (!timed) return;
     const timer = window.setInterval(updateClock, 100);
     const visibility = () => {
       lastTick.current = performance.now();
@@ -41,7 +34,7 @@ export default function GolfTrivia({
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', visibility);
     };
-  }, [timed]);
+  }, []);
 
   function choose(index: number) {
     updateClock(); // Enforce the deadline even between timer ticks.
@@ -66,9 +59,7 @@ export default function GolfTrivia({
       <p className="golf-trivia-clock" role="timer" aria-live="off">
         {finished
           ? 'Round complete'
-          : timed
-            ? `${Math.ceil(remaining / 1000)} ${remaining > 1000 ? 'seconds' : 'second'} to answer`
-            : 'Untimed round'}
+          : `${Math.ceil(remaining / 1000)} ${remaining > 1000 ? 'seconds' : 'second'} to answer`}
       </p>
       <div className="golf-trivia-options" role="group" aria-label={question.prompt}>
         {question.choices.map((choice, index) => (

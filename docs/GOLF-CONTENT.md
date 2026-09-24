@@ -26,7 +26,7 @@ Keep six stories in each collection and keep the existing white `id`, `club`, `k
 
 Edit `src/data/trivia.ts` for the six questions, one per club in the same bag order. Each question has a `topic`, `prompt`, four `choices`, a `correct` answer index (0 = first, 1 = second, etc.), an `explanation`, and a `source` label/URL. Keep prompts and choices short enough to read in seven seconds. Verify scientific wording against the linked primary source when changing questions.
 
-The seven-second timer starts when the question appears after the swing/flight. Answering locks the choice; running out of time locks all choices. The correct answer, explanation, and source remain until **Next shot**. Hidden tabs pause the countdown. **Untimed trivia** can be selected before a shot. Reduced motion skips the flight but retains the default seven-second challenge.
+The seven-second timer starts when the question appears after the swing/flight. Answering locks the choice; running out of time locks all choices. The correct answer, explanation, and source remain until **Next shot**. Hidden tabs pause the countdown. Reduced motion skips the flight but retains the default seven-second challenge.
 
 ## Achievement unlock popups
 

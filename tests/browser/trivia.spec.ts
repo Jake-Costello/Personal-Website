@@ -58,9 +58,7 @@ test('timeout locks answers at seven seconds and a new shot resets the clock', a
   await expect(page.locator('.golf-trivia')).toHaveAttribute('data-result', 'incorrect');
 });
 
-test('the timer starts after the flight and untimed play remains available', async ({
-  page,
-}, testInfo) => {
+test('every shot starts its seven-second timer after the flight', async ({ page }, testInfo) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await prepare(page);
   await page.getByRole('button', { name: `Driver — ${bioinformaticsQuestions[0].topic}` }).click();
@@ -72,11 +70,11 @@ test('the timer starts after the flight and untimed play remains available', asy
   await expect(page.locator('.golf-trivia')).toHaveAttribute('data-result', 'timeout');
   await page.getByRole('button', { name: 'Next shot', exact: true }).click();
   await page.clock.runFor(1200);
-  await page.getByRole('checkbox', { name: /Untimed trivia/ }).check();
+  await expect(page.getByRole('checkbox', { name: /Untimed trivia/ })).toHaveCount(0);
   await page.getByRole('button', { name: `Driver — ${bioinformaticsQuestions[0].topic}` }).click();
-  await page.clock.runFor(20000);
+  await page.clock.runFor(1550);
   await expect(page.locator('.golf-trivia')).toHaveAttribute('data-result', 'playing');
-  await expect(page.locator('.golf-trivia-clock')).toHaveText('Untimed round');
+  await expect(page.locator('.golf-trivia-clock')).toHaveText('7 seconds to answer');
   if (testInfo.project.name === 'mobile') await page.setViewportSize({ width: 320, height: 844 });
   const options = page.locator('.golf-trivia-options');
   await expect(options).toBeVisible();
