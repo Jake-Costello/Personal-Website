@@ -15,20 +15,34 @@
   opacity: 1;
 }
 
+.golf-scene--swing .golf-scene__pose {
+  animation-duration: 900ms;
+  animation-timing-function: steps(1, end);
+  animation-fill-mode: both;
+}
+
 .golf-scene--swing .golf-scene__pose--address {
-  animation: golf-scene-address 900ms steps(1, end) both;
+  animation-name: golf-scene-address;
+}
+
+.golf-scene--swing .golf-scene__pose--takeaway {
+  animation-name: golf-scene-takeaway;
 }
 
 .golf-scene--swing .golf-scene__pose--backswing {
-  animation: golf-scene-backswing 900ms steps(1, end) both;
+  animation-name: golf-scene-backswing;
+}
+
+.golf-scene--swing .golf-scene__pose--transition {
+  animation-name: golf-scene-transition;
 }
 
 .golf-scene--swing .golf-scene__pose--downswing {
-  animation: golf-scene-downswing 900ms steps(1, end) both;
+  animation-name: golf-scene-downswing;
 }
 
-.golf-scene--swing .golf-scene__pose--followthrough {
-  animation: golf-scene-followthrough 900ms steps(1, end) both;
+.golf-scene--swing .golf-scene__pose--impact {
+  animation-name: golf-scene-impact-pose;
 }
 
 .golf-scene--flight .golf-scene__pose--address,
@@ -40,10 +54,17 @@
   opacity: 0;
 }
 
-.golf-scene--flight .golf-scene__pose--followthrough,
 .golf-scene--reading .golf-scene__pose--followthrough,
 .golf-scene--falling .golf-scene__pose--followthrough {
   opacity: 1;
+}
+
+.golf-scene--flight .golf-scene__pose--release {
+  animation: golf-scene-release 180ms steps(1, end) both;
+}
+
+.golf-scene--flight .golf-scene__pose--followthrough {
+  animation: golf-scene-followthrough 180ms steps(1, end) both;
 }
 
 .golf-scene__impact {
@@ -56,56 +77,88 @@
 }
 
 @keyframes golf-scene-address {
-  0%,
-  13% {
+  0% {
     opacity: 1;
   }
-  14%,
-  80% {
+  10%,
+  100% {
     opacity: 0;
   }
-  81%,
-  99% {
+}
+
+@keyframes golf-scene-takeaway {
+  0% {
+    opacity: 0;
+  }
+  10% {
     opacity: 1;
   }
+  30%,
   100% {
     opacity: 0;
   }
 }
 
 @keyframes golf-scene-backswing {
-  0%,
-  13% {
+  0% {
     opacity: 0;
   }
-  14%,
-  57% {
+  30% {
     opacity: 1;
   }
-  58%,
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes golf-scene-transition {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  65%,
   100% {
     opacity: 0;
   }
 }
 
 @keyframes golf-scene-downswing {
-  0%,
-  57% {
+  0% {
     opacity: 0;
   }
-  58%,
-  80% {
+  65% {
     opacity: 1;
   }
-  81%,
+  88%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes golf-scene-impact-pose {
+  0% {
+    opacity: 0;
+  }
+  88%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes golf-scene-release {
+  0% {
+    opacity: 1;
+  }
   100% {
     opacity: 0;
   }
 }
 
 @keyframes golf-scene-followthrough {
-  0%,
-  99% {
+  0% {
     opacity: 0;
   }
   100% {
@@ -129,11 +182,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .golf-scene--swing .golf-scene__pose {
+  .golf-scene .golf-scene__pose {
     animation: none;
   }
 
-  .golf-scene--swing .golf-scene__pose--address {
+  .golf-scene--swing .golf-scene__pose--address,
+  .golf-scene--flight .golf-scene__pose--followthrough {
     opacity: 1;
   }
 

@@ -1,31 +1,321 @@
-type Point = readonly [number, number];
-type Pose = 'address' | 'backswing' | 'downswing' | 'followthrough';
+﻿type Point = readonly [number, number];
+type Chain = readonly [Point, Point, Point];
+type Pose =
+  | 'address'
+  | 'takeaway'
+  | 'backswing'
+  | 'transition'
+  | 'downswing'
+  | 'impact'
+  | 'release'
+  | 'followthrough';
 
+interface Skeleton {
+  head: Point;
+  face?: 'front' | 'quarter';
+  tilt: number;
+  // These corners turn with the shoulders and pelvis, rather than tilting
+  // one address silhouette through the whole swing.
+  shirt: readonly [Point, Point, Point, Point];
+  leadArm: Chain;
+  trailArm: Chain;
+  leadLeg: Chain;
+  trailLeg: Chain;
+  club: Point;
+  heel?: number;
+}
 const ink = '#18201e';
 const skin = '#f0cfb7';
 
-function Limb({ points, color, width }: { points: Point[]; color: string; width: number }) {
-  const vertices = points.map(([x, y]) => `${x},${y}`).join(' ');
+// Projection is from the target: the left shoulder is nearest at address.
+// The head stays over the ball through contact; the chest opens and rises after it.
+const poses: Record<Pose, Skeleton> = {
+  address: {
+    head: [289, 205],
+    tilt: 20,
+    shirt: [
+      [254, 240],
+      [283, 237],
+      [259, 290],
+      [229, 287],
+    ],
+    leadArm: [
+      [279, 251],
+      [281, 278],
+      [285, 301],
+    ],
+    trailArm: [
+      [265, 245],
+      [285, 273],
+      [285, 301],
+    ],
+    leadLeg: [
+      [235, 291],
+      [244, 326],
+      [239, 364],
+    ],
+    trailLeg: [
+      [249, 286],
+      [265, 316],
+      [258, 347],
+    ],
+    club: [313, 370],
+  },
+  takeaway: {
+    head: [288, 205],
+    tilt: 20,
+    shirt: [
+      [249, 240],
+      [282, 237],
+      [258, 290],
+      [228, 287],
+    ],
+    leadArm: [
+      [278, 251],
+      [274, 271],
+      [268, 285],
+    ],
+    trailArm: [
+      [260, 245],
+      [252, 265],
+      [268, 285],
+    ],
+    leadLeg: [
+      [235, 291],
+      [244, 326],
+      [239, 364],
+    ],
+    trailLeg: [
+      [248, 286],
+      [263, 316],
+      [258, 347],
+    ],
+    club: [206, 256],
+  },
+  backswing: {
+    head: [287, 205],
+    tilt: 20,
+    shirt: [
+      [239, 242],
+      [280, 237],
+      [258, 290],
+      [227, 287],
+    ],
+    leadArm: [
+      [277, 251],
+      [263, 229],
+      [246, 203],
+    ],
+    trailArm: [
+      [246, 248],
+      [230, 231],
+      [246, 203],
+    ],
+    leadLeg: [
+      [235, 291],
+      [244, 326],
+      [239, 364],
+    ],
+    trailLeg: [
+      [248, 286],
+      [259, 316],
+      [258, 347],
+    ],
+    club: [337, 180],
+  },
+  transition: {
+    head: [287, 205],
+    tilt: 20,
+    shirt: [
+      [242, 241],
+      [282, 237],
+      [261, 290],
+      [231, 288],
+    ],
+    leadArm: [
+      [278, 251],
+      [267, 231],
+      [255, 215],
+    ],
+    trailArm: [
+      [250, 246],
+      [241, 233],
+      [255, 215],
+    ],
+    leadLeg: [
+      [239, 292],
+      [244, 326],
+      [239, 364],
+    ],
+    trailLeg: [
+      [252, 287],
+      [259, 317],
+      [258, 347],
+    ],
+    club: [321, 149],
+  },
+  downswing: {
+    head: [288, 205],
+    tilt: 20,
+    shirt: [
+      [251, 239],
+      [284, 237],
+      [264, 292],
+      [235, 290],
+    ],
+    leadArm: [
+      [281, 250],
+      [286, 270],
+      [291, 289],
+    ],
+    trailArm: [
+      [263, 244],
+      [260, 270],
+      [291, 289],
+    ],
+    leadLeg: [
+      [242, 293],
+      [244, 327],
+      [239, 364],
+    ],
+    trailLeg: [
+      [256, 288],
+      [260, 317],
+      [258, 347],
+    ],
+    club: [348, 235],
+    heel: 8,
+  },
+  impact: {
+    head: [288, 205],
+    tilt: 20,
+    shirt: [
+      [250, 239],
+      [285, 239],
+      [268, 291],
+      [239, 291],
+    ],
+    leadArm: [
+      [282, 251],
+      [283, 279],
+      [286, 302],
+    ],
+    trailArm: [
+      [264, 245],
+      [271, 278],
+      [286, 302],
+    ],
+    leadLeg: [
+      [244, 293],
+      [243, 327],
+      [239, 364],
+    ],
+    trailLeg: [
+      [261, 288],
+      [260, 318],
+      [258, 347],
+    ],
+    club: [313, 374],
+    heel: 15,
+  },
+  release: {
+    head: [276, 200],
+    face: 'quarter',
+    tilt: 4,
+    shirt: [
+      [239, 236],
+      [284, 235],
+      [273, 289],
+      [241, 291],
+    ],
+    leadArm: [
+      [282, 246],
+      [299, 251],
+      [315, 253],
+    ],
+    trailArm: [
+      [247, 243],
+      [278, 259],
+      [315, 253],
+    ],
+    leadLeg: [
+      [244, 293],
+      [241, 327],
+      [239, 364],
+    ],
+    trailLeg: [
+      [263, 287],
+      [258, 318],
+      [258, 347],
+    ],
+    club: [354, 179],
+    heel: 26,
+  },
+  followthrough: {
+    head: [253, 195],
+    face: 'front',
+    tilt: -3,
+    shirt: [
+      [233, 230],
+      [280, 229],
+      [272, 288],
+      [240, 291],
+    ],
+    leadArm: [
+      [277, 240],
+      [258, 251],
+      [279, 215],
+    ],
+    trailArm: [
+      [238, 238],
+      [257, 231],
+      [279, 215],
+    ],
+    leadLeg: [
+      [244, 292],
+      [241, 327],
+      [239, 364],
+    ],
+    trailLeg: [
+      [263, 287],
+      [251, 319],
+      [258, 347],
+    ],
+    club: [196, 243],
+    heel: 36,
+  },
+};
+
+function vertices(points: readonly Point[]) {
+  return points.map(([x, y]) => `${x},${y}`).join(' ');
+}
+function Limb({
+  points,
+  color,
+  width,
+}: {
+  points: readonly Point[];
+  color: string;
+  width: number;
+}) {
   return (
     <g fill="none" strokeLinejoin="bevel" strokeLinecap="square">
-      <polyline points={vertices} stroke={ink} strokeWidth={width + 5} />
-      <polyline points={vertices} stroke={color} strokeWidth={width} />
+      <polyline points={vertices(points)} stroke={ink} strokeWidth={width + 5} />
+      <polyline points={vertices(points)} stroke={color} strokeWidth={width} />
     </g>
   );
 }
-
 function Flower({ x, y }: { x: number; y: number }) {
   return (
-    <g transform={`translate(${x} ${y})`}>
+    <g transform={`translate(${Math.round(x)} ${Math.round(y)})`}>
       <path d="M3 0h3v3h3v3H6v3H3V6H0V3h3z" fill="#fffdf5" />
       <path d="M4 4h1v1H4z" fill="#dfff7f" />
     </g>
   );
 }
-
-function Shoe({ x, y, raised = false }: { x: number; y: number; raised?: boolean }) {
+function Shoe({ x, y, angle = 0 }: { x: number; y: number; angle?: number }) {
   return (
-    <g transform={`translate(${x} ${y})${raised ? ' rotate(24 27 10)' : ''}`}>
+    <g transform={`translate(${x} ${y}) rotate(${angle} 30 13)`}>
       <path d="M0 0h18v4h11v4h5v8H-3V5h3z" fill={ink} />
       <path d="M3 3h12v5h13v3h3v2H0V7h3z" fill="#c6a078" />
       <path d="M3 3h12v3H3zm11 5h11v2H14z" fill="#e2c59b" />
@@ -33,138 +323,139 @@ function Shoe({ x, y, raised = false }: { x: number; y: number; raised?: boolean
     </g>
   );
 }
-
-function Head({ finish }: { finish: boolean }) {
-  // The cap, single visible eye, ear, and nose show the left side of the head.
-  // The downward angle follows the eyes toward the ball rather than the viewer.
+function Head({ head: [x, y], face, tilt }: Skeleton) {
   return (
-    <g transform={`${finish ? 'translate(-10 -9) ' : ''}rotate(12 285 228)`}>
-      <path d="M280 187h22v5h8v13h5v6h-6v12h-9v7h-12v-5h-9v-12h-6v-17h7z" fill={ink} />
-      <path d="M282 193h16v5h8v10h5v2h-6v11h-9v5h-6v-6h-9v-10h-5v-10h6z" fill={skin} />
-      <path d="M279 201h7v12h-7zm6 15h8v6h-8z" fill="#d8ac91" />
-      <path d="M281 204h3v5h-3z" fill="#bb876e" />
-      <path d="M299 205h4v3h-4z" fill={ink} />
-      <path d="M301 218h6v2h-6z" fill="#ab745d" />
-      <path d="M279 182h20v4h8v7h5v10h-17v-5h-23v-10h7z" fill={ink} />
-      <path d="M280 186h17v4h7v5h-9v-3h-18v-4h3z" fill="#343b38" />
-      <path d="M297 198h20v4h8v5h-20v-4h-8z" fill={ink} />
-      <path d="M307 202h10v2h-10z" fill="#454b47" />
-      <path d="M281 221h13v16h-13z" fill={ink} />
-      <path d="M285 225h6v10h-6z" fill={skin} />
+    <g transform={`translate(${x} ${y}) rotate(${tilt})`}>
+      {face === 'front' ? (
+        <>
+          <path d="M-16-12h31v9h5v14h-5v11h-7v5H-8v-5h-7V11h-5V-3h4z" fill={ink} />
+          <path d="M-12-8h23v9h5v7h-5v11H5v5H-6v-5h-6V8h-5V1h5z" fill={skin} />
+          <path d="M-12 7h4v12h-4zm18 12h5v3H6z" fill="#d8ac91" />
+          <path d="M-9 3h4v3h-4zm14 0h4v3H5z" fill={ink} />
+          <path d="M0 6h3v7h-5v-3h2zm-4 12h10v2H-4z" fill="#b7866c" />
+          <path d="M-12-25h23v4h7v10h4v10h-43v-10h3v-9h6z" fill={ink} />
+          <path d="M-10-21H9v4h6v6h-30v-7h5z" fill="#343b38" />
+          <path d="M-21-8h43v6h-43z" fill="#101916" />
+          <path d="M-16-8h31v2h-31z" fill="#454b47" />
+        </>
+      ) : (
+        <>
+          <path d="M-10-17h22v5h8V1h5v6h-6v12h-9v7H-2v-5h-9V9h-6V-8h7z" fill={ink} />
+          <path d="M-8-11H8v5h8V4h5v2h-6v11H6v5H0v-6h-9V6h-5V-4h6z" fill={skin} />
+          <path d="M-11-3h7V9h-7zm6 15h8v6h-8z" fill="#d8ac91" />
+          <path d="M-9 0h3v5h-3z" fill="#bb876e" />
+          <path d="M9 1h4v3H9z" fill={ink} />
+          {face === 'quarter' && <path d="M-1 1h3v3h-3z" fill={ink} />}
+          <path d="M11 14h6v2h-6z" fill="#ab745d" />
+          <path d="M-11-22H9v4h8v7h5v10H5v-5h-23v-10h7z" fill={ink} />
+          <path d="M-10-18H7v4h7v5H5v-3h-18v-4h3z" fill="#343b38" />
+          <path d="M7-6h20v4h8v5H15v-4H7z" fill={ink} />
+          <path d="M17-2h10v2H17z" fill="#454b47" />
+        </>
+      )}
     </g>
   );
 }
-
-function Torso({ finish, coil }: { finish: boolean; coil: boolean }) {
+function sleeve(arm: Chain, fraction = 0.32): readonly Point[] {
+  return [
+    arm[0],
+    [
+      arm[0][0] + (arm[1][0] - arm[0][0]) * fraction,
+      arm[0][1] + (arm[1][1] - arm[0][1]) * fraction,
+    ],
+  ];
+}
+function Torso({ shirt, leadArm, trailArm }: Skeleton) {
+  const [left, right, bottomRight, bottomLeft] = shirt;
+  function panelPoint(u: number, v: number): Point {
+    return [
+      (left[0] * (1 - u) + right[0] * u) * (1 - v) +
+        (bottomLeft[0] * (1 - u) + bottomRight[0] * u) * v,
+      (left[1] * (1 - u) + right[1] * u) * (1 - v) +
+        (bottomLeft[1] * (1 - u) + bottomRight[1] * u) * v,
+    ];
+  }
   return (
-    <g transform={finish ? 'rotate(-12 242 287)' : coil ? 'rotate(-3 242 287)' : undefined}>
-      {/* Hips sit back; the spine inclines toward the ball. The near left sleeve
-          hides most of the far shoulder, unlike the previous front-facing shirt. */}
-      <path
-        d="M270 227h17v8h9v16h-10v14h-10v15h-12v16h-28v-5h-14v-17h8v-19h10v-13h14v-9h16z"
-        fill={ink}
+    <g strokeLinejoin="bevel">
+      <polygon points={vertices(shirt)} fill="#428dcc" stroke={ink} strokeWidth={6} />
+      <polygon
+        points={vertices([left, panelPoint(0.25, 0.04), panelPoint(0.25, 1), bottomLeft])}
+        fill="#2d6598"
       />
       <path
-        d="M269 232h14v8h8v8h-11v17h-10v15h-12v11h-20v-5h-11v-11h8v-19h10v-10h14v-9h10z"
-        fill="#428dcc"
+        d={`M${left[0] + 7} ${left[1] + 3}l8 5 5-8`}
+        fill="none"
+        stroke="#75b5e4"
+        strokeWidth={4}
       />
-      <path d="M239 268h8v12h15v7h-5v4h-19v-5h-11v-11h8v-12h4z" fill="#2d6598" />
-      <path d="M254 242h18v9h-18v9h-11v-11h11z" fill="#75b5e4" />
-      <path d="M266 239h18v5h8v17h-21v-5h-8v-13h3z" fill={ink} />
-      <path d="M269 242h12v5h7v11h-15v-5h-7v-8h3z" fill="#589ed5" />
-      <Flower x={256} y={250} />
-      <Flower x={273} y={247} />
-      <Flower x={243} y={271} />
-      <Flower x={261} y={267} />
-      <path d="M232 289h28v5h-28z" fill={ink} />
+      <Limb points={sleeve(trailArm)} color="#2d6598" width={16} />
+      <Limb points={sleeve(leadArm)} color="#589ed5" width={16} />
+      {[
+        [0.42, 0.2],
+        [0.77, 0.44],
+        [0.24, 0.65],
+        [0.62, 0.8],
+      ].map(([u, v], index) => {
+        const [x, y] = panelPoint(u, v);
+        return <Flower key={index} x={x - 4} y={y - 4} />;
+      })}
+      <path d={`M${bottomLeft.join(' ')}L${bottomRight.join(' ')}`} stroke={ink} strokeWidth={5} />
     </g>
   );
 }
-
-function GolferPose({ pose, clubColor }: { pose: Pose; clubColor: string }) {
-  const finish = pose === 'followthrough';
-  const back = pose === 'backswing';
-  const down = pose === 'downswing';
-  const grip: Point = back ? [276, 211] : down ? [297, 288] : finish ? [252, 206] : [285, 300];
-  const clubEnd: Point = back ? [233, 144] : down ? [346, 336] : finish ? [317, 170] : [313, 368];
-  const frontArm: Point[] = back
-    ? [[279, 257], [288, 235], grip]
-    : down
-      ? [[279, 257], [291, 277], grip]
-      : finish
-        ? [[272, 244], [266, 214], grip]
-        : [[279, 258], [281, 281], grip];
-  const farArm: Point[] = back
-    ? [[268, 248], [259, 229], grip]
-    : down
-      ? [[268, 248], [287, 268], grip]
-      : finish
-        ? [[261, 233], [247, 216], grip]
-        : [[268, 248], [287, 274], grip];
+function Club({ skeleton, color }: { skeleton: Skeleton; color: string }) {
+  const grip = skeleton.leadArm[2];
+  const head = skeleton.club;
+  const angle = (Math.atan2(head[1] - grip[1], head[0] - grip[0]) * 180) / Math.PI - 68;
   return (
-    <g className={`golf-scene__pose golf-scene__pose--${pose}`}>
-      {/* The far right foot is set back in depth. The near left leg carries the
-          finish, while the trail heel rises. Both knees are flexed at address. */}
-      <Limb
-        points={
-          finish
-            ? [
-                [246, 289],
-                [268, 316],
-                [262, 348],
-              ]
-            : [
-                [242, 287],
-                [264, 316],
-                [255, 345],
-              ]
-        }
-        color="#313934"
-        width={17}
-      />
-      <Shoe x={248} y={345} raised={finish} />
-      <Limb
-        points={
-          finish
-            ? [
-                [242, 290],
-                [247, 324],
-                [239, 363],
-              ]
-            : [
-                [232, 289],
-                [249, 325],
-                [237, 365],
-              ]
-        }
-        color="#202825"
-        width={21}
-      />
-      <path d="M231 310h4v15h-4zm-4 35h3v16h-3z" fill="#3c4540" />
-      <Shoe x={228} y={364} />
-      <Limb points={farArm} color="#d9af95" width={8} />
-      <Torso finish={finish} coil={back} />
-      <Head finish={finish} />
-      <Limb points={frontArm} color={skin} width={10} />
-      <Limb points={[grip, clubEnd]} color="#ccd4d7" width={2} />
-      <path d={`M${grip[0] - 6} ${grip[1] - 6}h12v13h-12z`} fill={ink} />
-      <path d={`M${grip[0] - 3} ${grip[1] - 4}h7v9h-7z`} fill="#fffdf5" />
-      <g
-        transform={`translate(${clubEnd[0]} ${clubEnd[1]})${back ? ' rotate(-40)' : finish ? ' rotate(65)' : ''}`}
-      >
+    <g>
+      <Limb points={[grip, head]} color="#ccd4d7" width={2} />
+      <g transform={`translate(${head.join(' ')}) rotate(${angle})`}>
         <path d="M-8-4h16v3h4v7H-6v-3h-2z" fill={ink} />
         <path d="M-5-1H6v2h3v2H-5z" fill="#d9e1e2" />
-        <path d="M-3 1h7v2h-7z" fill={clubColor} />
+        <path d="M-3 1h7v2h-7z" fill={color} />
       </g>
     </g>
   );
 }
-
+function GolferPose({ pose, clubColor }: { pose: Pose; clubColor: string }) {
+  const skeleton = poses[pose];
+  const { head, shirt, leadArm, trailArm, leadLeg, trailLeg, heel } = skeleton;
+  const grip = leadArm[2];
+  const finish = pose === 'followthrough';
+  return (
+    <g className={`golf-scene__pose golf-scene__pose--${pose}`}>
+      {/* The finishing shaft wraps behind the shoulder, rather than floating
+          upright in front of the face. */}
+      {finish && <Club skeleton={skeleton} color={clubColor} />}
+      <Limb points={trailLeg} color="#313934" width={17} />
+      <Shoe x={248} y={345} angle={heel} />
+      <Limb points={leadLeg} color="#202825" width={21} />
+      <Shoe x={228} y={364} />
+      <Limb points={trailArm} color="#d9af95" width={8} />
+      <Limb
+        points={[
+          [head[0] - 3, head[1] + 19],
+          [(shirt[0][0] + shirt[1][0]) / 2, shirt[0][1] + 8],
+        ]}
+        color={skin}
+        width={10}
+      />
+      <Torso {...skeleton} />
+      <Head {...skeleton} />
+      <Limb points={leadArm} color={skin} width={10} />
+      <Limb points={sleeve(leadArm, 0.3)} color="#589ed5" width={16} />
+      {!finish && <Club skeleton={skeleton} color={clubColor} />}
+      <path d={`M${grip[0] - 6} ${grip[1] - 6}h12v13h-12z`} fill={ink} />
+      <path d={`M${grip[0] - 3} ${grip[1] - 4}h7v9h-7z`} fill="#fffdf5" />
+    </g>
+  );
+}
 export default function Golfer({ clubColor }: { clubColor: string }) {
   return (
     <g className="golf-scene__golfer">
       <path d="M228 378h39v5h-39zm20-18h35v4h-35z" fill="#6f914e" opacity=".5" />
-      {(['address', 'backswing', 'downswing', 'followthrough'] as const).map((pose) => (
+      {(Object.keys(poses) as Pose[]).map((pose) => (
         <GolferPose key={pose} pose={pose} clubColor={clubColor} />
       ))}
     </g>
