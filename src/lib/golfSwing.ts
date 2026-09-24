@@ -102,7 +102,9 @@ export function sampleGolfSwing(timeMs: number) {
           [1320, -80],
         ]);
   const finish = smooth((time - 960) / 360);
-  const pivot: GolfPoint = [270 - 14 * finish, 240 - finish, 0];
+  // The taller finish lifts the approved folded-arm pose as one unit;
+  // address and impact still use the calibrated contact point.
+  const pivot: GolfPoint = [270 - 14 * finish, 240 - 9 * finish, 0];
   const orbitGrip = add(pivot, scale(onPlane(angle), armRadius));
   const grip: GolfPoint = [
     orbitGrip[0] - 5 * finish,
@@ -151,9 +153,15 @@ export function armChain(
   // At the finish, fold the lead elbow out beside the chest so the forearm
   // rises next to the face instead of cutting diagonally across it.
   const hanging = smooth((axis[1] - 0.5) / 0.4);
-  const bias: GolfPoint = trail
+  const raisedBias: GolfPoint = trail
     ? mix([-0.25, 0.7, 1 - 2 * finish], [0.35, 0.15, 1], hanging)
     : mix([0.1, 0.1, -1], [-1, 1, -0.3], finish);
+  // Hanging elbows sit on the torso side of the shoulder-to-grip line.
+  // Negative source X moves them screen-right after the scene mirror, while
+  // opposite Z poles keep the lead arm in front and the trail arm behind.
+  const relaxed = hanging * (1 - finish);
+  const bias: GolfPoint =
+    relaxed === 0 ? raisedBias : mix(raisedBias, [-0.3, 0.15, trail ? 1 : -1], relaxed);
   const bend = unit(add(bias, scale(axis, -dot(bias, axis))));
   const halfLength = trail ? 38 : 41;
   // Let the hanging elbows settle slightly lower without changing the grip,
