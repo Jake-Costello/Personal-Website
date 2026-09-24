@@ -45,7 +45,7 @@ The reference homepage was visually inspected: bright yellow, large charcoal tex
 - Place the controls inside the scene on its right edge. Show the current speed and compact control hints. Three completed quick Right taps increase both horizontal riding speed and the story-reveal clock; three Left taps decrease them. Use 0.75×, 1× (default), 1.25×, 1.5×, and 2×. Each tap lasts at most 250 ms, with all three completed within 750 ms. Ignore holds/repeats and cancel unfinished gestures on blur, navigation, or interrupted input. Keep pump/jump physics unchanged. Restart restores 1×.
 - Reveal details at 300 words per minute at 1×. Changing the speed partway through a story continues from the words already shown; it must not restart or hide them. Reduced-motion and Show full story remain immediate.
 - Down dips the nose and charges a jump; a following up press launches the rider. Tune timing through playtesting.
-- Career and life milestones appear above the water as the rider reaches their locations. A year/story track and a separate life-stage track (High school, College, Professional career) show where the visitor is; both support direct navigation and update when riding backward. Use date ranges or Now where individual work-project years are unconfirmed.
+- Career and life milestones appear above the water as the rider reaches their locations. A year/story track and an aligned life-stage track (High school, College, Professional career) show where the visitor is; both support direct navigation and update when riding backward. Each stage bar spans its story columns (currently 2 high-school, 5 college, and 7 career checkpoints) rather than equal thirds. Both rows share one horizontal scroll surface to preserve alignment on phones. The widths represent story coverage, not a precise calendar scale. Use date ranges or relative labels where exact years are unconfirmed.
 - A visitor can stop to read and travel back to earlier milestones.
 - Keep each milestone concise, with a path to more detail where useful.
 - Optional jumps and discoveries may reveal personal details. Essential career content is reachable without performing jumps.
@@ -74,9 +74,9 @@ Use the supplied resume as the starting source. Each story should explain the pr
 | --- | --- |
 | High school, before 2019 | AP Computer Science, Java, and choose-your-own-adventure games sparked an interest in CS |
 | High school graduation, 2019 | AP Capstone Diploma; decision to study CS at the University of Cincinnati |
-| Cincinnati and COVID, 2019–2020 | Started college; moved home when COVID interrupted the first year; sought practical learning |
-| Ohio University, starting 2021 | Continued CS studies, team projects, and hands-on problem solving |
+| Cincinnati and COVID, starting 2019 | Started college; returned home when COVID disrupted college; the exact duration at Cincinnati is uncertain |
 | Component Repair Technologies, August 2021–January 2022 | Python utilization/scheduling analytics exposed three machines operating under 20% of the week and a staffing gap; findings helped the team hire a machinist; enterprise IT and backend learning |
+| Ohio University, after the CRT internship | Continued CS studies, bringing practical internship experience into classes and team projects; exact start year remains unconfirmed |
 | Senior project, August 2023–May 2024 | Led the Union payphone project: Python, Asterisk/SIP, concert information, Spotify queues, recordings, reviews, and testing |
 | Ohio University, May 2024 | B.S. in Computer Science; returned to Cleveland |
 | Sherwin-Williams, July 2024–present | Modernized legacy applications; broader ownership as the team became smaller |
@@ -86,7 +86,7 @@ Use the supplied resume as the starting source. Each story should explain the pr
 | Revision Marine, alongside career | Founding engineer: website, infrastructure, warehouse software, internal apps, and merchandise design; drive by the waterfront store |
 | Looking forward | Finish the ride with future interests in useful software, working alongside teams, practical AI, and continued learning |
 
-Jacob reconfirmed the supplied resume dates on September 24, 2026: CRT August 2021–January 2022, OU graduation May 2024, and Sherwin-Williams start July 2024. Do not describe four elapsed years at OU; the earlier Cincinnati study and the internship are part of the wider college chapter. Dates of individual workplace projects and the Revision Marine founding date are not confirmed.
+Jacob reconfirmed the supplied resume dates on September 24, 2026: CRT August 2021–January 2022, OU graduation May 2024, and Sherwin-Williams start July 2024. He subsequently clarified the sequence: Cincinnati, return home, CRT internship, then OU. This supersedes the earlier OU-start-in-2021 story. Use “After CRT” for the OU return checkpoint until the start year is confirmed, and avoid a precise semester count at Cincinnati. Do not describe four elapsed years at OU. Dates of individual workplace projects and the Revision Marine founding date are not confirmed.
 
 Statesville's North Carolina location was checked against the [official city site](https://www.statesvillenc.net/). Workplace details and system capacities are Jacob's supplied content, not independently measured outcomes.
 
@@ -203,7 +203,7 @@ Prioritize a complete, polished set of features. Introduce additional techniques
 
 ## Inputs and decisions still open
 
-- Additional life milestones, dates of individual workplace projects, and the Revision Marine founding date. The current 14-chapter history and resume dates are confirmed.
+- Additional life milestones, the exact OU start year after CRT, dates of individual workplace projects, and the Revision Marine founding date. The college sequence and supplied resume dates are confirmed; the Cincinnati duration remains approximate.
 - Revision Marine's public commerce launch status; the confirmed URL currently serves a private preview.
 - Personal photographs and additional hobby stories; the initial six golf stories are confirmed.
 - Optional payphone photographs or artifacts if recovered later; it is currently a timeline story only.

@@ -13,6 +13,53 @@ function chapterButton(page: Page, id: string) {
   });
 }
 
+async function expectTimelineLanesAligned(page: Page) {
+  const ranges = ['high-school', 'college', 'career'].map((lifeStage) => {
+    const chapters = experience.filter((chapter) => chapter.lifeStage === lifeStage);
+    return { lifeStage, first: chapters[0].id, last: chapters.at(-1)!.id };
+  });
+  const lanes = await page.locator('.journey-timelines').evaluate(
+    (root, ranges) =>
+      ranges.map(({ lifeStage, first, last }) => {
+        const stage = root
+          .querySelector(`[data-life-stage="${lifeStage}"]`)!
+          .getBoundingClientRect();
+        const start = root.querySelector(`[data-chapter="${first}"]`)!.getBoundingClientRect();
+        const end = root.querySelector(`[data-chapter="${last}"]`)!.getBoundingClientRect();
+        return {
+          lifeStage,
+          leftDifference: stage.left - start.left,
+          rightDifference: stage.right - end.right,
+        };
+      }),
+    ranges,
+  );
+  for (const lane of lanes) {
+    expect(
+      Math.abs(lane.leftDifference),
+      `${lane.lifeStage} should start with its first year`,
+    ).toBeLessThan(1);
+    expect(
+      Math.abs(lane.rightDifference),
+      `${lane.lifeStage} should end with its last year`,
+    ).toBeLessThan(1);
+  }
+}
+
+async function expectCurrentYearInView(page: Page) {
+  await expect
+    .poll(() =>
+      page.locator('.journey-timeline-scroll').evaluate((element) => {
+        const current = element
+          .querySelector('.journey-chapter[aria-current="step"]')!
+          .getBoundingClientRect();
+        const viewport = element.getBoundingClientRect();
+        return current.left >= viewport.left - 1 && current.right <= viewport.right + 1;
+      }),
+    )
+    .toBe(true);
+}
+
 const firstChapter = experience[0];
 const finalChapter = experience.at(-1)!;
 const clockStart = new Date('2026-01-01T00:00:00Z');
@@ -81,6 +128,11 @@ test('every chapter is reachable without playing and appears in the readable tim
   await expect(
     page.getByRole('heading', { name: 'An old payphone. Some new possibilities.' }),
   ).toBeVisible();
+  const readableTitles = await page.locator('.journey-overview h3').allTextContents();
+  const titleIndex = (id: string) =>
+    readableTitles.indexOf(experience.find((chapter) => chapter.id === id)!.title);
+  expect(titleIndex('first-tools')).toBeGreaterThan(titleIndex('cincinnati'));
+  expect(titleIndex('ohio-university')).toBeGreaterThan(titleIndex('first-tools'));
   await expect(page.locator('a[href="#project-payphone"]')).toHaveCount(0);
   await expect(
     page.locator('.journey-overview').getByRole('link', { name: /Visit Revision Marine/ }),
@@ -202,6 +254,17 @@ test('year checkpoints and life stages stay synchronized when navigating and rev
     'aria-valuetext',
     new RegExp(`Next checkpoint: ${experience[1].year}`),
   );
+  await expectTimelineLanesAligned(page);
+  // A narrower desktop window exercises the same shared scrollbar as phones.
+  const scroll = page.locator('.journey-timeline-scroll');
+  if (await scroll.evaluate((element) => element.scrollWidth <= element.clientWidth)) {
+    await page.setViewportSize({ width: 900, height: 1000 });
+  }
+  await scroll.evaluate((element) => {
+    element.scrollLeft = (element.scrollWidth - element.clientWidth) / 2;
+  });
+  expect(await scroll.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+  await expectTimelineLanesAligned(page);
   for (const lifeStage of ['high-school', 'college', 'career'] as const) {
     const index = experience.findIndex((chapter) => chapter.lifeStage === lifeStage);
     await page.locator(`[data-life-stage="${lifeStage}"]`).click();
@@ -214,6 +277,8 @@ test('year checkpoints and life stages stay synchronized when navigating and rev
       'aria-valuenow',
       String(Math.round((route.stops[index].start / route.length) * 100)),
     );
+    await expectTimelineLanesAligned(page);
+    await expectCurrentYearInView(page);
   }
 
   const stage = page.locator('.journey-stage');
@@ -232,10 +297,14 @@ test('year checkpoints and life stages stay synchronized when navigating and rev
     experience.find((chapter) => chapter.id === 'graduation')!.year,
   );
   await expect(chapterButton(page, 'graduation')).toHaveAttribute('aria-current', 'step');
+  await expectTimelineLanesAligned(page);
+  await expectCurrentYearInView(page);
 
   await chapterButton(page, finalChapter.id).click();
   await expect(page.locator('.journey-chapter.is-reached')).toHaveCount(experience.length);
   await expect(chapterButton(page, finalChapter.id)).toHaveClass(/is-current/);
+  await expectTimelineLanesAligned(page);
+  await expectCurrentYearInView(page);
   await page.getByRole('button', { name: 'Back to start' }).click();
   await expect(page.locator('.journey-chapter.is-reached')).toHaveCount(1);
   await expect(chapterButton(page, firstChapter.id)).toHaveClass(/is-current/);
@@ -243,6 +312,8 @@ test('year checkpoints and life stages stay synchronized when navigating and rev
     'aria-current',
     'step',
   );
+  await expectTimelineLanesAligned(page);
+  await expectCurrentYearInView(page);
 });
 
 test('water spray animates while riding and splashes once on takeoff and landing', async ({

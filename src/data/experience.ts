@@ -38,24 +38,13 @@ export const experience: ExperienceChapter[] = [
   {
     id: 'cincinnati',
     lifeStage: 'college',
-    year: '2019–20',
-    date: 'Starting college · 2019–2020',
+    year: '2019 →',
+    date: 'Starting college · 2019',
     place: 'University of Cincinnati → home',
     title: 'An unexpected change of course.',
     story:
-      'I started studying computer science at the University of Cincinnati. After my first semester, COVID changed the college experience and brought me home. It also made me look for practical ways to learn by working on real problems.',
+      'I started studying computer science at the University of Cincinnati. When COVID disrupted college, I returned home and looked for a more hands-on way to learn. That led to an internship at Component Repair Technologies, working on real problems alongside experienced engineers.',
     skills: ['Computer science', 'Adaptability', 'Learning by building'],
-  },
-  {
-    id: 'ohio-university',
-    lifeStage: 'college',
-    year: '2021',
-    date: 'A new college chapter · 2021',
-    place: 'Ohio University · Athens, Ohio',
-    title: 'Back to campus. Still building.',
-    story:
-      'In 2021, I started at Ohio University to continue my computer science degree. Classes, team projects, and hands-on work became different ways of asking the same question: how do we turn an unfamiliar problem into software people can use?',
-    skills: ['Software development', 'Team projects', 'Problem solving'],
   },
   {
     id: 'first-tools',
@@ -67,6 +56,17 @@ export const experience: ExperienceChapter[] = [
     story:
       'At Component Repair Technologies, I built a Python tool connecting machine utilization with employee schedules. It revealed three multimillion-dollar machines running less than 20% of the week. The findings exposed a staffing gap and helped the team hire a qualified machinist. I also learned enterprise IT and backend development alongside senior engineers.',
     skills: ['Python', 'Data analysis', 'Azure Active Directory', 'SQL'],
+  },
+  {
+    id: 'ohio-university',
+    lifeStage: 'college',
+    year: 'After CRT',
+    date: 'Returning to campus · after the internship',
+    place: 'Ohio University · Athens, Ohio',
+    title: 'Back to campus. Still building.',
+    story:
+      'After my internship, I went to Ohio University to continue my computer science degree. I brought that practical experience into classes and team projects, learning to turn unfamiliar problems into software people could use. It was the next step toward my B.S. in Computer Science.',
+    skills: ['Software development', 'Team projects', 'Problem solving'],
   },
   {
     id: 'payphone',
