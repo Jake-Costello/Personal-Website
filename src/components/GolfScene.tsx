@@ -3,11 +3,14 @@ import './golf-scene.css';
 
 export type GolfPhase = 'idle' | 'swing' | 'flight' | 'reading' | 'falling';
 
+// Mirror the golfer and ball together about the center of the drop target.
+const GOLFER_MIRROR_X = 580;
+
 // The HTML controls share these coordinates so they stay aligned as the scene resizes.
 export const GOLF_SCENE_GEOMETRY = {
   width: 600,
   height: 480,
-  tee: { x: 313, y: 375 },
+  tee: { x: GOLFER_MIRROR_X - 313, y: 375 },
   golferDrop: { x: 215, y: 165, width: 150, height: 220 },
   bagAnchor: { x: 463, y: 313 },
   clubSlots: [
@@ -184,15 +187,17 @@ export default function GolfScene({ phase, clubColor }: { phase: GolfPhase; club
       <path d="M204 376h8v9h-8zm174 8h8v9h-8z" fill="#f399bf" />
       <path d="M204 376h8v3h-8zm174 8h8v3h-8z" fill="#ffc5dd" />
       <GolfBag />
-      <Golfer clubColor={clubColor} />
-      <path d="M311 380h4v9h-4zm-3-1h10v3h-10z" fill="#f5f3ed" />
-      <g className="golf-scene__tee-ball">
-        <path d="M310 369h6v3h3v6h-3v3h-6v-3h-3v-6h3z" fill="#17251e" />
-        <path d="M310 372h6v6h-6z" fill="#f5f3ed" />
-        <path d="M314 376h2v2h-2z" fill="#b6c5af" />
-      </g>
-      <g className="golf-scene__impact" fill="#f5f3ed">
-        <path d="M294 361h4v8h-4zm32 0h4v8h-4zm-16-12h4v9h-4zm-29 25h10v4h-10zm48 0h12v4h-12z" />
+      <g transform={`translate(${GOLFER_MIRROR_X} 0) scale(-1 1)`}>
+        <Golfer clubColor={clubColor} />
+        <path d="M311 380h4v9h-4zm-3-1h10v3h-10z" fill="#f5f3ed" />
+        <g className="golf-scene__tee-ball">
+          <path d="M310 369h6v3h3v6h-3v3h-6v-3h-3v-6h3z" fill="#17251e" />
+          <path d="M310 372h6v6h-6z" fill="#f5f3ed" />
+          <path d="M314 376h2v2h-2z" fill="#b6c5af" />
+        </g>
+        <g className="golf-scene__impact" fill="#f5f3ed">
+          <path d="M294 361h4v8h-4zm32 0h4v8h-4zm-16-12h4v9h-4zm-29 25h10v4h-10zm48 0h12v4h-12z" />
+        </g>
       </g>
     </svg>
   );

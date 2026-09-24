@@ -27,7 +27,7 @@ interface Skeleton {
 const ink = '#18201e';
 const skin = '#f0cfb7';
 
-// Projection is from the target: the left shoulder is nearest at address.
+// GolfScene mirrors these source poses into Jacob's requested right-handed orientation.
 // The head stays over the ball through contact; the chest opens and rises after it.
 const poses: Record<Pose, Skeleton> = {
   address: {
