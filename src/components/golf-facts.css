@@ -2,10 +2,17 @@
   min-width: 0;
   color: var(--ink);
 }
-.golf-facts-scene {
+.golf-scene-frame {
   position: relative;
+  aspect-ratio: 600 / 340;
+}
+.golf-facts-scene {
+  position: absolute;
+  top: 0;
   width: 100%;
   aspect-ratio: 600 / 480;
+  /* Preserve drawing/control coordinates while removing empty space above the art. */
+  transform: translateY(-22.916667%);
   isolation: isolate;
 }
 .golf-facts-scene > .golf-scene,
@@ -154,7 +161,7 @@
   background: #dfff7f55;
 }
 .golf-instructions {
-  margin-top: -9px;
+  margin-top: 12px;
   text-align: center;
   font: 11px/1.5 var(--mono);
   color: #5f6d58;

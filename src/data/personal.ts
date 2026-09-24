@@ -51,7 +51,7 @@ export const personalFacts: PersonalFact[] = [
     club: 'Putter',
     kind: 'putter',
     topic: 'Two cats',
-    title: 'A team of three.',
+    title: 'Are You Crazy??? Putter off the Tee???',
     text: 'I have two cats. There is a little more to life at home than screens and side projects.',
     color: '#acd3ec',
   },

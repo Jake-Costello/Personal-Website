@@ -230,69 +230,75 @@ export default function GolfFacts() {
       data-phase={phase}
       onKeyDown={onEscape}
     >
-      <div ref={sceneRef} className={`golf-facts-scene${dragging ? ' is-dragging' : ''}`}>
-        <GolfScene phase={phase} clubColor={shot.color} />
-        <div
-          ref={dropRef}
-          className={`golf-drop-zone${dropHot ? ' is-over' : ''}`}
-          style={{
-            left: `${(geometry.golferDrop.x / geometry.width) * 100}%`,
-            top: `${(geometry.golferDrop.y / geometry.height) * 100}%`,
-            width: `${(geometry.golferDrop.width / geometry.width) * 100}%`,
-            height: `${(geometry.golferDrop.height / geometry.height) * 100}%`,
-          }}
-          aria-hidden="true"
-        >
-          <span>OVER HERE ↓</span>
-        </div>
-        <div className="golf-clubs" role="group" aria-label="Choose a club">
-          {personalFacts.map((fact, index) => {
-            const slot = geometry.clubSlots[index];
-            const head = { x: slot.x * scale, y: slot.y * scale };
-            return (
-              <button
-                key={fact.id}
-                type="button"
-                className={`golf-club-button${dragging && dragFact.id === fact.id ? ' is-picked-up' : ''}`}
-                style={
-                  {
-                    left: head.x,
-                    top: head.y,
-                    '--club-hit-width': `${Math.max(24, 44 * scale)}px`,
-                    '--club-hit-height': `${Math.max(24, 32 * scale)}px`,
-                    '--club-head-width': `${44 * scale}px`,
-                    '--club-shaft-offset': `${12 * scale}px`,
-                    '--club-shaft-start': `${9 * scale}px`,
-                    '--club-shaft-width': `${Math.max(1, 5 * scale)}px`,
-                    '--club-length': `${(geometry.bagAnchor.y - slot.y - 9) * scale}px`,
-                  } as CSSProperties
-                }
-                aria-label={`${fact.club} — ${fact.topic}`}
-                aria-disabled={busy}
-                onPointerDown={(event) => pointerDown(event, fact)}
-                onPointerMove={pointerMove}
-                onPointerUp={pointerUp}
-                onPointerCancel={cancelDrag}
-                onLostPointerCapture={cancelDrag}
-                onClick={(event) => {
-                  if (suppressClick.current && event.detail !== 0) {
-                    suppressClick.current = false;
-                    return;
+      <div className="golf-scene-frame">
+        <div ref={sceneRef} className={`golf-facts-scene${dragging ? ' is-dragging' : ''}`}>
+          <GolfScene phase={phase} clubColor={shot.color} clubKind={shot.kind} />
+          <div
+            ref={dropRef}
+            className={`golf-drop-zone${dropHot ? ' is-over' : ''}`}
+            style={{
+              left: `${(geometry.golferDrop.x / geometry.width) * 100}%`,
+              top: `${(geometry.golferDrop.y / geometry.height) * 100}%`,
+              width: `${(geometry.golferDrop.width / geometry.width) * 100}%`,
+              height: `${(geometry.golferDrop.height / geometry.height) * 100}%`,
+            }}
+            aria-hidden="true"
+          >
+            <span>OVER HERE ↓</span>
+          </div>
+          <div className="golf-clubs" role="group" aria-label="Choose a club">
+            {personalFacts.map((fact, index) => {
+              const slot = geometry.clubSlots[index];
+              const head = { x: slot.x * scale, y: slot.y * scale };
+              return (
+                <button
+                  key={fact.id}
+                  type="button"
+                  className={`golf-club-button${dragging && dragFact.id === fact.id ? ' is-picked-up' : ''}`}
+                  style={
+                    {
+                      left: head.x,
+                      top: head.y,
+                      '--club-hit-width': `${Math.max(24, 44 * scale)}px`,
+                      '--club-hit-height': `${Math.max(24, 32 * scale)}px`,
+                      '--club-head-width': `${44 * scale}px`,
+                      '--club-shaft-offset': `${12 * scale}px`,
+                      '--club-shaft-start': `${9 * scale}px`,
+                      '--club-shaft-width': `${Math.max(1, 5 * scale)}px`,
+                      '--club-length': `${(geometry.bagAnchor.y - slot.y - 9) * scale}px`,
+                    } as CSSProperties
                   }
-                  startShot(fact, event.currentTarget);
-                }}
-              >
-                <span className="golf-club-shaft" aria-hidden="true" />
-                <GolfClubHeadIcon color={fact.color} kind={fact.kind} className="golf-club-icon" />
-                <span className="golf-club-tooltip" aria-hidden="true">
-                  <strong>{fact.club}</strong>
-                  <span>{fact.topic}</span>
-                </span>
-              </button>
-            );
-          })}
+                  aria-label={`${fact.club} — ${fact.topic}`}
+                  aria-disabled={busy}
+                  onPointerDown={(event) => pointerDown(event, fact)}
+                  onPointerMove={pointerMove}
+                  onPointerUp={pointerUp}
+                  onPointerCancel={cancelDrag}
+                  onLostPointerCapture={cancelDrag}
+                  onClick={(event) => {
+                    if (suppressClick.current && event.detail !== 0) {
+                      suppressClick.current = false;
+                      return;
+                    }
+                    startShot(fact, event.currentTarget);
+                  }}
+                >
+                  <span className="golf-club-shaft" aria-hidden="true" />
+                  <GolfClubHeadIcon
+                    color={fact.color}
+                    kind={fact.kind}
+                    className="golf-club-icon"
+                  />
+                  <span className="golf-club-tooltip" aria-hidden="true">
+                    <strong>{fact.club}</strong>
+                    <span>{fact.topic}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <GolfBagOverlay className="golf-bag-overlay" />
         </div>
-        <GolfBagOverlay className="golf-bag-overlay" />
       </div>
       <p className="golf-instructions">Drag a club. Meet a different side.</p>
       <details className="golf-readable-facts">

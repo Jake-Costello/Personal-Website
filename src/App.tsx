@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import JetskiJourney from './components/JetskiJourney';
 import ContactForm from './components/ContactForm';
 import GolfFacts from './components/GolfFacts';
+import GolfBallCollection from './components/GolfBallCollection';
 import { getContactEndpoint, linkedInUrl } from './lib/contact';
 import { revisionMarine } from './data/revision';
 
@@ -568,6 +569,7 @@ function App() {
               <p className="about-link-note">{revisionMarine.websiteNote}</p>
             </div>
           </div>
+          <GolfBallCollection />
           <GolfFacts />
         </section>
 

@@ -1,0 +1,113 @@
+.golf-ball-collection {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  text-align: center;
+}
+.golf-ball-collection legend {
+  width: 100%;
+  padding: 0;
+  margin-bottom: 24px;
+  font: 10px/1.5 var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #5f6d58;
+}
+.golf-ball-options {
+  display: grid;
+  gap: 24px;
+}
+.golf-ball-option {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 7px;
+  cursor: pointer;
+}
+.golf-ball-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.golf-ball-swatch {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 5px;
+  border: 1px solid #c9d0d2;
+  border-radius: 50%;
+  background-color: #fff;
+  background-image: radial-gradient(
+    circle at 3px 3px,
+    #a5b0b9 0.6px,
+    #d8dfe2 1px,
+    transparent 1.7px
+  );
+  background-size: 7px 7px;
+  box-shadow:
+    inset -7px -8px 12px #6b7b8a33,
+    inset 5px 5px 10px #ffffffcc,
+    0 4px 7px #17251e12;
+}
+.golf-ball-option input:checked + .golf-ball-swatch {
+  outline: 2px solid #5b7144;
+  outline-offset: 5px;
+}
+.golf-ball-option input:focus-visible + .golf-ball-swatch {
+  outline: 3px dashed var(--ink);
+  outline-offset: 6px;
+}
+.golf-ball-name {
+  max-width: 112px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+.golf-ball-status {
+  font: 8px/1.4 var(--mono);
+  color: #5f6d58;
+}
+.golf-ball-option.is-locked {
+  cursor: default;
+  color: #777f73;
+}
+.is-locked .golf-ball-swatch {
+  background-color: #c5cbc1;
+  background-image: radial-gradient(
+    circle at 3px 3px,
+    #97a28f 0.6px,
+    #b1baab 1px,
+    transparent 1.7px
+  );
+  box-shadow:
+    inset -7px -8px 12px #75816e33,
+    inset 5px 5px 10px #ffffff55;
+}
+.golf-ball-swatch svg {
+  width: 21px;
+  height: 21px;
+  padding: 2px;
+  border-radius: 3px;
+  background: #c5cbc1e8;
+  stroke: #53634c;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+@media (max-width: 800px) {
+  .golf-ball-collection {
+    width: min(100%, 350px);
+    justify-self: center;
+  }
+  .golf-ball-options {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+  }
+  .golf-ball-collection legend {
+    margin-bottom: 20px;
+  }
+}

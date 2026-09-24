@@ -9,6 +9,7 @@ const clubs = [
   'Putter — Two cats',
   '3 wood — Jet skis',
 ] as const;
+const clubKinds = ['driver', 'iron', 'iron', 'wedge', 'putter', 'wood'] as const;
 
 test.beforeEach(async ({ page }) => {
   await installProteinApi(page);
@@ -106,6 +107,24 @@ test('Revision Marine identifies the engineering role and links to the company',
   await page.keyboard.press('Escape');
 });
 
+test('the white ball is selected while mystery achievements remain locked', async ({ page }) => {
+  const golf = await openGolf(page);
+  const about = page.locator('#about');
+  const white = about.getByRole('radio', { name: 'White ball', exact: true });
+  const locked = about.getByRole('radio', { name: /^Mystery achievement [12], locked$/ });
+  await expect(white).toBeChecked();
+  await expect(white).toBeEnabled();
+  await expect(locked).toHaveCount(2);
+  for (const mystery of await locked.all()) {
+    await expect(mystery).toBeDisabled();
+    await mystery.evaluate((radio) => (radio as HTMLInputElement).click());
+    await expect(mystery).not.toBeChecked();
+  }
+  await expect(white).toBeChecked();
+  await expect(golf).toHaveAttribute('data-phase', 'idle');
+  await expect(page.locator('.golf-fact-ball')).toHaveCount(0);
+});
+
 test('clubs reveal personal stories with keyboard controls and a readable alternative', async ({
   page,
 }) => {
@@ -116,6 +135,11 @@ test('clubs reveal personal stories with keyboard controls and a readable altern
   await expect(driver.locator('.golf-club-tooltip')).toContainText('Creative beginnings');
   await page.keyboard.press('Enter');
   await expect(golf).toHaveAttribute('data-phase', 'reading');
+  await expect(golf.locator('.golf-scene__golfer')).toHaveAttribute('data-club-kind', 'driver');
+  await expect(golf.locator('.golf-scene__pose--followthrough .golf-held-club')).toHaveAttribute(
+    'data-club-kind',
+    'driver',
+  );
   await expect(page.locator('.golf-fact-copy')).toContainText(/animation/i);
   await expect(page.locator('.golf-fact-copy')).toContainText(/computer science/i);
   await page.getByRole('button', { name: 'Next shot', exact: true }).click();
@@ -125,6 +149,13 @@ test('clubs reveal personal stories with keyboard controls and a readable altern
   const putter = golf.getByRole('button', { name: clubs[4], exact: true });
   await putter.focus();
   await page.keyboard.press('Space');
+  await expect(
+    page.getByRole('heading', { name: 'Are You Crazy??? Putter off the Tee???', exact: true }),
+  ).toBeVisible();
+  await expect(golf.locator('.golf-scene__pose--followthrough .golf-held-club')).toHaveAttribute(
+    'data-club-kind',
+    'putter',
+  );
   await expect(page.locator('.golf-fact-copy')).toContainText(/two cats|2 cats/i);
   await page.getByRole('button', { name: 'Next shot', exact: true }).click();
   await expect(putter).toBeFocused();
@@ -133,6 +164,10 @@ test('clubs reveal personal stories with keyboard controls and a readable altern
   for (const index of [1, 2, 3, 5]) {
     const club = golf.getByRole('button', { name: clubs[index], exact: true });
     await club.click();
+    await expect(golf.locator('.golf-scene__pose--followthrough .golf-held-club')).toHaveAttribute(
+      'data-club-kind',
+      clubKinds[index],
+    );
     await expect(page.locator('.golf-fact-kicker')).toContainText(clubs[index].split(' — ')[1]);
     await page.getByRole('button', { name: 'Next shot', exact: true }).click();
     await expect(club).toBeFocused();

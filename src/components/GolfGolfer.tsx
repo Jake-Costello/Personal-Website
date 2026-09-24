@@ -1,4 +1,6 @@
-﻿type Point = readonly [number, number];
+import { ClubHead, GOLF_CLUB_HOSEL } from './GolfClub';
+
+type Point = readonly [number, number];
 type Chain = readonly [Point, Point, Point];
 type Pose =
   | 'address'
@@ -403,36 +405,63 @@ function Torso({ shirt, leadArm, trailArm }: Skeleton) {
     </g>
   );
 }
-function Club({ skeleton, color }: { skeleton: Skeleton; color: string }) {
+function Club({ skeleton, color, kind }: { skeleton: Skeleton; color: string; kind: string }) {
   const grip = skeleton.leadArm[2];
   const head = skeleton.club;
-  const angle = (Math.atan2(head[1] - grip[1], head[0] - grip[0]) * 180) / Math.PI - 68;
+  // The shared head's shaft leaves its hosel along +Y. Point that direction
+  // back toward the hands and attach the hosel exactly to the held shaft.
+  const angle = (Math.atan2(grip[1] - head[1], grip[0] - head[0]) * 180) / Math.PI - 90;
   return (
-    <g>
+    <g className="golf-held-club" data-club-kind={kind}>
       <Limb points={[grip, head]} color="#ccd4d7" width={2} />
-      <g transform={`translate(${head.join(' ')}) rotate(${angle})`}>
-        <path d="M-8-4h16v3h4v7H-6v-3h-2z" fill={ink} />
-        <path d="M-5-1H6v2h3v2H-5z" fill="#d9e1e2" />
-        <path d="M-3 1h7v2h-7z" fill={color} />
+      <g
+        transform={`translate(${head.join(' ')}) rotate(${angle}) scale(.68) translate(${-GOLF_CLUB_HOSEL.x} ${-GOLF_CLUB_HOSEL.y})`}
+      >
+        <ClubHead color={color} kind={kind} />
       </g>
     </g>
   );
 }
-function GolferPose({ pose, clubColor }: { pose: Pose; clubColor: string }) {
+function Hands({ grip }: { grip: Point }) {
+  return (
+    <g>
+      <path d={`M${grip[0] - 6} ${grip[1] - 6}h12v13h-12z`} fill={ink} />
+      <path d={`M${grip[0] - 3} ${grip[1] - 4}h7v9h-7z`} fill="#fffdf5" />
+    </g>
+  );
+}
+
+function GolferPose({
+  pose,
+  clubColor,
+  clubKind,
+}: {
+  pose: Pose;
+  clubColor: string;
+  clubKind: string;
+}) {
   const skeleton = poses[pose];
   const { head, shirt, leadArm, trailArm, leadLeg, trailLeg, heel } = skeleton;
   const grip = leadArm[2];
   const finish = pose === 'followthrough';
+  const armsBehind = pose === 'backswing' || pose === 'transition';
+  const clubBehind = armsBehind || finish;
   return (
     <g className={`golf-scene__pose golf-scene__pose--${pose}`}>
-      {/* The finishing shaft wraps behind the shoulder, rather than floating
-          upright in front of the face. */}
-      {finish && <Club skeleton={skeleton} color={clubColor} />}
+      {/* Lifted forearms, hands, and shaft pass behind the torso and head at
+          the top of the swing; the near upper arm still crosses the shirt. */}
+      {clubBehind && <Club skeleton={skeleton} color={clubColor} kind={clubKind} />}
       <Limb points={trailLeg} color="#313934" width={17} />
       <Shoe x={248} y={345} angle={heel} />
       <Limb points={leadLeg} color="#202825" width={21} />
       <Shoe x={228} y={364} />
       <Limb points={trailArm} color="#d9af95" width={8} />
+      {armsBehind && (
+        <>
+          <Limb points={leadArm} color={skin} width={10} />
+          <Hands grip={grip} />
+        </>
+      )}
       <Limb
         points={[
           [head[0] - 3, head[1] + 19],
@@ -442,21 +471,36 @@ function GolferPose({ pose, clubColor }: { pose: Pose; clubColor: string }) {
         width={10}
       />
       <Torso {...skeleton} />
+      {armsBehind && (
+        <>
+          <Limb points={[leadArm[0], leadArm[1]]} color={skin} width={10} />
+          <Limb points={sleeve(leadArm, 0.3)} color="#589ed5" width={16} />
+        </>
+      )}
       <Head {...skeleton} />
-      <Limb points={leadArm} color={skin} width={10} />
-      <Limb points={sleeve(leadArm, 0.3)} color="#589ed5" width={16} />
-      {!finish && <Club skeleton={skeleton} color={clubColor} />}
-      <path d={`M${grip[0] - 6} ${grip[1] - 6}h12v13h-12z`} fill={ink} />
-      <path d={`M${grip[0] - 3} ${grip[1] - 4}h7v9h-7z`} fill="#fffdf5" />
+      {!armsBehind && (
+        <>
+          <Limb points={leadArm} color={skin} width={10} />
+          <Limb points={sleeve(leadArm, 0.3)} color="#589ed5" width={16} />
+        </>
+      )}
+      {!clubBehind && <Club skeleton={skeleton} color={clubColor} kind={clubKind} />}
+      {!armsBehind && <Hands grip={grip} />}
     </g>
   );
 }
-export default function Golfer({ clubColor }: { clubColor: string }) {
+export default function Golfer({
+  clubColor,
+  clubKind = 'driver',
+}: {
+  clubColor: string;
+  clubKind?: string;
+}) {
   return (
-    <g className="golf-scene__golfer">
+    <g className="golf-scene__golfer" data-club-kind={clubKind}>
       <path d="M228 378h39v5h-39zm20-18h35v4h-35z" fill="#6f914e" opacity=".5" />
       {(Object.keys(poses) as Pose[]).map((pose) => (
-        <GolferPose key={pose} pose={pose} clubColor={clubColor} />
+        <GolferPose key={pose} pose={pose} clubColor={clubColor} clubKind={clubKind} />
       ))}
     </g>
   );
