@@ -104,7 +104,11 @@ export function sampleGolfSwing(timeMs: number) {
   const finish = smooth((time - 960) / 360);
   const pivot: GolfPoint = [270 - 14 * finish, 240 - finish, 0];
   const orbitGrip = add(pivot, scale(onPlane(angle), armRadius));
-  const grip: GolfPoint = [orbitGrip[0], orbitGrip[1], orbitGrip[2] * (1 - finish) - 20 * finish];
+  const grip: GolfPoint = [
+    orbitGrip[0] - 5 * finish,
+    orbitGrip[1] + 8 * finish,
+    orbitGrip[2] * (1 - finish) - 20 * finish,
+  ];
   let direction = onPlane(angle + hinge);
   // After extension the elbows fold and the shaft wraps over the lead shoulder.
   // The finish leaves the delivery plane, as a real followthrough does.
@@ -144,7 +148,12 @@ export function armChain(
   const axis = unit(offset);
   // The near/lead elbow bends toward the camera at address; bending it away
   // made the exposed arm disappear under the torso just below its sleeve.
-  const bias: GolfPoint = trail ? [-0.25, 0.7, 1 - 2 * finish] : [0.1, 0.1, -1];
+  // At the finish, fold the lead elbow out beside the chest so the forearm
+  // rises next to the face instead of cutting diagonally across it.
+  const hanging = smooth((axis[1] - 0.5) / 0.4);
+  const bias: GolfPoint = trail
+    ? mix([-0.25, 0.7, 1 - 2 * finish], [0.35, 0.15, 1], hanging)
+    : mix([0.1, 0.1, -1], [-1, 1, -0.3], finish);
   const bend = unit(add(bias, scale(axis, -dot(bias, axis))));
   const halfLength = trail ? 38 : 41;
   const height = Math.sqrt(Math.max(0, halfLength * halfLength - (distance * distance) / 4));

@@ -1,6 +1,7 @@
 import { useId, useLayoutEffect, useState } from 'react';
 import { ClubHead, GOLF_CLUB_HOSEL } from './GolfClub';
 import GolfTrailingFoot, { trailingFootAnkle } from './GolfTrailingFoot';
+import GolfHead, { GolfHeadSilhouette } from './GolfHead';
 import {
   armChain,
   add,
@@ -46,8 +47,8 @@ const poses: Record<'address' | 'backswing' | 'impact' | 'followthrough', BodyPo
       [259, 290],
       [229, 287],
     ],
-    leadShoulder: [277, 244],
-    trailShoulder: [265, 245],
+    leadShoulder: [267, 244],
+    trailShoulder: [280, 244],
     leadLeg: [
       [235, 291],
       [244, 326],
@@ -94,8 +95,8 @@ const poses: Record<'address' | 'backswing' | 'impact' | 'followthrough', BodyPo
       [268, 291],
       [239, 291],
     ],
-    leadShoulder: [280, 246],
-    trailShoulder: [264, 245],
+    leadShoulder: [270, 246],
+    trailShoulder: [280, 245],
     leadLeg: [
       [244, 293],
       [243, 327],
@@ -110,20 +111,20 @@ const poses: Record<'address' | 'backswing' | 'impact' | 'followthrough', BodyPo
     footTurn: 0.1,
   },
   followthrough: {
-    head: [253, 195],
+    head: [259, 195],
     face: 'front',
     tilt: -3,
     shirt: [
       [233, 230],
       [280, 229],
-      [272, 288],
-      [240, 291],
+      [273, 286],
+      [236, 291],
     ],
     leadShoulder: [277, 240],
     trailShoulder: [238, 238],
     leadLeg: [
-      [244, 292],
-      [241, 327],
+      [247, 292],
+      [243, 328],
       [239, 364],
     ],
     trailLeg: [
@@ -170,39 +171,6 @@ function Shoe({ x, y }: { x: number; y: number }) {
       <path d="M3 3h12v5h13v3h3v2H0V7h3z" fill="#c6a078" />
       <path d="M3 3h12v3H3zm11 5h11v2H14z" fill="#e2c59b" />
       <path d="M0 13h31v2H0z" fill="#efe0c5" />
-    </g>
-  );
-}
-function Head({ head: [x, y], face, tilt }: Skeleton) {
-  return (
-    <g className="golf-golfer-head" transform={`translate(${x} ${y}) rotate(${tilt})`}>
-      {face === 'front' ? (
-        <>
-          <path d="M-16-12h31v9h5v14h-5v11h-7v5H-8v-5h-7V11h-5V-3h4z" fill={ink} />
-          <path d="M-12-8h23v9h5v7h-5v11H5v5H-6v-5h-6V8h-5V1h5z" fill={skin} />
-          <path d="M-12 7h4v12h-4zm18 12h5v3H6z" fill="#d8ac91" />
-          <path d="M-9 3h4v3h-4zm14 0h4v3H5z" fill={ink} />
-          <path d="M0 6h3v7h-5v-3h2zm-4 12h10v2H-4z" fill="#b7866c" />
-          <path d="M-12-25h23v4h7v10h4v10h-43v-10h3v-9h6z" fill={ink} />
-          <path d="M-10-21H9v4h6v6h-30v-7h5z" fill="#343b38" />
-          <path d="M-21-8h43v6h-43z" fill="#101916" />
-          <path d="M-16-8h31v2h-31z" fill="#454b47" />
-        </>
-      ) : (
-        <>
-          <path d="M-10-17h22v5h8V1h5v6h-6v12h-9v7H-2v-5h-9V9h-6V-8h7z" fill={ink} />
-          <path d="M-8-11H8v5h8V4h5v2h-6v11H6v5H0v-6h-9V6h-5V-4h6z" fill={skin} />
-          <path d="M-11-3h7V9h-7zm6 15h8v6h-8z" fill="#d8ac91" />
-          <path d="M-9 0h3v5h-3z" fill="#bb876e" />
-          <path d="M9 1h4v3H9z" fill={ink} />
-          {face === 'quarter' && <path d="M-1 1h3v3h-3z" fill={ink} />}
-          <path d="M11 14h6v2h-6z" fill="#ab745d" />
-          <path d="M-11-22H9v4h8v7h5v10H5v-5h-23v-10h7z" fill={ink} />
-          <path d="M-10-18H7v4h7v5H5v-3h-18v-4h3z" fill="#343b38" />
-          <path d="M7-6h20v4h8v5H15v-4H7z" fill={ink} />
-          <path d="M17-2h10v2H17z" fill="#454b47" />
-        </>
-      )}
     </g>
   );
 }
@@ -448,19 +416,7 @@ function BodyMask({ skeleton, id }: { skeleton: Skeleton; id: string }) {
             <polyline points={vertices(sleeveOutline(arm))} fill="none" strokeWidth="3" />
           </g>
         ))}
-        <g transform={`translate(${x} ${y}) rotate(${tilt})`} stroke="none">
-          {face === 'front' ? (
-            <>
-              <path d="M-16-12h31v9h5v14h-5v11h-7v5H-8v-5h-7V11h-5V-3h4z" />
-              <path d="M-12-25h23v4h7v10h4v10h-43v-10h3v-9h6z" />
-            </>
-          ) : (
-            <>
-              <path d="M-10-17h22v5h8V1h5v6h-6v12h-9v7H-2v-5h-9V9h-6V-8h7z" />
-              <path d="M-11-22H9v4h8v7h5v10H5v-5h-23v-10h7zM7-6h20v4h8v5H15v-4H7z" />
-            </>
-          )}
-        </g>
+        <GolfHeadSilhouette head={[x, y]} face={face} tilt={tilt} />
       </g>
     </mask>
   );
@@ -610,7 +566,7 @@ export function GolferFrame({
         width={10}
       />
       <Torso {...skeleton} />
-      <Head {...skeleton} />
+      <GolfHead {...skeleton} />
       <MovingClub rig={rig} color={clubColor} kind={clubKind} maskId={maskId} />
       <g className="golf-golfer-arms">
         {arm(trail, false)}
