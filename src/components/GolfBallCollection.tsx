@@ -2,7 +2,8 @@ import { selectGolfBall, useAchievements } from '../lib/achievements';
 import './golf-ball-collection.css';
 
 export default function GolfBallCollection() {
-  const { selectedBall, yellowBallUnlocked } = useAchievements();
+  const { selectedBall, yellowBallUnlocked, stripedBallUnlocked, discoveredProteins } =
+    useAchievements();
   return (
     <fieldset className="golf-ball-collection">
       <legend>Golf balls</legend>
@@ -46,19 +47,32 @@ export default function GolfBallCollection() {
               : 'Reach the finish under the time-trial target'}
           </span>
         </label>
-        <label className="golf-ball-option is-locked">
+        <label className={`golf-ball-option${stripedBallUnlocked ? '' : ' is-locked'}`}>
           <input
             type="radio"
             name="golf-ball"
-            value="mystery"
-            disabled
-            aria-label="Mystery achievement, locked"
+            value="striped"
+            checked={selectedBall === 'striped'}
+            onChange={() => selectGolfBall('striped')}
+            disabled={!stripedBallUnlocked}
+            aria-label={stripedBallUnlocked ? 'Striped ball' : 'Striped ball, locked'}
+            aria-describedby="striped-ball-unlock"
           />
-          <span className="golf-ball-swatch" aria-hidden="true">
-            <LockIcon />
+          <span className="golf-ball-swatch golf-ball-swatch--striped" aria-hidden="true">
+            {!stripedBallUnlocked && <LockIcon />}
           </span>
-          <span className="golf-ball-name">Mystery achievement</span>
-          <span className="golf-ball-status">Locked</span>
+          <span className="golf-ball-name">Discovery stripes</span>
+          <span className="golf-ball-status">
+            {selectedBall === 'striped' ? 'Selected' : stripedBallUnlocked ? 'Unlocked' : 'Locked'}
+          </span>
+          <span className="golf-ball-unlock" id="striped-ball-unlock">
+            {stripedBallUnlocked
+              ? 'Protein discovery reward'
+              : 'Discover 2 different experimental protein structures'}
+          </span>
+          {!stripedBallUnlocked && (
+            <span className="golf-ball-status">{discoveredProteins.length} / 2 discovered</span>
+          )}
         </label>
       </div>
     </fieldset>

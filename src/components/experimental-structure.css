@@ -1,0 +1,84 @@
+.experimental-structure {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #c9cdc3;
+  min-width: 0;
+}
+.experimental-structure h5 {
+  margin: 0 0 9px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.structure-challenge {
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid #c9cdc3;
+  background: #eceee3;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.structure-challenge strong,
+.structure-challenge span {
+  display: block;
+}
+.experimental-structure .structure-challenge p {
+  margin: 4px 0;
+  font-size: 11px;
+}
+.experimental-structure .structure-inspect {
+  width: 100%;
+  min-height: 44px;
+  margin: 4px 0;
+  padding: 10px 12px;
+  border: 1px solid #17251e;
+  background: #dfff7f;
+  color: #17251e;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.experimental-structure .structure-inspect:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.experimental-structure [role='alert'] {
+  color: #8c3432;
+}
+.structure-evidence {
+  margin-top: 14px;
+  overflow-wrap: anywhere;
+}
+.structure-verified {
+  display: block;
+  margin-bottom: 10px;
+  color: #346044;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-size: 10px;
+  line-height: 1.6;
+}
+.structure-evidence .structure-title {
+  font-size: 11px;
+  line-height: 1.5;
+}
+.structure-evidence dl {
+  margin: 12px 0;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.structure-evidence dl > div + div {
+  margin-top: 7px;
+}
+.structure-evidence dt {
+  color: #626d62;
+}
+.structure-evidence dd {
+  margin: 0;
+}
+.structure-evidence small {
+  display: block;
+  color: #626d62;
+  font-size: 10px;
+  line-height: 1.6;
+}

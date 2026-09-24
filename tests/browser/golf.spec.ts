@@ -1,6 +1,7 @@
 import { expect, test, type CDPSession, type Locator, type Page } from '@playwright/test';
 import { installProteinApi } from './protein-fixtures';
 import { STORAGE_KEY } from '../../src/lib/achievements';
+import { personalFactsByBall } from '../../src/data/personal';
 
 const clubs = [
   'Driver — Creative beginnings',
@@ -113,13 +114,13 @@ test('Revision Marine identifies the engineering role and links to the company',
   await page.keyboard.press('Escape');
 });
 
-test('the white ball is selected while yellow and mystery achievements remain locked', async ({
+test('the white ball is selected while yellow and striped achievements remain locked', async ({
   page,
 }) => {
   const golf = await openGolf(page);
   const about = page.locator('#about');
   const white = about.getByRole('radio', { name: 'White ball', exact: true });
-  const locked = about.getByRole('radio', { name: /^(Yellow ball|Mystery achievement), locked$/ });
+  const locked = about.getByRole('radio', { name: /^(Yellow ball|Striped ball), locked$/ });
   await expect(white).toBeChecked();
   await expect(white).toBeEnabled();
   await expect(locked).toHaveCount(2);
@@ -134,6 +135,10 @@ test('the white ball is selected while yellow and mystery achievements remain lo
   await expect(about.locator('#yellow-ball-unlock')).toHaveText(
     'Reach the finish under the time-trial target',
   );
+  await expect(about.locator('#striped-ball-unlock')).toHaveText(
+    'Discover 2 different experimental protein structures',
+  );
+  await expect(about.getByText('0 / 2 discovered', { exact: true })).toBeVisible();
 });
 
 test('an earned yellow ball can be selected, played, and remembered on the next visit', async ({
@@ -166,10 +171,12 @@ test('an earned yellow ball can be selected, played, and remembered on the next 
     'fill',
     '#efff00',
   );
-  await golf.getByRole('button', { name: clubs[0], exact: true }).click();
+  await golf
+    .getByRole('button', { name: 'Driver — Building Revision Marine', exact: true })
+    .click();
   await expect(page.locator('.golf-ball-layer')).toHaveAttribute('data-ball-color', 'yellow');
   await expect(page.locator('.golf-fact-ball')).toHaveCSS('background-color', 'rgb(239, 255, 0)');
-  await expect(page.locator('.golf-fact-copy')).toContainText(/animation/i);
+  await expect(page.locator('.golf-fact-copy')).toContainText(/founding engineer/i);
   await page.screenshot({ path: `.cache/golf-yellow-${testInfo.project.name}.png` });
   await page.getByRole('button', { name: 'Next shot', exact: true }).click();
   await page.reload();
@@ -185,6 +192,139 @@ test('an earned yellow ball can be selected, played, and remembered on the next 
   await golf.getByRole('button', { name: clubs[0], exact: true }).click();
   await expect(page.locator('.golf-ball-layer')).toHaveAttribute('data-ball-color', 'white');
   await expect(page.locator('.golf-fact-ball')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+});
+
+test('each unlocked ball brings six distinct stories and the striped selection persists', async ({
+  page,
+}, testInfo) => {
+  await page.addInitScript((key) => {
+    if (!localStorage.getItem(key)) {
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          yellowBallUnlocked: true,
+          stripedBallUnlocked: true,
+          discoveredProteins: ['TP53', 'MDM2'],
+          acknowledgedRewards: ['yellow', 'striped'],
+          selectedBall: 'white',
+        }),
+      );
+    }
+  }, STORAGE_KEY);
+  const golf = await openGolf(page);
+  await golf.getByText('Read all 6 facts', { exact: true }).click();
+  const read = golf.locator('.golf-facts-list');
+  const shownStories = new Set<string>();
+  for (const color of ['white', 'yellow', 'striped'] as const) {
+    const ballName = { white: 'White', yellow: 'Bright yellow', striped: 'Discovery stripes' };
+    await page.locator('#about').getByText(ballName[color], { exact: true }).click();
+    await expect(golf).toHaveAttribute('data-ball-color', color);
+    await expect(read.locator('article')).toHaveCount(6);
+    for (const fact of personalFactsByBall[color]) {
+      const club = golf.getByRole('button', { name: `${fact.club} — ${fact.topic}`, exact: true });
+      await expect(club).toBeVisible();
+      await expect(read.getByRole('heading', { name: fact.title, exact: true })).toBeVisible();
+      await club.click();
+      await expect(page.locator('.golf-fact-copy')).toHaveText(fact.text);
+      await expect(page.locator('.golf-ball-layer')).toHaveAttribute('data-ball-color', color);
+      shownStories.add(await page.locator('.golf-fact-copy').innerText());
+      if (color === 'striped' && fact.kind === 'driver') {
+        await expect(page.locator('.golf-fact-ball')).toHaveCSS(
+          'background-color',
+          'rgb(255, 255, 255)',
+        );
+        await expect(page.locator('.golf-fact-stripes')).toBeVisible();
+        const stripes = await page
+          .locator('.golf-fact-stripes')
+          .evaluate((element) => getComputedStyle(element, '::before').backgroundImage);
+        expect(stripes).toContain('rgb(36, 77, 154)');
+        expect(stripes).toContain('rgb(213, 66, 66)');
+        await page.screenshot({ path: `.cache/golf-striped-${testInfo.project.name}.png` });
+        if (testInfo.project.name === 'mobile') {
+          await page.setViewportSize({ width: 320, height: 844 });
+          const stripeBounds = await page.locator('.golf-fact-stripes').evaluate((element) => {
+            const style = getComputedStyle(element, '::before');
+            const bounds = element.getBoundingClientRect();
+            return {
+              left: bounds.x + parseFloat(style.left),
+              right: bounds.x + parseFloat(style.left) + parseFloat(style.width),
+            };
+          });
+          expect(stripeBounds.left).toBeGreaterThanOrEqual(0);
+          const words = await page.locator('.golf-fact-content').boundingBox();
+          expect(stripeBounds.right).toBeLessThan(words!.x);
+          await page.screenshot({ path: '.cache/golf-striped-320.png' });
+          await page.setViewportSize({ width: 390, height: 844 });
+        }
+      }
+      await page.getByRole('button', { name: 'Next shot', exact: true }).click();
+    }
+  }
+  expect(shownStories.size).toBe(18);
+  await page.reload();
+  await expect(page.getByRole('radio', { name: 'Striped ball', exact: true })).toBeChecked();
+  await expect(golf.locator('.golf-scene__tee-ball')).toHaveAttribute('data-ball-color', 'striped');
+  await expect(golf.locator('.golf-scene__ball-stripes path').first()).toHaveAttribute(
+    'fill',
+    '#244d9a',
+  );
+  await expect(golf.locator('.golf-scene__ball-stripes path').last()).toHaveAttribute(
+    'fill',
+    '#d54242',
+  );
+  await page.screenshot({ path: `.cache/golf-striped-collection-${testInfo.project.name}.png` });
+});
+
+test('a ball selection change during a shot keeps the flying story and color together', async ({
+  page,
+}) => {
+  await page.addInitScript((key) => {
+    localStorage.setItem(key, JSON.stringify({ yellowBallUnlocked: true, selectedBall: 'yellow' }));
+  }, STORAGE_KEY);
+  const golf = await beginTimedGolf(page);
+  await golf
+    .getByRole('button', { name: 'Driver — Building Revision Marine', exact: true })
+    .click();
+  await expect(golf).toHaveAttribute('data-phase', 'swing');
+  await page.getByRole('radio', { name: 'White ball', exact: true }).evaluate((radio) => {
+    (radio as HTMLInputElement).click();
+  });
+  await expect(golf).toHaveAttribute('data-ball-color', 'white');
+  await page.clock.runFor(950);
+  await page.clock.runFor(700);
+  await expect(golf).toHaveAttribute('data-phase', 'reading');
+  await expect(page.locator('.golf-ball-layer')).toHaveAttribute('data-ball-color', 'yellow');
+  await expect(page.locator('.golf-fact-copy')).toHaveText(personalFactsByBall.yellow[0].text);
+  await page.getByRole('button', { name: 'Next shot', exact: true }).click();
+  await page.clock.runFor(1_150);
+  await golf.getByRole('button', { name: clubs[0], exact: true }).click();
+  await page.clock.runFor(950);
+  await page.clock.runFor(700);
+  await expect(page.locator('.golf-ball-layer')).toHaveAttribute('data-ball-color', 'white');
+  await expect(page.locator('.golf-fact-copy')).toHaveText(personalFactsByBall.white[0].text);
+});
+
+test('changing balls while holding a club uses the selected ball story at launch', async ({
+  page,
+}) => {
+  await page.addInitScript((key) => {
+    localStorage.setItem(key, JSON.stringify({ yellowBallUnlocked: true, selectedBall: 'yellow' }));
+  }, STORAGE_KEY);
+  const golf = await openGolf(page);
+  const club = golf.getByRole('button', { name: 'Driver — Building Revision Marine', exact: true });
+  const origin = await club.boundingBox();
+  const target = await golf.locator('.golf-drop-zone').boundingBox();
+  await page.mouse.move(origin!.x + origin!.width / 2, origin!.y + origin!.height / 2);
+  await page.mouse.down();
+  await page.getByRole('radio', { name: 'White ball', exact: true }).evaluate((radio) => {
+    (radio as HTMLInputElement).click();
+  });
+  await page.mouse.move(target!.x + target!.width / 2, target!.y + target!.height / 2, {
+    steps: 12,
+  });
+  await page.mouse.up();
+  await expect(page.locator('.golf-ball-layer')).toHaveAttribute('data-ball-color', 'white');
+  await expect(page.locator('.golf-fact-copy')).toHaveText(personalFactsByBall.white[0].text);
 });
 
 test('clubs reveal personal stories with keyboard controls and a readable alternative', async ({
@@ -479,9 +619,13 @@ test('the introduction sits beside an unboxed golf scene with directly playable 
   page,
 }, testInfo) => {
   const golf = await openGolf(page);
-  const intro = page.locator('#about > .about-heading');
-  const introBounds = await intro.boundingBox();
-  const golfBounds = await golf.boundingBox();
+  // Read both boxes in the same frame: lazy content above this section can
+  // change document height between independent browser calls.
+  const { introBounds, golfBounds } = await page.locator('#about').evaluate((about) => {
+    const introduction = about.querySelector('.about-heading')!.getBoundingClientRect();
+    const game = about.querySelector('.golf-facts')!.getBoundingClientRect();
+    return { introBounds: introduction.toJSON(), golfBounds: game.toJSON() };
+  });
   expect(introBounds).not.toBeNull();
   expect(golfBounds).not.toBeNull();
   if (testInfo.project.name === 'desktop') {

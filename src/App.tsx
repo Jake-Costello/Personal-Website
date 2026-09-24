@@ -3,6 +3,7 @@ import JetskiJourney from './components/JetskiJourney';
 import ContactForm from './components/ContactForm';
 import GolfFacts from './components/GolfFacts';
 import GolfBallCollection from './components/GolfBallCollection';
+import AchievementPopup from './components/AchievementPopup';
 import { getContactEndpoint, linkedInUrl } from './lib/contact';
 import { revisionMarine } from './data/revision';
 
@@ -560,6 +561,7 @@ function App() {
         <a href="#">BACK TO TOP ↑</a>
       </footer>
       <ProjectDialog project={selectedProject} close={() => setSelectedProject(null)} />
+      <AchievementPopup />
     </>
   );
 }

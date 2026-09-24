@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { communityColors, proteinStructures } from '../data/proteins';
+import { communityColors } from '../data/proteins';
 import {
   chooseRandomProteinPair,
   parseNetwork,
@@ -9,6 +9,7 @@ import {
 } from '../lib/protein';
 import type { ProteinCatalog, ProteinNetwork } from '../lib/protein';
 import ProteinComparison from './ProteinComparison';
+import ExperimentalStructure from './ExperimentalStructure';
 import './protein.css';
 
 const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
@@ -48,7 +49,6 @@ export default function ProteinExplorer() {
   const activeRequest = useRef<AbortController | null>(null);
   const requestSequence = useRef(0);
   const selected = network?.nodes.find((node) => node.id === selection) ?? network?.nodes[0];
-  const structure = selected ? proteinStructures[selected.label] : undefined;
   const selectedDescription = catalog?.proteins.find(
     (protein) => protein.symbol === selected?.label,
   )?.name;
@@ -677,20 +677,10 @@ export default function ProteinExplorer() {
                 <span>Source: STRING{selectedDescription.length === 500 ? ' · excerpt' : ''}</span>
               </details>
             )}
-            {structure ? (
-              <a
-                href={`https://www.rcsb.org/structure/${structure.code}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                View {structure.code} structure at RCSB <span aria-hidden="true">↗</span>
-              </a>
-            ) : (
-              <span className="protein-unavailable">
-                No curated structure link for this protein.
-              </span>
-            )}
-            {structure && <p className="protein-structure-caption">{structure.description}</p>}
+            <ExperimentalStructure
+              protein={selected?.label}
+              disabled={loading || Boolean(pendingChanges)}
+            />
           </div>
         </aside>
       </div>

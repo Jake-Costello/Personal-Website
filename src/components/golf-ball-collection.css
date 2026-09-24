@@ -75,6 +75,31 @@
   outline: 3px dashed var(--ink);
   outline-offset: 6px;
 }
+.golf-ball-swatch--striped {
+  overflow: hidden;
+}
+.golf-ball-swatch--striped::before {
+  content: '';
+  position: absolute;
+  inset: -5px 0;
+  background: linear-gradient(
+    90deg,
+    transparent 34%,
+    #244d9a 34% 38%,
+    transparent 38% 48%,
+    #d54242 48% 52%,
+    transparent 52% 62%,
+    #244d9a 62% 66%,
+    transparent 66%
+  );
+  transform: rotate(-25deg);
+}
+.is-locked .golf-ball-swatch--striped::before {
+  opacity: 0.35;
+}
+.golf-ball-swatch--striped svg {
+  position: relative;
+}
 .golf-ball-name {
   max-width: 112px;
   font-size: 11px;

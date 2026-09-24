@@ -29,6 +29,9 @@ test('story completion and qualified rewards persist without selecting the new b
   assert.deepEqual(store.getSnapshot(), {
     storyFinished: true,
     yellowBallUnlocked: true,
+    stripedBallUnlocked: false,
+    discoveredProteins: [],
+    acknowledgedRewards: [],
     selectedBall: 'white',
     bestTrialSeconds: 145,
   });
@@ -50,6 +53,9 @@ test('invalid saved values and impossible result times cannot award or select a 
     assert.deepEqual(store.getSnapshot(), {
       storyFinished: false,
       yellowBallUnlocked: false,
+      stripedBallUnlocked: false,
+      discoveredProteins: [],
+      acknowledgedRewards: [],
       selectedBall: 'white',
       bestTrialSeconds: null,
     });
@@ -111,4 +117,63 @@ test('storage changes refresh the same snapshot only when persisted values diffe
   store.reload();
   assert.equal(store.getSnapshot().selectedBall, 'yellow');
   assert.equal(store.getSnapshot().bestTrialSeconds, 132);
+});
+
+test('distinct inspected proteins unlock stripes and persist discovery and notification state', () => {
+  const saved = savedProgress();
+  const store = createAchievementStore(() => saved.storage);
+  store.recordProteinDiscovery('TP53');
+  store.recordProteinDiscovery('TP53');
+  store.recordProteinDiscovery('not a protein');
+  store.selectGolfBall('striped');
+  assert.deepEqual(store.getSnapshot().discoveredProteins, ['TP53']);
+  assert.equal(store.getSnapshot().stripedBallUnlocked, false);
+  assert.equal(store.getSnapshot().selectedBall, 'white');
+  store.acknowledgeReward('striped');
+  assert.deepEqual(store.getSnapshot().acknowledgedRewards, []);
+  store.recordProteinDiscovery('MDM2');
+  assert.equal(store.getSnapshot().stripedBallUnlocked, true);
+  assert.deepEqual(store.getSnapshot().acknowledgedRewards, []);
+  const pending = createAchievementStore(() => saved.storage);
+  assert.deepEqual(pending.getSnapshot().discoveredProteins, ['TP53', 'MDM2']);
+  assert.deepEqual(pending.getSnapshot().acknowledgedRewards, []);
+  pending.acknowledgeReward('striped');
+  pending.selectGolfBall('striped');
+  const restored = createAchievementStore(() => saved.storage);
+  assert.equal(restored.getSnapshot().selectedBall, 'striped');
+  assert.deepEqual(restored.getSnapshot().acknowledgedRewards, ['striped']);
+});
+
+test('legacy yellow rewards are preserved without a surprise popup; new rewards stay pending', () => {
+  const saved = savedProgress(
+    JSON.stringify({ yellowBallUnlocked: true, selectedBall: 'yellow', bestTrialSeconds: 129 }),
+  );
+  const legacy = createAchievementStore(() => saved.storage);
+  assert.equal(legacy.getSnapshot().selectedBall, 'yellow');
+  assert.deepEqual(legacy.getSnapshot().acknowledgedRewards, ['yellow']);
+  legacy.recordProteinDiscovery('TP53');
+  legacy.recordProteinDiscovery('MDM2');
+  assert.deepEqual(legacy.getSnapshot().acknowledgedRewards, ['yellow']);
+  const fresh = createAchievementStore(() => savedProgress().storage);
+  fresh.recordTrialResult(125, true);
+  assert.deepEqual(fresh.getSnapshot().acknowledgedRewards, []);
+  fresh.acknowledgeReward('yellow');
+  fresh.recordTrialResult(124, true);
+  assert.deepEqual(fresh.getSnapshot().acknowledgedRewards, ['yellow']);
+});
+
+test('saved duplicate proteins and invalid stripe flags cannot award the second ball', () => {
+  const saved = savedProgress(
+    JSON.stringify({
+      stripedBallUnlocked: true,
+      discoveredProteins: ['TP53', 'TP53', null, '<script>'],
+      selectedBall: 'striped',
+      acknowledgedRewards: ['striped', 'unknown'],
+    }),
+  );
+  const store = createAchievementStore(() => saved.storage);
+  assert.deepEqual(store.getSnapshot().discoveredProteins, ['TP53']);
+  assert.equal(store.getSnapshot().stripedBallUnlocked, false);
+  assert.equal(store.getSnapshot().selectedBall, 'white');
+  assert.deepEqual(store.getSnapshot().acknowledgedRewards, []);
 });

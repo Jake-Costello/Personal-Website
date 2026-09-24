@@ -122,6 +122,12 @@ export default function GolfScene({
           <path d="M310 369h6v3h3v6h-3v3h-6v-3h-3v-6h3z" fill="#17251e" />
           <path d="M310 372h6v6h-6z" fill={ballColor === 'yellow' ? '#efff00' : '#f5f3ed'} />
           <path d="M314 376h2v2h-2z" fill={ballColor === 'yellow' ? '#a9b525' : '#b6c5af'} />
+          {ballColor === 'striped' && (
+            <g className="golf-scene__ball-stripes">
+              <path d="M310 372h1v6h-1zM315 372h1v6h-1z" fill="#244d9a" />
+              <path d="M312.5 372h1v6h-1z" fill="#d54242" />
+            </g>
+          )}
         </g>
         <g className="golf-scene__impact" fill="#f5f3ed">
           <path d="M294 361h4v8h-4zm32 0h4v8h-4zm-16-12h4v9h-4zm-29 25h10v4h-10zm48 0h12v4h-12z" />

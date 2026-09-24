@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { experience } from '../../src/data/experience';
+import { achievementMessages } from '../../src/data/achievements';
 import { MAX_SPEED } from '../../src/game/model';
 import { buildJourneyRoute } from '../../src/game/route';
 import { buildTrialCourse, PENALTY_SECONDS, TRIAL_SPEED } from '../../src/game/trial';
@@ -89,6 +90,11 @@ async function advanceTo(page: Page, target: number) {
 }
 
 async function expectTrialFits(page: Page) {
+  // Viewport changes notify the SVG's ResizeObserver asynchronously. Wait for
+  // that commit before comparing the page and scene bounds.
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+    .toBe(true);
   const geometry = await page.locator('.journey-stage').evaluate((stage) => {
     const scene = stage.getBoundingClientRect();
     return {
@@ -249,6 +255,10 @@ test('a real pump-and-jump run earns the yellow ball and preserves its selection
   );
   await expect(page.locator('.trial-hud')).toHaveAttribute('data-trial-phase', 'finished');
   await expect(page.locator('.trial-hud')).toHaveAttribute('data-qualified', 'true');
+  const rewardPopup = page.getByRole('dialog', { name: achievementMessages.yellow.title });
+  await expect(rewardPopup).toBeVisible();
+  await rewardPopup.getByRole('button', { name: 'Keep exploring' }).click();
+  await expect(rewardPopup).not.toBeVisible();
   await expect(page.getByRole('heading', { name: 'Hello, yellow.' })).toBeVisible();
   await expect(page.getByRole('radio', { name: 'Yellow ball', exact: true })).toBeEnabled();
   await expectTrialFits(page);
@@ -265,6 +275,9 @@ test('a real pump-and-jump run earns the yellow ball and preserves its selection
   await expect(page.getByRole('radio', { name: 'Yellow ball', exact: true })).toBeChecked();
   await expect(page.locator('.golf-scene__tee-ball')).toHaveAttribute('data-ball-color', 'yellow');
   await page.reload();
+  await expect(
+    page.getByRole('dialog', { name: achievementMessages.yellow.title }),
+  ).not.toBeVisible();
   await expect(page.getByRole('radio', { name: 'Yellow ball', exact: true })).toBeChecked();
   await expect(page.locator('.golf-scene__tee-ball')).toHaveAttribute('data-ball-color', 'yellow');
 });

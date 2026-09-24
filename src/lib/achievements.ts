@@ -1,20 +1,27 @@
 import { useSyncExternalStore } from 'react';
 
-export type GolfBallColor = 'white' | 'yellow';
+export type GolfBallColor = 'white' | 'yellow' | 'striped';
+export type RewardId = Exclude<GolfBallColor, 'white'>;
 
 export interface AchievementSnapshot {
   readonly storyFinished: boolean;
   readonly yellowBallUnlocked: boolean;
+  readonly stripedBallUnlocked: boolean;
+  readonly discoveredProteins: readonly string[];
+  readonly acknowledgedRewards: readonly RewardId[];
   readonly selectedBall: GolfBallColor;
   readonly bestTrialSeconds: number | null;
 }
 
-// Progress belongs to this browser only. Bump the version if its shape changes.
+// Additive fields preserve the original yellow reward and selection on upgrade.
 export const STORAGE_KEY = 'personal-website:achievements:v1';
 const MAX_TRIAL_SECONDS = 24 * 60 * 60;
 const EMPTY: AchievementSnapshot = Object.freeze({
   storyFinished: false,
   yellowBallUnlocked: false,
+  stripedBallUnlocked: false,
+  discoveredProteins: Object.freeze([]),
+  acknowledgedRewards: Object.freeze([]),
   selectedBall: 'white',
   bestTrialSeconds: null,
 });
@@ -34,15 +41,43 @@ function readSnapshot(serialized: string | null): AchievementSnapshot {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return EMPTY;
     const data = value as Record<string, unknown>;
     const yellowBallUnlocked = data.yellowBallUnlocked === true;
+    const discoveredProteins = Array.isArray(data.discoveredProteins)
+      ? [...new Set(data.discoveredProteins.filter(validProtein))].slice(0, 64)
+      : [];
+    const stripedBallUnlocked = discoveredProteins.length >= 2;
+    const unlocked: RewardId[] = [
+      ...(yellowBallUnlocked ? ['yellow' as const] : []),
+      ...(stripedBallUnlocked ? ['striped' as const] : []),
+    ];
+    // Old saved rewards predate notifications. New rewards persist an explicit
+    // empty acknowledgement list, so they remain pending until dismissed.
+    const acknowledgedRewards = Array.isArray(data.acknowledgedRewards)
+      ? unlocked.filter(
+          (reward) =>
+            data.acknowledgedRewards instanceof Array && data.acknowledgedRewards.includes(reward),
+        )
+      : unlocked;
     return Object.freeze({
       storyFinished: data.storyFinished === true,
       yellowBallUnlocked,
-      selectedBall: yellowBallUnlocked && data.selectedBall === 'yellow' ? 'yellow' : 'white',
+      stripedBallUnlocked,
+      discoveredProteins: Object.freeze(discoveredProteins),
+      acknowledgedRewards: Object.freeze(acknowledgedRewards),
+      selectedBall:
+        stripedBallUnlocked && data.selectedBall === 'striped'
+          ? 'striped'
+          : yellowBallUnlocked && data.selectedBall === 'yellow'
+            ? 'yellow'
+            : 'white',
       bestTrialSeconds: validTime(data.bestTrialSeconds) ? data.bestTrialSeconds : null,
     });
   } catch {
     return EMPTY;
   }
+}
+
+function validProtein(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-Z][A-Z0-9-]{0,19}$/.test(value);
 }
 
 function browserStorage(): AchievementStorage | null {
@@ -61,6 +96,9 @@ export function createAchievementStore(
     if (
       snapshot.storyFinished === next.storyFinished &&
       snapshot.yellowBallUnlocked === next.yellowBallUnlocked &&
+      snapshot.stripedBallUnlocked === next.stripedBallUnlocked &&
+      snapshot.discoveredProteins.join(',') === next.discoveredProteins.join(',') &&
+      snapshot.acknowledgedRewards.join(',') === next.acknowledgedRewards.join(',') &&
       snapshot.selectedBall === next.selectedBall &&
       snapshot.bestTrialSeconds === next.bestTrialSeconds
     )
@@ -119,8 +157,39 @@ export function createAchievementStore(
     },
     selectGolfBall(color: GolfBallColor) {
       const current = getSnapshot();
-      if (color !== 'white' && (color !== 'yellow' || !current.yellowBallUnlocked)) return;
+      if (
+        color !== 'white' &&
+        !(color === 'yellow' && current.yellowBallUnlocked) &&
+        !(color === 'striped' && current.stripedBallUnlocked)
+      )
+        return;
       replace({ ...current, selectedBall: color }, true);
+    },
+    recordProteinDiscovery(symbol: string) {
+      if (!validProtein(symbol)) return;
+      const current = getSnapshot();
+      if (current.discoveredProteins.includes(symbol) || current.discoveredProteins.length >= 64)
+        return;
+      const discoveredProteins = Object.freeze([...current.discoveredProteins, symbol]);
+      replace(
+        { ...current, discoveredProteins, stripedBallUnlocked: discoveredProteins.length >= 2 },
+        true,
+      );
+    },
+    acknowledgeReward(reward: RewardId) {
+      const current = getSnapshot();
+      const unlocked =
+        reward === 'yellow'
+          ? current.yellowBallUnlocked
+          : reward === 'striped' && current.stripedBallUnlocked;
+      if (!unlocked || current.acknowledgedRewards.includes(reward)) return;
+      replace(
+        {
+          ...current,
+          acknowledgedRewards: Object.freeze([...current.acknowledgedRewards, reward]),
+        },
+        true,
+      );
     },
   };
 }
@@ -146,3 +215,5 @@ export function useAchievements(): AchievementSnapshot {
 export const markStoryFinished = achievements.markStoryFinished;
 export const recordTrialResult = achievements.recordTrialResult;
 export const selectGolfBall = achievements.selectGolfBall;
+export const recordProteinDiscovery = achievements.recordProteinDiscovery;
+export const acknowledgeReward = achievements.acknowledgeReward;

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { personalFacts } from '../data/personal';
+import { personalFactsByBall } from '../data/personal';
 import type { PersonalFact } from '../data/personal';
 import { useAchievements } from '../lib/achievements';
 import GolfScene, {
@@ -25,6 +25,7 @@ interface ClubDrag {
 
 export default function GolfFacts() {
   const { selectedBall } = useAchievements();
+  const personalFacts = personalFactsByBall[selectedBall];
   const [shotBall, setShotBall] = useState(selectedBall);
   const [shot, setShot] = useState(personalFacts[0]);
   const [phase, setPhase] = useState<Phase>('idle');
@@ -113,7 +114,9 @@ export default function GolfFacts() {
     if (phaseRef.current !== 'idle') return;
     endDrag();
     originRef.current = origin;
-    setShot(fact);
+    // A visitor can change balls while holding a club. Resolve its story from
+    // the selection at launch, then keep that story and ball together in flight.
+    setShot(personalFacts.find((currentFact) => currentFact.id === fact.id) ?? fact);
     setShotBall(selectedBall);
     setHeld(false);
     setFocused(false);
@@ -232,6 +235,7 @@ export default function GolfFacts() {
       role="region"
       aria-label="Personal facts golf"
       data-phase={phase}
+      data-ball-color={selectedBall}
       onKeyDown={onEscape}
     >
       <div className="golf-scene-frame">
@@ -346,6 +350,7 @@ export default function GolfFacts() {
                 if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
               }}
             >
+              {shotBall === 'striped' && <span className="golf-fact-stripes" aria-hidden="true" />}
               <div
                 className="golf-fact-content"
                 aria-hidden={phase !== 'reading'}
