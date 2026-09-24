@@ -113,7 +113,7 @@ export default function GolfScene({
       <path d="M204 376h8v3h-8zm174 8h8v3h-8z" fill="#ffc5dd" />
       <GolfBag />
       <g transform={`translate(${GOLFER_MIRROR_X} 0) scale(-1 1)`}>
-        <Golfer clubColor={clubColor} clubKind={clubKind} />
+        <Golfer phase={phase} clubColor={clubColor} clubKind={clubKind} />
         <path d="M311 380h4v9h-4zm-3-1h10v3h-10z" fill="#f5f3ed" />
         <g className="golf-scene__tee-ball">
           <path d="M310 369h6v3h3v6h-3v3h-6v-3h-3v-6h3z" fill="#17251e" />

@@ -1,37 +1,38 @@
+import { useId, useLayoutEffect, useState } from 'react';
 import { ClubHead, GOLF_CLUB_HOSEL } from './GolfClub';
+import {
+  armChain,
+  mix,
+  sampleGolfSwing,
+  SWING_CONTACT_MS,
+  SWING_FINISH_MS,
+  type GolfPoint,
+} from '../lib/golfSwing';
+import type { GolfPhase } from './GolfScene';
 
 type Point = readonly [number, number];
 type Chain = readonly [Point, Point, Point];
-type Pose =
-  | 'address'
-  | 'takeaway'
-  | 'backswing'
-  | 'transition'
-  | 'downswing'
-  | 'impact'
-  | 'release'
-  | 'followthrough';
-
-interface Skeleton {
+interface BodyPose {
   head: Point;
   face?: 'front' | 'quarter';
   tilt: number;
-  // These corners turn with the shoulders and pelvis, rather than tilting
-  // one address silhouette through the whole swing.
   shirt: readonly [Point, Point, Point, Point];
-  leadArm: Chain;
-  trailArm: Chain;
+  leadShoulder: Point;
+  trailShoulder: Point;
   leadLeg: Chain;
   trailLeg: Chain;
-  club: Point;
-  heel?: number;
+  heel: number;
+}
+interface Skeleton extends BodyPose {
+  leadArm: Chain;
+  trailArm: Chain;
 }
 const ink = '#18201e';
 const skin = '#f0cfb7';
 
-// GolfScene mirrors these source poses into Jacob's requested right-handed orientation.
-// The head stays over the ball through contact; the chest opens and rises after it.
-const poses: Record<Pose, Skeleton> = {
+// Original pixel-art body silhouettes. Hands, elbows and club are computed by
+// the inclined-plane rig; these keys only turn the torso, head and lower body.
+const poses: Record<'address' | 'backswing' | 'impact' | 'followthrough', BodyPose> = {
   address: {
     head: [289, 205],
     tilt: 20,
@@ -41,16 +42,8 @@ const poses: Record<Pose, Skeleton> = {
       [259, 290],
       [229, 287],
     ],
-    leadArm: [
-      [279, 251],
-      [281, 278],
-      [285, 301],
-    ],
-    trailArm: [
-      [265, 245],
-      [285, 273],
-      [285, 301],
-    ],
+    leadShoulder: [279, 251],
+    trailShoulder: [265, 245],
     leadLeg: [
       [235, 291],
       [244, 326],
@@ -61,38 +54,7 @@ const poses: Record<Pose, Skeleton> = {
       [265, 316],
       [258, 347],
     ],
-    club: [313, 370],
-  },
-  takeaway: {
-    head: [288, 205],
-    tilt: 20,
-    shirt: [
-      [249, 240],
-      [282, 237],
-      [258, 290],
-      [228, 287],
-    ],
-    leadArm: [
-      [278, 251],
-      [274, 271],
-      [268, 285],
-    ],
-    trailArm: [
-      [260, 245],
-      [252, 265],
-      [268, 285],
-    ],
-    leadLeg: [
-      [235, 291],
-      [244, 326],
-      [239, 364],
-    ],
-    trailLeg: [
-      [248, 286],
-      [263, 316],
-      [258, 347],
-    ],
-    club: [206, 256],
+    heel: 0,
   },
   backswing: {
     head: [287, 205],
@@ -103,16 +65,8 @@ const poses: Record<Pose, Skeleton> = {
       [258, 290],
       [227, 287],
     ],
-    leadArm: [
-      [277, 251],
-      [270, 241],
-      [258, 251],
-    ],
-    trailArm: [
-      [246, 248],
-      [241, 263],
-      [258, 251],
-    ],
+    leadShoulder: [277, 251],
+    trailShoulder: [246, 248],
     leadLeg: [
       [235, 291],
       [244, 326],
@@ -123,70 +77,7 @@ const poses: Record<Pose, Skeleton> = {
       [259, 316],
       [258, 347],
     ],
-    club: [337, 180],
-  },
-  transition: {
-    head: [287, 205],
-    tilt: 20,
-    shirt: [
-      [242, 241],
-      [282, 237],
-      [261, 290],
-      [231, 288],
-    ],
-    leadArm: [
-      [278, 251],
-      [271, 250],
-      [263, 258],
-    ],
-    trailArm: [
-      [250, 246],
-      [245, 259],
-      [263, 258],
-    ],
-    leadLeg: [
-      [239, 292],
-      [244, 326],
-      [239, 364],
-    ],
-    trailLeg: [
-      [252, 287],
-      [259, 317],
-      [258, 347],
-    ],
-    club: [321, 149],
-  },
-  downswing: {
-    head: [288, 205],
-    tilt: 20,
-    shirt: [
-      [251, 239],
-      [284, 237],
-      [264, 292],
-      [235, 290],
-    ],
-    leadArm: [
-      [281, 250],
-      [286, 270],
-      [291, 289],
-    ],
-    trailArm: [
-      [263, 244],
-      [260, 270],
-      [291, 289],
-    ],
-    leadLeg: [
-      [242, 293],
-      [244, 327],
-      [239, 364],
-    ],
-    trailLeg: [
-      [256, 288],
-      [260, 317],
-      [258, 347],
-    ],
-    club: [348, 235],
-    heel: 8,
+    heel: 0,
   },
   impact: {
     head: [288, 205],
@@ -197,16 +88,8 @@ const poses: Record<Pose, Skeleton> = {
       [268, 291],
       [239, 291],
     ],
-    leadArm: [
-      [282, 251],
-      [283, 279],
-      [286, 302],
-    ],
-    trailArm: [
-      [264, 245],
-      [271, 278],
-      [286, 302],
-    ],
+    leadShoulder: [282, 251],
+    trailShoulder: [264, 245],
     leadLeg: [
       [244, 293],
       [243, 327],
@@ -217,41 +100,7 @@ const poses: Record<Pose, Skeleton> = {
       [260, 318],
       [258, 347],
     ],
-    club: [313, 374],
     heel: 15,
-  },
-  release: {
-    head: [276, 200],
-    face: 'quarter',
-    tilt: 4,
-    shirt: [
-      [239, 236],
-      [284, 235],
-      [273, 289],
-      [241, 291],
-    ],
-    leadArm: [
-      [282, 246],
-      [299, 251],
-      [315, 253],
-    ],
-    trailArm: [
-      [247, 243],
-      [278, 259],
-      [315, 253],
-    ],
-    leadLeg: [
-      [244, 293],
-      [241, 327],
-      [239, 364],
-    ],
-    trailLeg: [
-      [263, 287],
-      [258, 318],
-      [258, 347],
-    ],
-    club: [354, 179],
-    heel: 26,
   },
   followthrough: {
     head: [253, 195],
@@ -263,16 +112,8 @@ const poses: Record<Pose, Skeleton> = {
       [272, 288],
       [240, 291],
     ],
-    leadArm: [
-      [277, 240],
-      [250, 225],
-      [222, 192],
-    ],
-    trailArm: [
-      [238, 238],
-      [221, 222],
-      [222, 192],
-    ],
+    leadShoulder: [277, 240],
+    trailShoulder: [238, 238],
     leadLeg: [
       [244, 292],
       [241, 327],
@@ -283,7 +124,6 @@ const poses: Record<Pose, Skeleton> = {
       [251, 319],
       [258, 347],
     ],
-    club: [314, 213],
     heel: 36,
   },
 };
@@ -405,72 +245,241 @@ function Torso({ shirt, leadArm, trailArm }: Skeleton) {
     </g>
   );
 }
-function Club({ skeleton, color, kind }: { skeleton: Skeleton; color: string; kind: string }) {
-  const grip = skeleton.leadArm[2];
-  const head = skeleton.club;
-  // The shared head's shaft leaves its hosel along +Y. Point that direction
-  // back toward the hands and attach the hosel exactly to the held shaft.
-  const angle = (Math.atan2(grip[1] - head[1], grip[0] - head[0]) * 180) / Math.PI - 90;
+
+const projected = (p: GolfPoint): Point => [p[0], p[1]];
+const BODY_FRONT = -6;
+
+function depthParts(points: readonly GolfPoint[], front: boolean): Point[][] {
+  const pieces: Point[][] = [];
+  for (let i = 1; i < points.length; i += 1) {
+    const a = points[i - 1];
+    const b = points[i];
+    const aFront = a[2] <= BODY_FRONT;
+    const bFront = b[2] <= BODY_FRONT;
+    if (aFront === bFront) {
+      if (aFront === front) pieces.push([projected(a), projected(b)]);
+    } else {
+      const crossing = mix(a, b, (BODY_FRONT - a[2]) / (b[2] - a[2]));
+      pieces.push(
+        front === aFront
+          ? [projected(a), projected(crossing)]
+          : [projected(crossing), projected(b)],
+      );
+    }
+  }
+  return pieces;
+}
+
+function DepthLimb({
+  points,
+  front,
+  color,
+  width,
+}: {
+  points: readonly GolfPoint[];
+  front: boolean;
+  color: string;
+  width: number;
+}) {
   return (
-    <g className="golf-held-club" data-club-kind={kind}>
-      <Limb points={[grip, head]} color="#ccd4d7" width={2} />
-      <g
-        transform={`translate(${head.join(' ')}) rotate(${angle}) scale(.68) translate(${-GOLF_CLUB_HOSEL.x} ${-GOLF_CLUB_HOSEL.y})`}
-      >
-        <ClubHead color={color} kind={kind} />
-      </g>
-    </g>
+    <>
+      {depthParts(points, front).map((part, index) => (
+        <Limb key={index} points={part} color={color} width={width} />
+      ))}
+    </>
   );
 }
+
 function Hands({ grip }: { grip: Point }) {
   return (
-    <g className="golf-golfer-hands">
+    <g className="golf-golfer-hands" data-x={grip[0]} data-y={grip[1]}>
       <path d={`M${grip[0] - 6} ${grip[1] - 6}h12v13h-12z`} fill={ink} />
       <path d={`M${grip[0] - 3} ${grip[1] - 4}h7v9h-7z`} fill="#fffdf5" />
     </g>
   );
 }
 
-function Arms({ skeleton, sleeves = false }: { skeleton: Skeleton; sleeves?: boolean }) {
+function interpolateBody(from: BodyPose, to: BodyPose, t: number): BodyPose {
+  const point = (a: Point, b: Point): Point => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  const chain = (a: Chain, b: Chain): Chain => [
+    point(a[0], b[0]),
+    point(a[1], b[1]),
+    point(a[2], b[2]),
+  ];
+  return {
+    head: point(from.head, to.head),
+    tilt: from.tilt + (to.tilt - from.tilt) * t,
+    face: t < 0.5 ? from.face : to.face,
+    shirt: from.shirt.map((p, i) => point(p, to.shirt[i])) as unknown as Skeleton['shirt'],
+    leadShoulder: point(from.leadShoulder, to.leadShoulder),
+    trailShoulder: point(from.trailShoulder, to.trailShoulder),
+    leadLeg: chain(from.leadLeg, to.leadLeg),
+    trailLeg: chain(from.trailLeg, to.trailLeg),
+    heel: (from.heel ?? 0) + ((to.heel ?? 0) - (from.heel ?? 0)) * t,
+  };
+}
+
+function BodyMask({ skeleton, id }: { skeleton: Skeleton; id: string }) {
+  const {
+    head: [x, y],
+    tilt,
+    face,
+    shirt,
+    leadLeg,
+    trailLeg,
+    leadArm,
+    trailArm,
+  } = skeleton;
   return (
-    <g className="golf-golfer-arms">
-      <Limb points={skeleton.trailArm} color="#d9af95" width={8} />
-      <Limb points={skeleton.leadArm} color={skin} width={10} />
-      {sleeves && (
-        <>
-          <Limb points={sleeve(skeleton.trailArm)} color="#2d6598" width={16} />
-          <Limb points={sleeve(skeleton.leadArm, 0.3)} color="#589ed5" width={16} />
-        </>
-      )}
+    <mask id={id} maskUnits="userSpaceOnUse" x="0" y="0" width="600" height="480">
+      <rect width="600" height="480" fill="white" />
+      <g fill="black" stroke="black" strokeLinejoin="bevel">
+        <polyline
+          points={vertices([
+            [x - 3, y + 19],
+            [(shirt[0][0] + shirt[1][0]) / 2, shirt[0][1] + 8],
+          ])}
+          fill="none"
+          strokeWidth="15"
+          strokeLinecap="square"
+        />
+        <polyline points={vertices(leadLeg)} fill="none" strokeWidth="26" />
+        <polyline points={vertices(trailLeg)} fill="none" strokeWidth="22" />
+        <polygon points={vertices(shirt)} strokeWidth="6" />
+        <polyline points={vertices(sleeve(leadArm))} fill="none" strokeWidth="21" />
+        <polyline points={vertices(sleeve(trailArm))} fill="none" strokeWidth="21" />
+        <g transform={`translate(${x} ${y}) rotate(${tilt})`} stroke="none">
+          {face === 'front' ? (
+            <>
+              <path d="M-16-12h31v9h5v14h-5v11h-7v5H-8v-5h-7V11h-5V-3h4z" />
+              <path d="M-12-25h23v4h7v10h4v10h-43v-10h3v-9h6z" />
+            </>
+          ) : (
+            <>
+              <path d="M-10-17h22v5h8V1h5v6h-6v12h-9v7H-2v-5h-9V9h-6V-8h7z" />
+              <path d="M-11-22H9v4h8v7h5v10H5v-5h-23v-10h7zM7-6h20v4h8v5H15v-4H7z" />
+            </>
+          )}
+        </g>
+      </g>
+    </mask>
+  );
+}
+
+function MovingClub({
+  rig,
+  color,
+  kind,
+  maskId,
+}: {
+  rig: ReturnType<typeof sampleGolfSwing>;
+  color: string;
+  kind: string;
+  maskId: string;
+}) {
+  const { grip, tip, face } = rig;
+  const angle = (Math.atan2(grip[1] - tip[1], grip[0] - tip[0]) * 180) / Math.PI - 90;
+  const headFront = tip[2] <= BODY_FRONT;
+  // Face rotation has its own cue: the shared head narrows edge-on and exposes
+  // its grooved face toward the camera. It does not stay pasted flat to the shaft.
+  const faceWidth = 0.28 + 0.72 * Math.abs(face[2]);
+  return (
+    <g
+      className="golf-held-club"
+      data-club-kind={kind}
+      data-tip-x={tip[0]}
+      data-tip-y={tip[1]}
+      data-face-z={face[2]}
+    >
+      <g mask={`url(#${maskId})`}>
+        <DepthLimb points={[grip, tip]} front={false} color="#ccd4d7" width={2} />
+      </g>
+      <DepthLimb points={[grip, tip]} front color="#ccd4d7" width={2} />
+      <g mask={headFront ? undefined : `url(#${maskId})`}>
+        <g
+          transform={`translate(${tip[0]} ${tip[1]}) rotate(${angle}) scale(${0.68 * faceWidth} .68) translate(${-GOLF_CLUB_HOSEL.x} ${-GOLF_CLUB_HOSEL.y})`}
+        >
+          <ClubHead color={color} kind={kind} />
+          {face[2] < -0.15 && (
+            <path
+              d={
+                kind === 'driver' || kind === 'wood'
+                  ? 'M10 16h19v2H10zm2 4h16v1H12z'
+                  : 'M13 18h14v1H13zm2 3h12v1H15z'
+              }
+              fill="#e2e9e6"
+              opacity=".75"
+            />
+          )}
+        </g>
+      </g>
     </g>
   );
 }
 
-function GolferPose({
-  pose,
+// Exporting the pure drawing lets visual review render exact instants of the
+// same rig used in the browser, without a second set of review-only poses.
+export function GolferFrame({
+  timeMs,
   clubColor,
-  clubKind,
+  clubKind = 'driver',
 }: {
-  pose: Pose;
+  timeMs: number;
   clubColor: string;
-  clubKind: string;
+  clubKind?: string;
 }) {
-  const skeleton = poses[pose];
-  const { head, shirt, leadArm, leadLeg, trailLeg, heel } = skeleton;
-  const grip = leadArm[2];
-  const finish = pose === 'followthrough';
-  const behindBody = pose === 'takeaway' || pose === 'backswing' || pose === 'transition';
+  const maskId = useId().replaceAll(':', '');
+  const rig = sampleGolfSwing(timeMs);
+  let body = interpolateBody(
+    timeMs > 630 ? poses.impact : poses.address,
+    poses.backswing,
+    rig.chest,
+  );
+  const hips = interpolateBody(
+    timeMs > 630 ? poses.impact : poses.address,
+    poses.backswing,
+    rig.hips,
+  );
+  body.shirt = [body.shirt[0], body.shirt[1], hips.shirt[2], hips.shirt[3]];
+  body.leadLeg = hips.leadLeg;
+  body.trailLeg = hips.trailLeg;
+  body.heel = timeMs > 630 ? 15 * Math.min(1, (timeMs - 630) / 270) : 0;
+  if (timeMs > 900) body = interpolateBody(poses.impact, poses.followthrough, rig.finish);
+  const lead = armChain([...body.leadShoulder, -10], rig.grip, false, rig.finish);
+  const trail = armChain([...body.trailShoulder, 10], rig.grip, true, rig.finish);
+  const skeleton: Skeleton = {
+    ...body,
+    leadArm: lead.map(projected) as unknown as Chain,
+    trailArm: trail.map(projected) as unknown as Chain,
+  };
+  const { head, shirt, leadLeg, trailLeg, heel } = skeleton;
+  const grip = projected(rig.grip);
+  const handsFront = rig.grip[2] <= BODY_FRONT;
+  const arms = (front: boolean) => (
+    <g className={`golf-golfer-arms golf-golfer-arms--${front ? 'front' : 'rear'}`}>
+      <DepthLimb points={trail} front={front} color="#d9af95" width={8} />
+      <DepthLimb points={lead} front={front} color={skin} width={10} />
+    </g>
+  );
+  const stage =
+    timeMs >= SWING_FINISH_MS
+      ? 'followthrough'
+      : timeMs >= 900
+        ? 'release'
+        : timeMs < 90
+          ? 'address'
+          : timeMs <= 630
+            ? 'backswing'
+            : 'downswing';
   return (
-    <g className={`golf-scene__pose golf-scene__pose--${pose}`}>
-      {/* On the way back, the grip moves inside the projected body silhouette.
-          Every moving part is behind the opaque body, including both upper arms. */}
-      {behindBody && (
-        <g className="golf-golfer-rear">
-          <Club skeleton={skeleton} color={clubColor} kind={clubKind} />
-          <Arms skeleton={skeleton} />
-          <Hands grip={grip} />
-        </g>
-      )}
+    <g className={`golf-scene__pose golf-scene__pose--${stage}`} data-swing-time={timeMs}>
+      <defs>
+        <BodyMask skeleton={skeleton} id={maskId} />
+      </defs>
+      <g className="golf-golfer-rear">
+        {arms(false)}
+        {!handsFront && <Hands grip={grip} />}
+      </g>
       <Limb points={trailLeg} color="#313934" width={17} />
       <Shoe x={248} y={345} angle={heel} />
       <Limb points={leadLeg} color="#202825" width={21} />
@@ -484,33 +493,52 @@ function GolferPose({
         width={10}
       />
       <Torso {...skeleton} />
-      {/* Finish with visible hands at the screen's upper right (after mirroring).
-          Only the wrapping shaft passes behind the head. */}
-      {finish && <Club skeleton={skeleton} color={clubColor} kind={clubKind} />}
       <Head {...skeleton} />
-      {!behindBody && (
-        <g className="golf-golfer-front">
-          <Arms skeleton={skeleton} sleeves />
-          {!finish && <Club skeleton={skeleton} color={clubColor} kind={clubKind} />}
-          <Hands grip={grip} />
-        </g>
-      )}
+      <MovingClub rig={rig} color={clubColor} kind={clubKind} maskId={maskId} />
+      <g className="golf-golfer-front">
+        {arms(true)}
+        {handsFront && <Hands grip={grip} />}
+      </g>
     </g>
   );
 }
+
 export default function Golfer({
+  phase,
   clubColor,
   clubKind = 'driver',
 }: {
+  phase: GolfPhase;
   clubColor: string;
   clubKind?: string;
 }) {
+  const [elapsed, setElapsed] = useState(0);
+  useLayoutEffect(() => {
+    setElapsed(0);
+    if (phase !== 'swing' && phase !== 'flight') return;
+    const start = performance.now();
+    const duration = phase === 'swing' ? SWING_CONTACT_MS : SWING_FINISH_MS - SWING_CONTACT_MS;
+    let frame = 0;
+    const draw = (now: number) => {
+      const time = Math.min(duration, now - start);
+      setElapsed(time);
+      if (time < duration) frame = requestAnimationFrame(draw);
+    };
+    frame = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(frame);
+  }, [phase]);
+  const time =
+    phase === 'idle'
+      ? 0
+      : phase === 'swing'
+        ? Math.min(elapsed, 900)
+        : phase === 'flight'
+          ? 900 + Math.min(elapsed, 420)
+          : SWING_FINISH_MS;
   return (
     <g className="golf-scene__golfer" data-club-kind={clubKind}>
       <path d="M228 378h39v5h-39zm20-18h35v4h-35z" fill="#6f914e" opacity=".5" />
-      {(Object.keys(poses) as Pose[]).map((pose) => (
-        <GolferPose key={pose} pose={pose} clubColor={clubColor} clubKind={clubKind} />
-      ))}
+      <GolferFrame timeMs={time} clubColor={clubColor} clubKind={clubKind} />
     </g>
   );
 }
