@@ -1,8 +1,45 @@
 .experimental-structure {
-  margin-top: 20px;
-  padding-top: 16px;
+  margin-top: 0;
+  padding: 24px 28px;
   border-top: 1px solid #c9cdc3;
   min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 310px) minmax(0, 1fr);
+  column-gap: 32px;
+  align-items: start;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.experimental-structure > * {
+  grid-column: 1;
+}
+.experimental-structure > p {
+  margin: 8px 0;
+}
+.experimental-structure .structure-results {
+  grid-column: 2;
+  grid-row: 1 / span 8;
+  min-width: 0;
+}
+.structure-results .structure-evidence {
+  margin-top: 0;
+}
+.structure-evidence dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 30px;
+}
+.structure-evidence dl > div + div {
+  margin-top: 0;
+}
+@media (max-width: 650px) {
+  .experimental-structure {
+    display: block;
+    padding: 20px;
+  }
+  .experimental-structure .structure-results {
+    margin-top: 20px;
+  }
 }
 .experimental-structure h5 {
   margin: 0 0 9px;
@@ -66,9 +103,6 @@
   margin: 12px 0;
   font-size: 11px;
   line-height: 1.6;
-}
-.structure-evidence dl > div + div {
-  margin-top: 7px;
 }
 .structure-evidence dt {
   color: #626d62;

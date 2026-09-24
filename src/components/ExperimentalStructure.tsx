@@ -113,7 +113,7 @@ export default function ExperimentalStructure({ protein, disabled }: Props) {
           </button>
           {disabled && <p>Explore the updated network to inspect this protein.</p>}
           {error && <p role="alert">{error}</p>}
-          <div aria-live="polite">
+          <div className="structure-results" aria-live="polite">
             {evidence?.protein === protein && (
               <div className="structure-evidence">
                 <span className="structure-verified">Experimental evidence verified</span>

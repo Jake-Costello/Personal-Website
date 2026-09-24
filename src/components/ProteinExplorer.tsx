@@ -677,13 +677,13 @@ export default function ProteinExplorer() {
                 <span>Source: STRING{selectedDescription.length === 500 ? ' · excerpt' : ''}</span>
               </details>
             )}
-            <ExperimentalStructure
-              protein={selected?.label}
-              disabled={loading || Boolean(pendingChanges)}
-            />
           </div>
         </aside>
       </div>
+      <ExperimentalStructure
+        protein={selected?.label}
+        disabled={loading || Boolean(pendingChanges)}
+      />
       <ProteinComparison
         key={
           loadedQuery

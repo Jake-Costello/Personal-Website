@@ -77,8 +77,13 @@ test('only explicit inspections of two distinct proteins unlock the striped ball
   await openPair(page);
   expect(requests).toBe(0);
   expect(await discoveries(page)).toEqual([]);
+  const graphHeight = (await page.locator('.protein-canvas-panel').boundingBox())!.height;
   await page.getByRole('button', { name: 'Inspect experimental structure', exact: true }).click();
   await expect(page.locator('.structure-verified')).toHaveText('Experimental evidence verified');
+  expect((await page.locator('.protein-canvas-panel').boundingBox())!.height).toBe(graphHeight);
+  await page.locator('.experimental-structure').screenshot({
+    path: `.cache/structure-layout-${page.viewportSize()!.width}.png`,
+  });
   await expect(page.getByRole('link', { name: /View 1TUP at RCSB PDB/ })).toHaveAttribute(
     'href',
     'https://www.rcsb.org/structure/1TUP',
