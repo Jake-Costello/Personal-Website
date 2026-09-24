@@ -1,3 +1,5 @@
+import { bioinformaticsQuestions } from './trivia';
+import type { BioinformaticsQuestion } from './trivia';
 import type { GolfBallColor } from '../lib/achievements';
 
 export interface PersonalFact {
@@ -8,6 +10,7 @@ export interface PersonalFact {
   title: string;
   text: string;
   color: string;
+  trivia?: BioinformaticsQuestion;
 }
 
 const whiteBallFacts: PersonalFact[] = [
@@ -16,8 +19,8 @@ const whiteBallFacts: PersonalFact[] = [
     club: 'Driver',
     kind: 'driver',
     topic: 'Creative beginnings',
-    title: 'First, animation.',
-    text: 'I first wanted to be an animator. Computer science let me build more while using the drawing and animation skills I learned in school.',
+    title: 'Animation.',
+    text: 'I originally planned to go to school for animation and minor in computer science. But after a while, I found I enjoyed animation more as a hobby, so I switched full time to CS.',
     color: '#f8a186',
   },
   {
@@ -25,8 +28,8 @@ const whiteBallFacts: PersonalFact[] = [
     club: '5 iron',
     kind: 'iron',
     topic: 'Rock climbing',
-    title: 'Sometimes, I look up.',
-    text: 'I like rock climbing. Away from the keyboard, you might find me figuring out my next move on a climbing wall.',
+    title: 'Climbing',
+    text: 'Recently, I have picked up rock climbing as a way to get outside and enjoy the Midwest climbing scene!',
     color: '#dfff7f',
   },
   {
@@ -34,8 +37,8 @@ const whiteBallFacts: PersonalFact[] = [
     club: '7 iron',
     kind: 'iron',
     topic: 'Beach volleyball',
-    title: 'See you in the sand.',
-    text: 'I play beach volleyball. A little sunshine, some sand, and a game with friends is a pretty good way to spend time outside.',
+    title: 'Yes, Cleveland has beaches (kinda)',
+    text: 'I play beach volleyball in the warmer months up near Cleveland. Surprisingly, we actually have a few really nice beaches in the area.',
     color: '#f5cd72',
   },
   {
@@ -43,8 +46,8 @@ const whiteBallFacts: PersonalFact[] = [
     club: 'Wedge',
     kind: 'wedge',
     topic: 'Drawing',
-    title: 'Still making marks.',
-    text: 'I like to draw. That creative side never went away when I moved into software; it still shapes the things I enjoy making.',
+    title: 'Still making marks',
+    text: 'I still like to draw and animate in my free time. As you can tell from this site, I’m a little rusty in places but still enjoying the process.',
     color: '#f399bf',
   },
   {
@@ -52,22 +55,22 @@ const whiteBallFacts: PersonalFact[] = [
     club: 'Putter',
     kind: 'putter',
     topic: 'Two cats',
-    title: 'Are You Crazy??? Putter off the Tee???',
-    text: 'I have two cats. There is a little more to life at home than screens and side projects.',
+    title: 'Putter off the Tee???',
+    text: 'Bold choice, but I respect it.',
     color: '#acd3ec',
   },
   {
-    id: 'jetskis',
+    id: 'Golf',
     club: '3 wood',
     kind: 'wood',
-    topic: 'Jet skis',
-    title: 'Back to the water.',
-    text: 'Jet skis are part of my life beyond this website, too. They are also the connection behind my work building the technology for Revision Marine.',
+    topic: 'Golf',
+    title: 'Back to the course.',
+    text: 'Golf is a passion of mine. I’ve been playing since I was a kid and still find time to play a couple of times a week.',
     color: '#bdacf0',
   },
 ];
 
-type BallStory = Pick<PersonalFact, 'topic' | 'title' | 'text'>;
+type BallStory = Pick<PersonalFact, 'topic' | 'title' | 'text' | 'trivia'>;
 
 // Ball collections share the same clubs, colors, and slots in the illustration.
 function withClubs(stories: BallStory[]): PersonalFact[] {
@@ -82,7 +85,7 @@ export const personalFactsByBall: Record<GolfBallColor, PersonalFact[]> = {
     {
       topic: 'Building Revision Marine',
       title: 'More than the website.',
-      text: 'As founding engineer at Revision Marine, I own the website, infrastructure, warehouse systems, and internal apps. My brother and his coworker own the business; I build its technology.',
+      text: 'As founding engineer at Revision Marine, I own the website, shipping, financial transactions, infrastructure, warehouse systems, and internal apps.',
     },
     {
       topic: 'Merchandise design',
@@ -92,56 +95,32 @@ export const personalFactsByBall: Record<GolfBallColor, PersonalFact[]> = {
     {
       topic: 'Picking-cart requirements',
       title: 'Before the first cart.',
-      text: 'I owned the requirements for a picking-cart project at Sherwin-Williams and worked with the manufacturer in Wisconsin to bring those requirements into the build.',
+      text: 'Before I started this project, I actually had maybe two months of experience with PL/SQL and no API experience. So that was a fun scramble, but it turned out to be one of my best projects.',
     },
     {
-      topic: 'The Statesville pilot',
-      title: 'Built. Piloted. Taught.',
-      text: 'The picking-cart pilot took place in Statesville. I carried the project through implementation, training, and documentation so the people using it could put it to work.',
+      topic: 'Reading',
+      title: 'Time away',
+      text: 'A hobby I have recently picked up again is reading. Mostly engineering and design books by some of my favorite builders, but I count that as time away from the screen.',
     },
     {
-      topic: 'Beyond one warehouse',
-      title: 'The next three sites.',
-      text: 'The picking-cart rollout is now underway at three or more additional sites, with implementation, training, and documentation part of the work.',
+      topic: 'Downtown',
+      title: 'Cleveland Skyline',
+      text: 'If you look closely, the background to my resume game is actually the Cleveland skyline.',
     },
     {
-      topic: 'Waco automation',
-      title: 'A much bigger system.',
-      text: 'The Waco project added 200,000 square feet, with robotic storage for 30,000 pallets and 20,000 totes. I own the order-picking API and exception handling.',
+      topic: 'Skiing',
+      title: 'Lots of snow in Cleveland',
+      text: 'Wintertime in Cleveland can be brutal, so I’ve got to find a way to make it fun.',
     },
   ]),
-  striped: withClubs([
-    {
-      topic: 'The first Java games',
-      title: 'Choose a path. Find a field.',
-      text: 'In AP Java, I built choose-your-own-path games. Those projects helped spark my interest in computer science.',
-    },
-    {
-      topic: 'Art meets computer science',
-      title: 'A different kind of canvas.',
-      text: 'I first pictured a career in animation, then moved toward computer science. The art skills I learned in school came with me, and I still draw.',
-    },
-    {
-      topic: 'From requirements to hardware',
-      title: 'Following the whole project.',
-      text: 'The picking-cart project took me from defining requirements to working with a manufacturer in Wisconsin, then to a pilot in Statesville. Software was only part of the work.',
-    },
-    {
-      topic: 'Months on site',
-      title: 'Where the system gets used.',
-      text: 'I spent months on site in Waco during the warehouse automation project. My work there includes the order-picking API and the exceptions that need handling around it.',
-    },
-    {
-      topic: 'Outside the screen',
-      title: 'A wall. A court. Some water.',
-      text: 'Away from software, I like rock climbing, beach volleyball, and jet skis. Those are a few of the other places you might find me.',
-    },
-    {
-      topic: 'People behind the project',
-      title: 'A family connection.',
-      text: 'Revision Marine connects my interest in jet skis with engineering. My brother and his coworker own the company, and I joined as its founding engineer.',
-    },
-  ]),
+  striped: withClubs(
+    bioinformaticsQuestions.map((question) => ({
+      topic: question.topic,
+      title: question.prompt,
+      text: question.explanation,
+      trivia: question,
+    })),
+  ),
 };
 
 // Keep the original facts available to existing readers and tests.

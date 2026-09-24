@@ -16,7 +16,7 @@ export const achievementMessages: Record<
   },
   striped: {
     title: 'Striped ball unlocked.',
-    text: 'Two proteins. Two experimentally determined structures. Your new alignment-striped ball is ready at the tee, with another set of stories to explore.',
+    text: 'Two proteins. Two experimentally determined structures. Your new alignment-striped ball is ready at the tee. Each club launches a seven-second bioinformatics trivia question.',
     label: 'Structure explorer',
   },
 };

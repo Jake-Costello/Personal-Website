@@ -11,6 +11,7 @@ import GolfScene, {
   GOLF_SCENE_GEOMETRY,
 } from './GolfScene';
 import './golf-facts.css';
+import GolfTrivia from './GolfTrivia';
 
 type Phase = 'idle' | 'swing' | 'flight' | 'reading' | 'falling';
 
@@ -27,6 +28,8 @@ export default function GolfFacts() {
   const { selectedBall } = useAchievements();
   const personalFacts = personalFactsByBall[selectedBall];
   const [shotBall, setShotBall] = useState(selectedBall);
+  const [untimedTrivia, setUntimedTrivia] = useState(false);
+  const [shotTimed, setShotTimed] = useState(true);
   const [shot, setShot] = useState(personalFacts[0]);
   const [phase, setPhase] = useState<Phase>('idle');
   const phaseRef = useRef<Phase>('idle');
@@ -104,11 +107,11 @@ export default function GolfFacts() {
     let timer: number | undefined;
     if (phase === 'swing') timer = window.setTimeout(() => changePhase('flight'), 900);
     if (phase === 'flight') timer = window.setTimeout(() => changePhase('reading'), 650);
-    if (phase === 'reading' && !reducedMotion && !held && !focused && pageVisible)
+    if (phase === 'reading' && !shot.trivia && !reducedMotion && !held && !focused && pageVisible)
       timer = window.setTimeout(() => changePhase('falling'), 7000);
     if (phase === 'falling') timer = window.setTimeout(() => changePhase('idle'), 1100);
     return () => window.clearTimeout(timer);
-  }, [phase, reducedMotion, held, focused, pageVisible, changePhase]);
+  }, [phase, reducedMotion, held, focused, pageVisible, changePhase, shot.trivia]);
 
   function startShot(fact: PersonalFact, origin: HTMLButtonElement) {
     if (phaseRef.current !== 'idle') return;
@@ -118,6 +121,7 @@ export default function GolfFacts() {
     // the selection at launch, then keep that story and ball together in flight.
     setShot(personalFacts.find((currentFact) => currentFact.id === fact.id) ?? fact);
     setShotBall(selectedBall);
+    setShotTimed(!untimedTrivia);
     setHeld(false);
     setFocused(false);
     nextShotTouchRef.current = null;
@@ -313,21 +317,43 @@ export default function GolfFacts() {
           <GolfBagOverlay className="golf-bag-overlay" />
         </div>
       </div>
-      <p className="golf-instructions">Drag a club. Meet a different side.</p>
+      <p className="golf-instructions">
+        {selectedBall === 'striped'
+          ? 'Drag a club. Seven seconds. One biology question.'
+          : 'Drag a club. Meet a different side.'}
+      </p>
+      {selectedBall === 'striped' && (
+        <label className="golf-quiz-setting">
+          <input
+            type="checkbox"
+            checked={untimedTrivia}
+            onChange={(event) => setUntimedTrivia(event.target.checked)}
+          />
+          Untimed trivia (applies to your next shot)
+        </label>
+      )}
       <details className="golf-readable-facts">
-        <summary>Read all 6 facts</summary>
+        <summary>
+          {selectedBall === 'striped' ? 'Study all 6 questions' : 'Read all 6 facts'}
+        </summary>
         <div className="golf-facts-list">
           {personalFacts.map((fact) => (
             <article key={fact.id}>
               <span>{fact.topic}</span>
               <h4>{fact.title}</h4>
+              {fact.trivia && <p>Answer: {fact.trivia.choices[fact.trivia.correct]}</p>}
               <p>{fact.text}</p>
+              {fact.trivia && (
+                <a href={fact.trivia.source.url} target="_blank" rel="noreferrer">
+                  {fact.trivia.source.label} ↗
+                </a>
+              )}
             </article>
           ))}
         </div>
       </details>
       <div className="golf-sr-only" aria-live="polite" aria-atomic="true">
-        {phase === 'reading' ? `${shot.topic}. ${shot.text}` : ''}
+        {phase === 'reading' && !shot.trivia ? `${shot.topic}. ${shot.text}` : ''}
       </div>
       <div ref={ghostRef} className="golf-drag-ghost" aria-hidden="true">
         <GolfClubIcon color={dragFact.color} kind={dragFact.kind} />
@@ -344,7 +370,7 @@ export default function GolfFacts() {
               className="golf-fact-ball"
               data-visible={phase === 'reading' ? 'true' : 'false'}
               role="region"
-              aria-label="Personal fact"
+              aria-label={shot.trivia ? 'Bioinformatics trivia' : 'Personal fact'}
               onFocusCapture={(event) => setFocused(event.target.matches(':focus-visible'))}
               onBlurCapture={(event) => {
                 if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
@@ -352,7 +378,7 @@ export default function GolfFacts() {
             >
               {shotBall === 'striped' && <span className="golf-fact-stripes" aria-hidden="true" />}
               <div
-                className="golf-fact-content"
+                className={`golf-fact-content${shot.trivia ? ' golf-fact-content--quiz' : ''}`}
                 aria-hidden={phase !== 'reading'}
                 inert={phase !== 'reading'}
               >
@@ -360,9 +386,13 @@ export default function GolfFacts() {
                   {shot.club} / {shot.topic}
                 </span>
                 <h4 className="golf-fact-title">{shot.title}</h4>
-                <p className="golf-fact-copy">{shot.text}</p>
+                {shot.trivia ? (
+                  phase === 'reading' && <GolfTrivia question={shot.trivia} timed={shotTimed} />
+                ) : (
+                  <p className="golf-fact-copy">{shot.text}</p>
+                )}
                 <div className="golf-fact-actions">
-                  {!reducedMotion && (
+                  {!reducedMotion && !shot.trivia && (
                     <button
                       type="button"
                       aria-pressed={held}
@@ -387,11 +417,13 @@ export default function GolfFacts() {
                   </button>
                 </div>
                 <span className="golf-reading-note">
-                  {reducedMotion
-                    ? 'Take the next shot when you’re ready.'
-                    : paused
-                      ? 'No rush. The ball can wait.'
-                      : 'Here for 7 seconds. Keep reading to stay a while.'}
+                  {shot.trivia
+                    ? 'Choose an answer, then take your next shot when ready.'
+                    : reducedMotion
+                      ? 'Take the next shot when you’re ready.'
+                      : paused
+                        ? 'No rush. The ball can wait.'
+                        : 'Here for 7 seconds. Keep reading to stay a while.'}
                 </span>
               </div>
             </div>

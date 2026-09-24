@@ -6,7 +6,7 @@ Open [`src/data/personal.ts`](../src/data/personal.ts).
 
 - `whiteBallFacts` contains the original six personal stories.
 - `personalFactsByBall.yellow` contains six stories about building and delivering projects.
-- `personalFactsByBall.striped` contains six stories about learning, creativity, and working with people.
+- `personalFactsByBall.striped` uses the six bioinformatics questions in [`src/data/trivia.ts`](../src/data/trivia.ts).
 
 Each collection follows the same club order: Driver, 5 iron, 7 iron, Wedge, Putter, 3 wood. Yellow and striped automatically inherit these clubs from white.
 
@@ -21,6 +21,12 @@ Edit these three fields for a story:
 ```
 
 Keep six stories in each collection and keep the existing white `id`, `club`, `kind`, and `color` fields. Those fields connect stories to the golf-bag artwork. Use short paragraphs so they fit comfortably on phones. A shot uses the story and ball selected when the swing starts; changing balls affects the next shot. The readable alternative changes with the selected ball too.
+
+## Striped-ball trivia
+
+Edit `src/data/trivia.ts` for the six questions, one per club in the same bag order. Each question has a `topic`, `prompt`, four `choices`, a `correct` answer index (0 = first, 1 = second, etc.), an `explanation`, and a `source` label/URL. Keep prompts and choices short enough to read in seven seconds. Verify scientific wording against the linked primary source when changing questions.
+
+The seven-second timer starts when the question appears after the swing/flight. Answering locks the choice; running out of time locks all choices. The correct answer, explanation, and source remain until **Next shot**. Hidden tabs pause the countdown. **Untimed trivia** can be selected before a shot, and **Study all 6 questions** provides an untimed readable alternative. Reduced motion skips the flight but retains the default seven-second challenge.
 
 ## Achievement unlock popups
 

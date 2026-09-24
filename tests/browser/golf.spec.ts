@@ -3,14 +3,7 @@ import { installProteinApi } from './protein-fixtures';
 import { STORAGE_KEY } from '../../src/lib/achievements';
 import { personalFactsByBall } from '../../src/data/personal';
 
-const clubs = [
-  'Driver — Creative beginnings',
-  '5 iron — Rock climbing',
-  '7 iron — Beach volleyball',
-  'Wedge — Drawing',
-  'Putter — Two cats',
-  '3 wood — Jet skis',
-] as const;
+const clubs = personalFactsByBall.white.map((fact) => `${fact.club} — ${fact.topic}`);
 const clubKinds = ['driver', 'iron', 'iron', 'wedge', 'putter', 'wood'] as const;
 
 test.beforeEach(async ({ page }) => {
@@ -225,9 +218,12 @@ test('each unlocked ball brings six distinct stories and the striped selection p
       await expect(club).toBeVisible();
       await expect(read.getByRole('heading', { name: fact.title, exact: true })).toBeVisible();
       await club.click();
-      await expect(page.locator('.golf-fact-copy')).toHaveText(fact.text);
+      if (fact.trivia) {
+        await expect(page.locator('.golf-trivia')).toHaveAttribute('data-result', 'playing');
+        await expect(page.locator('.golf-trivia-options button')).toHaveCount(4);
+      } else await expect(page.locator('.golf-fact-copy')).toHaveText(fact.text);
       await expect(page.locator('.golf-ball-layer')).toHaveAttribute('data-ball-color', color);
-      shownStories.add(await page.locator('.golf-fact-copy').innerText());
+      shownStories.add(fact.title);
       if (color === 'striped' && fact.kind === 'driver') {
         await expect(page.locator('.golf-fact-ball')).toHaveCSS(
           'background-color',
@@ -352,13 +348,13 @@ test('clubs reveal personal stories with keyboard controls and a readable altern
   await putter.focus();
   await page.keyboard.press('Space');
   await expect(
-    page.getByRole('heading', { name: 'Are You Crazy??? Putter off the Tee???', exact: true }),
+    page.getByRole('heading', { name: personalFactsByBall.white[4].title, exact: true }),
   ).toBeVisible();
   await expect(golf.locator('.golf-scene__pose--followthrough .golf-held-club')).toHaveAttribute(
     'data-club-kind',
     'putter',
   );
-  await expect(page.locator('.golf-fact-copy')).toContainText(/two cats|2 cats/i);
+  await expect(page.locator('.golf-fact-copy')).toHaveText(personalFactsByBall.white[4].text);
   await page.getByRole('button', { name: 'Next shot', exact: true }).click();
   await expect(putter).toBeFocused();
 
@@ -383,7 +379,7 @@ test('clubs reveal personal stories with keyboard controls and a readable altern
     /beach volleyball/i,
     /draw/i,
     /two cats/i,
-    /jet\s?ski/i,
+    /golf/i,
   ]) {
     await expect(facts).toContainText(topic);
   }
@@ -399,7 +395,7 @@ test('reduced motion leaves each fact readable until the visitor requests the ne
   const golf = await openGolf(page);
   await golf.getByRole('button', { name: clubs[4], exact: true }).click();
   await expect(golf).toHaveAttribute('data-phase', 'reading');
-  await expect(page.locator('.golf-fact-copy')).toContainText(/two cats|2 cats/i);
+  await expect(page.locator('.golf-fact-copy')).toHaveText(personalFactsByBall.white[4].text);
   await page.mouse.move(1, 1);
   await page.clock.runFor(12_000);
   await expect(golf).toHaveAttribute('data-phase', 'reading');
