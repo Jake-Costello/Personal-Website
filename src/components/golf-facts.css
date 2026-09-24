@@ -290,6 +290,7 @@
 }
 .golf-fact-content {
   position: relative;
+  z-index: 2;
   width: min(65%, 540px, calc(100vw - 48px));
   max-height: calc(100dvh - 40px);
   overflow-y: auto;
@@ -306,10 +307,11 @@
 .golf-fact-stripes::before {
   content: '';
   position: absolute;
-  top: 11%;
-  bottom: 11%;
+  top: 0;
+  bottom: 0;
   width: 4.5%;
-  left: 9.5%;
+  left: 50%;
+  transform: translateX(-50%);
   background: linear-gradient(
     90deg,
     #244d9a 0% 12%,
@@ -318,6 +320,9 @@
     transparent 56% 88%,
     #244d9a 88% 100%
   );
+}
+.golf-ball-layer[data-ball-color='striped'] .golf-fact-ball::before {
+  z-index: 1;
 }
 .golf-fact-kicker {
   display: block;
@@ -421,10 +426,6 @@
   }
 }
 @media (max-width: 760px) {
-  .golf-fact-stripes::before {
-    left: max(9.5%, calc((100% - 100vw) / 2 + 5px));
-    width: min(4.5%, 18px);
-  }
   .golf-fact-ball {
     width: max(390px, min(82dvh, calc(100vw + 90px)));
     background-size: 42px 42px;
