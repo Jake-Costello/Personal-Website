@@ -60,15 +60,15 @@ const projects: Project[] = [
     title: 'Revision Marine',
     category: 'FOUNDING ENGINEER / COMMERCE',
     summary:
-      'The technology behind a jetski parts company. From the storefront to the software that supports the work behind it.',
+      'Building the software behind a jetski parts company, from the storefront to warehouse operations and internal tools.',
     tags: ['Next.js', 'TypeScript', 'Medusa'],
     status: 'Founding engineer · Storefront in private preview',
     problem:
-      'A jetski parts company needs more than a storefront. Products, warehouse operations, and day-to-day work all need software that fits the business. Revision Marine brings that challenge together with my love of the water.',
+      'A new jetski parts company needs a way to sell products and manage the work behind each order. The storefront, warehouse, and daily operations all need software that fits how the business works.',
     contribution:
-      'As founding engineer, I built the entire technology stack and lead the software: our website, infrastructure, warehousing system, and internal apps. My work also extends into merchandise design, connecting my engineering and creative interests.',
+      'As founding engineer, I built the technology stack and own the website, infrastructure, warehousing system, and internal apps. I translate operational needs into software and also contribute merchandise design.',
     decisions:
-      'The Next.js storefront uses Medusa for commerce data, including products and variants. My responsibility spans the customer-facing website and the systems behind it. The storefront is currently a password-protected preview while development continues.',
+      'Next.js and TypeScript power the storefront, with Medusa handling commerce data such as products and variants. My work connects the customer experience with the systems behind it. The storefront remains in a password-protected preview while development continues.',
     website: {
       href: revisionMarine.url,
       label: 'Visit Revision Marine',
@@ -76,36 +76,20 @@ const projects: Project[] = [
     },
   },
   {
-    id: 'payphone',
-    number: '02',
-    title: 'A payphone. Reconnected.',
-    category: 'HARDWARE / SOFTWARE / MUSIC',
-    summary:
-      'An old-school interface with new possibilities: concert information, music queues, and messages for bands.',
-    tags: ['Python', 'Asterisk / SIP', 'pytest'],
-    status: 'University capstone · 2023–24',
-    problem:
-      'The Union in Athens, Ohio was the setting for a senior project that connected a physical payphone to useful music and venue experiences.',
-    contribution:
-      'I directed development of a multifunctional payphone system using Python and SIP/VoIP networking through Asterisk PBX. Features included concert information, Spotify queue additions, and recorded band messages.',
-    decisions:
-      'We used Agile iterations, weekly code reviews, Git, and pytest-based testing. The project brought networking, physical interaction, and software together. This case study describes the original project; a public live installation is not available here.',
-  },
-  {
     id: 'protein',
-    number: '03',
+    number: '02',
     title: 'Small things. Big connections.',
     category: 'DATA / VISUALIZATION / EXPLORATION',
     summary:
-      'Explore how proteins connect. An interactive lab for public data, graph communities, and clear explanations.',
-    tags: ['Python / pandas', 'Networks', 'Public APIs'],
+      'Turning live public API data into an explorable protein network, measured species comparisons, and grounded AI explanations.',
+    tags: ['Python / pandas', 'NetworkX', 'APIs / AI'],
     status: 'Live data explorer',
     problem:
-      'Biological relationship data can be difficult to make sense of as a table. This new project makes a small network tangible through exploration and community detection.',
+      'Protein associations and species comparisons live in separate data sources. The goal is to bring them into one understandable workflow, with evidence behind each result.',
     contribution:
-      'The explorer loads two random human proteins from STRING, cleans their association data with pandas, and computes communities with NetworkX. Independent protein selectors include connection hints from the same source, with a choice of small or wider networks.',
+      'I built the interactive frontend and Python service. It retrieves STRING associations, cleans them with pandas, and computes communities with NetworkX. Ensembl supplies human-to-animal protein comparisons; the server calculates similarity rankings before AI explains the evidence.',
     decisions:
-      'Real source data, retrieval times, and cached responses stay visible. Compare a human protein with four animals using Ensembl sequence identity, then request a source-grounded AI explanation when enabled. The server calculates the ranking and limits paid requests. The 3D graph is a network layout; an embedded molecular viewer remains a future extension.',
+      'Source labels, retrieval times, and cache status remain visible. Validation, bounded queries, caching, and limits on paid AI requests keep the public workflow practical. The graph shows associations, not molecular structure, and AI explains measured results rather than inventing rankings.',
   },
 ];
 
@@ -129,57 +113,6 @@ function ProjectArt({ kind }: { kind: string }) {
           />
         </svg>
         <span className="art-bottom">BUILT FOR THE WATER.</span>
-      </div>
-    );
-  if (kind === 'payphone')
-    return (
-      <div className="project-art payphone-art" aria-hidden="true">
-        <span className="art-corner">ATHENS, OH / THE UNION</span>
-        <svg className="phone-illustration" viewBox="0 0 260 250" fill="none">
-          <g stroke="#17251e" strokeWidth="3">
-            <path fill="#f5f3ed" d="M64 24h120v200H64z" />
-            <path fill="#17251e" d="M77 39h94v35H77z" />
-            <path d="M90 51h55M90 61h38" stroke="#dfff7f" />
-            <rect x="83" y="91" width="65" height="75" rx="2" fill="#d5d1c8" />
-            {Array.from({ length: 12 }, (_, i) => (
-              <rect
-                key={i}
-                x={92 + (i % 3) * 18}
-                y={100 + Math.floor(i / 3) * 15}
-                width="10"
-                height="7"
-                fill="#17251e"
-                strokeWidth="0"
-              />
-            ))}
-            <path d="M87 183h63v19H87zM157 91h13v26h-13z" />
-            <path d="M187 78c27-4 22 19 16 40s16 38 0 56-13 27 0 39" strokeWidth="5" />
-            <path
-              d="M190 29c7 0 14 4 14 10v13c0 4-6 6-9 8l-5 53c4 3 10 5 9 10l-2 13c-1 8-10 9-16 6-13-9-8-108 9-113Z"
-              fill="#17251e"
-            />
-          </g>
-          <path
-            d="M25 83 6 75m23 30H7m25 21-17 12M224 26l13-16m-8 35 22-5"
-            stroke="#17251e"
-            strokeWidth="3"
-          />
-          <text
-            x="116"
-            y="242"
-            textAnchor="middle"
-            fontFamily="monospace"
-            fontSize="9"
-            fill="#17251e"
-          >
-            PICK UP. PLUG IN.
-          </text>
-        </svg>
-        <span className="phone-sticker">
-          GOOD
-          <br />
-          CALL.
-        </span>
       </div>
     );
   const nodes = [
@@ -472,9 +405,7 @@ function App() {
               </h2>
             </div>
             <p className="section-intro">
-              A business, a beloved piece of hardware,
-              <br />
-              and a question worth exploring.
+              A business taking shape. <br />A live experiment in connecting data.
             </p>
           </div>
           <div className="project-grid">

@@ -405,8 +405,8 @@ article[id] {
 }
 .project-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 26px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px;
 }
 .project-card {
   min-width: 0;
@@ -494,35 +494,6 @@ article[id] {
   width: 100%;
   height: 85px;
 }
-.payphone-art {
-  background: #e8ed98;
-}
-.phone-illustration {
-  position: absolute;
-  height: 252px;
-  width: 260px;
-  bottom: 2px;
-  left: 50%;
-  transform: translateX(-50%) rotate(-7deg);
-}
-.phone-sticker {
-  position: absolute;
-  top: 57px;
-  right: 18px;
-  background: var(--pink);
-  width: 72px;
-  height: 72px;
-  border: 1px solid var(--ink);
-  border-radius: 50%;
-  font-weight: 600;
-  font-size: 15px;
-  line-height: 1.05;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  transform: rotate(12deg);
-}
 .network-art {
   background: #d2c8e6;
 }
@@ -560,10 +531,10 @@ article[id] {
   text-underline-offset: 5px;
 }
 .project-card > p {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.75;
   color: #59665d;
-  max-width: 340px;
+  max-width: 48ch;
 }
 .project-website {
   margin-top: 22px;
@@ -876,9 +847,6 @@ article[id] {
   .project-art {
     height: 260px;
   }
-  .phone-illustration {
-    height: 218px;
-  }
   .revision-wordmark {
     top: 80px;
   }
@@ -990,22 +958,6 @@ article[id] {
   .project-grid {
     grid-template-columns: 1fr 1fr;
     gap: 36px 22px;
-  }
-  .project-card:last-child {
-    grid-column: 1/-1;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    column-gap: 22px;
-    align-items: start;
-  }
-  .project-card:last-child .project-art-button {
-    grid-row: 1/5;
-  }
-  .project-card:last-child .project-meta {
-    margin-top: 10px;
-  }
-  .project-card:last-child .tag-list {
-    margin-top: 0;
   }
   .revision-wordmark {
     font-size: 43px;
@@ -1193,16 +1145,6 @@ article[id] {
   .project-art {
     height: 310px;
   }
-  .project-card:last-child {
-    grid-column: auto;
-    display: block;
-  }
-  .project-card:last-child .project-meta {
-    margin-top: 19px;
-  }
-  .project-card:last-child .tag-list {
-    margin-top: 19px;
-  }
   .project-card h3 {
     font-size: 25px;
   }
@@ -1211,19 +1153,13 @@ article[id] {
     max-width: none;
   }
   .revision-wordmark {
-    font-size: 61px;
+    font-size: clamp(45px, 14vw, 61px);
     top: 93px;
     left: 32px;
   }
   .revision-wordmark > i {
-    font-size: 65px;
-    right: -45px;
-  }
-  .phone-illustration {
-    height: 257px;
-  }
-  .phone-sticker {
-    right: 27px;
+    font-size: clamp(48px, 15vw, 65px);
+    right: -0.7em;
   }
   .project-meta {
     font-size: 8px;

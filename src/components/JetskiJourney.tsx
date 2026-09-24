@@ -12,6 +12,11 @@ import JourneyProgress from './JourneyProgress';
 import './jetski.css';
 
 const route = buildJourneyRoute(experience, MAX_SPEED);
+const lifeStageLabels = {
+  'high-school': 'High school',
+  college: 'College',
+  career: 'Professional career',
+};
 
 type Control = keyof RideInput;
 
@@ -58,6 +63,40 @@ function Dock({ x, waterline, scale }: { x: number; waterline: number; scale: nu
   );
 }
 
+function FinishLine({ x, waterline, scale }: { x: number; waterline: number; scale: number }) {
+  return (
+    <g
+      className="journey-finish-line"
+      transform={`translate(${x} ${waterline}) scale(${scale})`}
+      shapeRendering="crispEdges"
+    >
+      <path d="M-93-127h7V87h-7zm179 0h7V87h-7z" fill="#17251e" />
+      <path d="M-99 78h19v8h-19zm179 0h19v8H80z" fill="#f399bf" />
+      <g transform="translate(0 -62)">
+        <path d="M-97-73H97v42H-97z" fill="#17251e" />
+        <path d="M-93-69H93v34H-93z" fill="#f5f3ed" />
+        <path
+          d="M-93-69h10v10h-10zm10 10h10v10h-10zm-10 10h10v10h-10zm166-20h10v10H73zm10 10h10v10H83zm-10 10h10v10H73z"
+          fill="#17251e"
+        />
+        <text
+          x="0"
+          y="-45"
+          textAnchor="middle"
+          fill="#17251e"
+          fontSize="21"
+          fontWeight="800"
+          fontFamily="monospace"
+          letterSpacing="3"
+        >
+          FINISH
+        </text>
+      </g>
+      <path d="M-82 67h164" stroke="#f5f3ed" strokeWidth="3" strokeDasharray="9 7" />
+    </g>
+  );
+}
+
 function Scene({
   state,
   width,
@@ -74,14 +113,22 @@ function Scene({
   const waterline = height - 155;
   const progress = state.position / route.length;
   const dockScale = width < 560 ? 0.98 : width < 1000 ? 1.25 : 1.65;
-  const dockX = width - 204 * dockScale - (width < 560 ? 10 : 24);
-  const startX = width * 0.28;
-  const dockedX = Math.max(startX, dockX - 100 * dockScale);
-  const boatXAt = (position: number) => {
-    const docking = Math.max(0, (position / route.length - 0.7) / 0.3);
-    return width < 560 ? width * 0.26 : startX + docking * (dockedX - startX);
-  };
-  const boatX = boatXAt(state.position);
+  const boatX = width * 0.28;
+  const revisionStop = route.stops[experience.findIndex((chapter) => chapter.id === 'revision')];
+  const driveBy = revisionStop
+    ? (state.position - revisionStop.start) / (revisionStop.end - revisionStop.start)
+    : -1;
+  // The store is a landmark along the route, not its destination. It passes
+  // behind the rider while Revision's story plays and is gone before the finish.
+  const dockX = width * 0.72 - driveBy * (width + 250 * dockScale);
+  const finalStop = route.stops.at(-1);
+  const finishApproach = finalStop
+    ? Math.max(
+        0,
+        Math.min(1, (state.position - finalStop.start) / (route.length - finalStop.start)),
+      )
+    : 0;
+  const finishX = width + 140 - finishApproach * (width + 140 - boatX);
   return (
     <svg
       className="journey-scene"
@@ -130,7 +177,8 @@ function Scene({
       >
         <path d="m0 0 7-3 7 3-7-1zm28-17 7-3 7 3-7-1z" />
       </g>
-      <Dock x={dockX + (1 - progress) * 1500} waterline={waterline + 52} scale={dockScale} />
+      {revisionStop && <Dock x={dockX} waterline={waterline + 52} scale={dockScale} />}
+      <FinishLine x={finishX} waterline={waterline + 24} scale={width < 560 ? 0.8 : 1.15} />
       <ellipse
         cx={boatX}
         cy={waterline + 111}
@@ -148,7 +196,7 @@ function Scene({
       />
       <JetskiSplash
         state={state}
-        x={boatXAt(state.splash?.position ?? state.position)}
+        x={boatX}
         y={waterline + 111}
         scale={width < 560 ? 1.65 : 2.3}
         reduced={reduced}
@@ -420,27 +468,12 @@ export default function JetskiJourney() {
 
       {!overview ? (
         <>
-          <div
-            className="journey-chapters"
-            aria-label="Experience chapters"
-            style={{ gridTemplateColumns: `repeat(${experience.length}, minmax(58px, 1fr))` }}
-          >
-            {experience.map((item, index) => (
-              <button
-                type="button"
-                key={item.id}
-                className={`journey-chapter${index === chapterIndex ? ' is-current' : ''}`}
-                onClick={() => navigate(index)}
-                aria-current={index === chapterIndex ? 'step' : undefined}
-                aria-label={`${item.year}: ${item.place}`}
-              >
-                <span className="journey-chapter-number">{String(index + 1).padStart(2, '0')}</span>
-                <span>{item.year}</span>
-                <span className="journey-chapter-dot" aria-hidden="true" />
-              </button>
-            ))}
-          </div>
-          <JourneyProgress route={route} position={ride.position} chapters={experience} />
+          <JourneyProgress
+            route={route}
+            position={ride.position}
+            chapters={experience}
+            onNavigate={navigate}
+          />
           <div
             className="journey-stage"
             ref={stage}
@@ -478,8 +511,10 @@ export default function JetskiJourney() {
                 {!journeyFrame.stop
                   ? 'OPEN WATER / THE NEXT CHAPTER IS AHEAD'
                   : chapterIndex === experience.length - 1
-                    ? 'DESTINATION: REVISION MARINE'
-                    : 'A LITTLE CURIOSITY GOES A LONG WAY'}
+                    ? 'FINISH / LOOKING AHEAD'
+                    : experience[chapterIndex]?.id === 'revision'
+                      ? 'PASSING BY / REVISION MARINE'
+                      : 'A LITTLE CURIOSITY GOES A LONG WAY'}
               </span>
               <span>
                 {String(chapterIndex + 1).padStart(2, '0')} /{' '}
@@ -529,6 +564,7 @@ export default function JetskiJourney() {
               <span className="journey-overview-number">{String(index + 1).padStart(2, '0')}</span>
               <article>
                 <p className="journey-place">
+                  <span>{lifeStageLabels[item.lifeStage]}</span>
                   <span>{item.date}</span>
                   <span>{item.place}</span>
                 </p>

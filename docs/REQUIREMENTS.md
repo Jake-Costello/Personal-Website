@@ -2,7 +2,7 @@
 
 Agreed direction recorded September 23, 2026.
 
-Implementation update: the React/TypeScript/Vite build includes the portfolio, playable jetski timeline, Revision Marine dock, and interactive protein explorer. GitHub Pages hosts the frontend; a paid Render FastAPI/pandas/NetworkX service supplies live STRING data automatically for two random proteins on page load. Two curated selectors expose real association hints, and neighborhood sizes include just the selected pair. Small and disconnected results remain visible. On-demand comparisons retrieve Ensembl 112 orthologues for chimpanzee, mouse, zebrafish, and fruit fly. Optional OpenAI explanations use server-composed evidence and a $5/month project budget; activation requires server configuration and live provider verification. An embedded molecular viewer remains a later stage. See the root README for current setup and validation instructions; the scope below describes the full intended product.
+Implementation update: the React/TypeScript/Vite build includes the portfolio, playable 14-chapter jetski timeline, Revision Marine drive-by, finish line, and interactive protein explorer. GitHub Pages hosts the frontend; a paid Render FastAPI/pandas/NetworkX service supplies live STRING data automatically for two random proteins on page load. Two curated selectors expose real association hints, and neighborhood sizes include just the selected pair. Small and disconnected results remain visible. On-demand comparisons retrieve Ensembl 112 orthologues for chimpanzee, mouse, zebrafish, and fruit fly. Optional OpenAI explanations use server-composed evidence and a $5/month project budget; activation requires server configuration and live provider verification. An embedded molecular viewer remains a later stage. See the root README for current setup and validation instructions; the scope below describes the full intended product.
 
 The intended public domain is **jake-costello.com**, purchased through Wix. Publication requires connecting the GitHub repository, setting the custom domain in GitHub Pages, and updating its DNS records in Wix.
 
@@ -20,7 +20,7 @@ Success means a visitor can quickly find qualifications and project evidence, ex
 
 1. **Introduction:** name, concise professional positioning, and direct entry points to experience, projects, the explorer, and contact.
 2. **Experience:** a playable jetski timeline and a readable overview of the same milestones.
-3. **Projects:** case studies for Revision Marine, the multifunctional payphone, and the new protein-network explorer.
+3. **Projects:** two featured case studies: Revision Marine and the live protein-network explorer. The payphone remains in the college timeline; its original code is unavailable, so it is not a Selected Work card.
 4. **Protein explorer:** a live demonstration combining external APIs, Python data processing, community detection, interactive visualization, and AI explanations.
 5. **About:** photographs, hobbies, and short personal stories.
 6. **Contact:** LinkedIn contact and GitHub links, without publishing a personal email or phone number. An optional Formspree form can be enabled after configuring recipient delivery and provider-side CAPTCHA/spam protection. A downloadable resume is a secondary convenience and must omit private contact details.
@@ -43,16 +43,16 @@ The reference homepage was visually inspected: bright yellow, large charcoal tex
 - A pixel-art rider travels across a side-scrolling water scene near the bottom of the screen.
 - Left and right move the jetski in the corresponding direction, with acceleration and a short turning animation when reversing.
 - Down dips the nose and charges a jump; a following up press launches the rider. Tune timing through playtesting.
-- Career and life milestones appear above the water as the rider reaches their locations.
+- Career and life milestones appear above the water as the rider reaches their locations. A year/story track and a separate life-stage track (High school, College, Professional career) show where the visitor is; both support direct navigation and update when riding backward. Use date ranges or Now where individual work-project years are unconfirmed.
 - A visitor can stop to read and travel back to earlier milestones.
 - Keep each milestone concise, with a path to more detail where useful.
 - Optional jumps and discoveries may reveal personal details. Essential career content is reachable without performing jumps.
 
 ### Revision Marine reveal
 
-Near the end of the experience, the rider pulls up beside a Revision Marine dock or workshop. Reveal Jacob's role as **founding engineer** of a jetski parts company and connect the setting to his real interests and work. This describes his engineering responsibility, not an ownership claim.
+Near the end of the experience, the rider passes a Revision Marine waterfront workshop and keeps traveling. Reveal Jacob's role as **founding engineer** of a jetski parts company and connect the setting to his real interests and work. This describes his engineering responsibility, not an ownership claim.
 
-Provide a link to the confirmed company website and a link to the portfolio's Revision Marine case study. The timeline tells the personal story; the case study explains business needs, technical contributions, and implementation decisions.
+Provide a link to the confirmed company website and a link to the portfolio's Revision Marine case study. The timeline tells the personal story; the case study explains business needs, technical contributions, and implementation decisions. Revision Marine is the penultimate chapter, followed by a forward-looking final chapter and a visible FINISH line. Restart becomes available at the actual end, beyond the store.
 
 The confirmed website is [revision-marine.com](https://revision-marine.com/). On September 23, 2026 it opened a password-protected storefront preview; label links accordingly. The founding date remains unconfirmed. Do not imply a public commerce launch without evidence.
 
@@ -68,13 +68,25 @@ The confirmed website is [revision-marine.com](https://revision-marine.com/). On
 
 Use the supplied resume as the starting source. Each story should explain the problem, Jacob's contribution, and the outcome, with technical details available when useful.
 
-| Milestone                                               | Confirmed source material                                                                                                                         |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Component Repair Technologies, August 2021–January 2022 | Python machine-utilization and scheduling analytics; enterprise identity and deployment work                                                      |
-| University projects, 2023–2024                          | Multifunctional payphone with Python, SIP/VoIP, Asterisk, concert information, Spotify queueing, and recordings                                   |
-| Ohio University, May 2024                               | B.S. in Computer Science                                                                                                                          |
-| Sherwin-Williams, July 2024–present                     | Picking-cart integration, robotics order lifecycle, REST APIs, PL/SQL, exception handling, device management, documentation, and training         |
-| Revision Marine, date to confirm                        | Founding engineer: built the technology stack; responsible for website, infrastructure, warehousing system, internal apps, and merchandise design |
+| Milestone | Confirmed source material |
+| --- | --- |
+| High school, before 2019 | AP Computer Science, Java, and choose-your-own-adventure games sparked an interest in CS |
+| High school graduation, 2019 | AP Capstone Diploma; decision to study CS at the University of Cincinnati |
+| Cincinnati and COVID, 2019–2020 | Started college; moved home when COVID interrupted the first year; sought practical learning |
+| Ohio University, starting 2021 | Continued CS studies, team projects, and hands-on problem solving |
+| Component Repair Technologies, August 2021–January 2022 | Python utilization/scheduling analytics exposed three machines operating under 20% of the week and a staffing gap; findings helped the team hire a machinist; enterprise IT and backend learning |
+| Senior project, August 2023–May 2024 | Led the Union payphone project: Python, Asterisk/SIP, concert information, Spotify queues, recordings, reviews, and testing |
+| Ohio University, May 2024 | B.S. in Computer Science; returned to Cleveland |
+| Sherwin-Williams, July 2024–present | Modernized legacy applications; broader ownership as the team became smaller |
+| Picking-cart implementation, within current role | End-to-end software, manufacturer requirements/specification work in Wisconsin, PL/SQL and REST integrations |
+| Picking-cart pilot and rollout, within current role | Statesville, North Carolina: requirements, iteration, implementation, training, documentation; 1,000+ order lines/day at full production; rollout underway to at least three additional sites |
+| Current Waco warehouse automation | 200,000 sq ft addition, capacity for 30,000 full pallets and 20,000 totes; owns order selection, pick workflows, robot API communication, completion, and exceptions; months working with site teams |
+| Revision Marine, alongside career | Founding engineer: website, infrastructure, warehouse software, internal apps, and merchandise design; drive by the waterfront store |
+| Looking forward | Finish the ride with future interests in useful software, working alongside teams, practical AI, and continued learning |
+
+Jacob reconfirmed the supplied resume dates on September 24, 2026: CRT August 2021–January 2022, OU graduation May 2024, and Sherwin-Williams start July 2024. Do not describe four elapsed years at OU; the earlier Cincinnati study and the internship are part of the wider college chapter. Dates of individual workplace projects and the Revision Marine founding date are not confirmed.
+
+Statesville's North Carolina location was checked against the [official city site](https://www.statesvillenc.net/). Workplace details and system capacities are Jacob's supplied content, not independently measured outcomes.
 
 Do not invent dates for individual projects within the current job, personal milestones, or results. Describe order throughput as system scale; do not turn it into an unmeasured efficiency gain. Use public-safe descriptions and original explanatory diagrams for employer work.
 
@@ -92,11 +104,9 @@ Each case study should explain the need, Jacob's role, implementation choices, i
 - Link the confirmed website from the project, timeline, and about section. Identify its current private-preview status. Specific technical contributions are user-confirmed; public checkout/warehouse functionality has not been evaluated here.
 - Work in this portfolio repository does not authorize changes to the separate Revision Marine repository.
 
-### Multifunctional payphone
+### Multifunctional payphone (timeline only)
 
-- Tell the story of the physical installation and its software integrations.
-- Explain Python, Asterisk/SIP, concert information, queue additions, recordings, and testing as supported by the supplied resume and any recoverable artifacts.
-- Confirm available photographs, code, and working services before defining a live browser demonstration.
+The senior-project story remains in the college journey with Python, Asterisk/SIP, concert information, Spotify queue additions, recordings, leadership, and testing. The original code is unavailable. Remove its Selected Work card and the old project anchor; no live payphone demonstration is claimed.
 
 ### Protein-network explorer
 
@@ -191,10 +201,10 @@ Prioritize a complete, polished set of features. Introduce additional techniques
 
 ## Inputs and decisions still open
 
-- Timeline copy, any additional life milestones, and the Revision Marine founding date.
+- Additional life milestones, dates of individual workplace projects, and the Revision Marine founding date. The current 14-chapter history and resume dates are confirmed.
 - Revision Marine's public commerce launch status; the confirmed URL currently serves a private preview.
 - Personal photographs and additional hobby stories; the initial six golf stories are confirmed.
-- Available payphone code, photographs, and demonstration material.
+- Optional payphone photographs or artifacts if recovered later; it is currently a timeline story only.
 - Exact palette, typography, sprite artwork, and animation treatment.
 - Live AI answer evaluation and continued source maintenance. Provider and budget are decided: OpenAI, $5/month, on the existing Render backend; see `docs/AI-EXPLANATIONS.md`.
 - Final public contact details and optional downloadable resume.

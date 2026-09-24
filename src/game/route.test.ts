@@ -77,7 +77,7 @@ test('sampling the same route backwards restores identical stories and fades', (
   assert.deepEqual(backwardFrames.reverse(), forwardFrames);
 });
 
-test('bounds and nonfinite positions resolve safely to the start or final dock', () => {
+test('bounds and nonfinite positions resolve safely to the start or finish', () => {
   const route = buildJourneyRoute([story(30), story(30)], SPEED);
   const atStart = getJourneyFrame(route, 0);
   assert.deepEqual(getJourneyFrame(route, -100), atStart);

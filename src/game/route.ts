@@ -54,7 +54,8 @@ export function buildJourneyRoute(
     return stop;
   });
 
-  // Arrive at the final dock with its story still showing. No empty final stretch.
+  // Cross the finish with the final story still showing. Earlier stops, including
+  // the Revision Marine drive-by, have room to fade before the next chapter.
   return { stops, length: stops.at(-1)?.detailsOut ?? 0, speed };
 }
 
