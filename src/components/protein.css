@@ -66,6 +66,7 @@
   display: block;
   margin: 0 0 9px;
   font-size: 12px;
+  line-height: 18px;
 }
 .protein-query select {
   width: 100%;
@@ -86,6 +87,7 @@
 .protein-query-actions {
   display: flex;
   justify-content: flex-end;
+  padding-top: 27px;
 }
 .protein-query-actions .protein-fetch {
   margin: 0;
@@ -452,74 +454,6 @@
   color: inherit;
   text-underline-offset: 3px;
 }
-.protein-notes details {
-  border-top: 1px solid #c9cdc3;
-}
-.protein-notes summary {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  list-style: none;
-  cursor: pointer;
-  padding: 18px 24px;
-  font-size: 12px;
-}
-.protein-notes summary::-webkit-details-marker {
-  display: none;
-}
-.protein-notes summary > span {
-  font-size: 20px;
-}
-.protein-notes details[open] summary > span {
-  transform: rotate(45deg);
-}
-.protein-details-grid {
-  padding: 0 24px 24px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 30px;
-}
-.protein-details-grid h4 {
-  font-size: 14px;
-  margin: 6px 0 14px;
-}
-.protein-details-grid p,
-.protein-details-grid a {
-  font-size: 12px;
-  line-height: 1.65;
-}
-.protein-details-grid p {
-  margin: 0 0 12px;
-}
-.protein-node-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.protein-node-list button {
-  padding: 8px 10px;
-  background: transparent;
-  border: 1px solid #bdc4b7;
-  border-radius: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #17251e;
-  font: inherit;
-  font-size: 10px;
-  cursor: pointer;
-}
-.protein-node-list button[aria-pressed='true'] {
-  border-color: #17251e;
-  background: #e4e6dc;
-}
-.protein-node-list i {
-  display: block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  border: 1px solid #17251e;
-}
 .protein-explorer button:focus-visible,
 .protein-explorer a:focus-visible,
 .protein-explorer summary:focus-visible,
@@ -626,14 +560,8 @@
   .protein-selected-heading h4 {
     font-size: 27px;
   }
-  .protein-notes > p,
-  .protein-notes summary {
+  .protein-notes > p {
     padding-left: 20px;
     padding-right: 20px;
-  }
-  .protein-details-grid {
-    grid-template-columns: 1fr;
-    padding: 0 20px 20px;
-    gap: 18px;
   }
 }

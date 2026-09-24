@@ -538,11 +538,10 @@ test('live protein network loads automatically and supports filtering and select
   await threshold.focus();
   await threshold.press('End');
   await expect.poll(async () => Number(await readout.textContent())).toBeLessThan(initialEdges);
-  await page.getByText('Explore network data').click();
-  await page
-    .locator('.protein-node-list')
-    .getByRole('button', { name: 'BRCA1', exact: true })
-    .click();
+  await expect(page.getByText('Explore network data', { exact: true })).toHaveCount(0);
+  const brca1 = page.getByRole('button', { name: /^BRCA1, group/ });
+  await brca1.focus();
+  await brca1.press('Enter');
   await expect(page.locator('.protein-selected-heading h4')).toHaveText('BRCA1');
   await page.getByRole('button', { name: 'Rotate network right' }).click();
   await expect(page.getByRole('button', { name: 'Reset network view' })).toBeEnabled();

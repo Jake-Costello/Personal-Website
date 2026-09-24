@@ -1,6 +1,6 @@
 .protein-support {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(310px, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   border-top: 1px solid #c9cdc3;
 }
 .experimental-structure {
@@ -21,7 +21,7 @@
   min-width: 0;
 }
 .lab-implementation h4 {
-  margin: 9px 0 18px;
+  margin: 7px 0 14px;
   font-size: 22px;
   font-weight: 500;
   letter-spacing: -0.04em;
@@ -36,9 +36,9 @@
   counter-increment: build-step;
   padding-left: 28px;
   position: relative;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 .lab-implementation li::before {
   content: '0' counter(build-step);

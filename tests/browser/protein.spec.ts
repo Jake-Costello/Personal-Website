@@ -88,6 +88,13 @@ test('loads two distinct random proteins without a click or synthetic fallback',
   const firstBounds = (await page.getByLabel('First protein', { exact: true }).boundingBox())!;
   expect(Math.abs(exploreBounds.width - exploreBounds.height)).toBeLessThan(1.5);
   expect(exploreBounds.x).toBeGreaterThanOrEqual(firstBounds.x + firstBounds.width);
+  const alignedInput =
+    page.viewportSize()!.width > 850
+      ? firstBounds
+      : (await page.getByLabel('Second protein', { exact: true }).boundingBox())!;
+  expect(
+    Math.abs(exploreBounds.y + exploreBounds.height / 2 - alignedInput.y - alignedInput.height / 2),
+  ).toBeLessThan(1);
   await page
     .locator('.protein-query')
     .screenshot({ path: `.cache/lab-query-${page.viewportSize()!.width}.png` });

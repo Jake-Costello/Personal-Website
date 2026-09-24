@@ -398,7 +398,7 @@ export default function ProteinExplorer() {
             className={`protein-graph${showLabels ? ' is-labels-visible' : ''}`}
             viewBox="0 0 660 420"
             role="group"
-            aria-label="Rotatable protein association network. Select proteins using the list below or the graph."
+            aria-label="Rotatable protein association network. Tab to a protein and press Enter or Space to select it."
             onPointerDown={startDrag}
             onPointerMove={moveDrag}
             onPointerUp={() => {
@@ -709,63 +709,9 @@ export default function ProteinExplorer() {
           ) : (
             'Data will come from STRING. No network has loaded yet.'
           )}{' '}
-          Positions show a network layout, not molecular structure.
+          Positions show a network layout, not molecular structure. Links can represent functional
+          associations; communities are computed groups, not established pathways.
         </p>
-        <details>
-          <summary>
-            Explore network data <span aria-hidden="true">+</span>
-          </summary>
-          <div className="protein-details-grid">
-            <div>
-              <h4>Follow a protein</h4>
-              <div className="protein-node-list">
-                {!network && <p>The protein list appears when the network is ready.</p>}
-                {network?.nodes.map((node) => (
-                  <button
-                    type="button"
-                    key={node.id}
-                    aria-pressed={selected?.id === node.id}
-                    onClick={() => setSelection(node.id)}
-                  >
-                    <i
-                      style={{
-                        background: communityColors[node.community % communityColors.length],
-                      }}
-                      aria-hidden="true"
-                    />
-                    {node.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h4>Sources & interpretation</h4>
-              {catalog && (
-                <p>
-                  Selector hints:{' '}
-                  <a href={catalog.source.url} target="_blank" rel="noreferrer">
-                    {catalog.source.name}
-                  </a>
-                  {' · '}retrieved {new Date(catalog.source.retrievedAt).toLocaleString()}
-                  {catalog.source.cached ? ' · cached response' : ''}. Hints cover direct
-                  associations in this curated list at scores of 0.40 and above, not all possible
-                  relationships.
-                </p>
-              )}
-              <p>
-                STRING associations can be functional; they do not always mean physical contact.
-              </p>
-              <p>
-                Communities are algorithmic groups, not established biological pathways. Species
-                comparisons use Ensembl orthologues; AI explanations, when enabled, interpret this
-                evidence without determining the similarity scores.
-              </p>
-              <a href="https://string-db.org/help/api/" target="_blank" rel="noreferrer">
-                Read the STRING API documentation ↗
-              </a>
-            </div>
-          </div>
-        </details>
       </div>
     </div>
   );

@@ -190,7 +190,7 @@ The implementation uses React/TypeScript for the frontend and FastAPI, pandas, a
 - Cache requests and respect upstream usage guidance. Confirm current API terms and limits during implementation.
 - Keep any credentials on the server and bound network sizes and AI requests.
 - Keep exploration usable if an AI request fails.
-- Provide a readable list or table alongside the visual network.
+- Graph nodes must be keyboard selectable with accessible labels and visible focus.
 - Evaluate identifier resolution, filtering, clustering behavior, and whether AI claims are supported by supplied sources.
 
 ### Research references
@@ -229,4 +229,4 @@ Resolve these as their build stages approach. They do not reopen the agreed site
 
 - Keep the selected protein description visible in a fixed-height excerpt area, reserving whitespace for short or unavailable descriptions and linking to the full STRING record.
 - Keep the network controls at the foot of the visualization, without an unused green extension below them.
-- Place concise, implementation-grounded copy beside the experimental structure section: API integration, validation and data processing, evidence-grounded AI, and operational reliability. Preserve the accessible protein list and source details in the data disclosure. Stack the support areas on smaller screens.
+- Place concise, implementation-grounded copy beside the experimental structure section: API integration, validation and data processing, evidence-grounded AI, and operational reliability. Remove the redundant data disclosure; retain keyboard selection directly on graph nodes and the source footer. Stack the support areas on smaller screens.
