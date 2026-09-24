@@ -339,38 +339,42 @@
   background: #dfff7f;
 }
 .journey-controls {
+  position: absolute;
+  z-index: 2;
+  right: 22px;
+  bottom: 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 132px;
+  padding: 10px;
+  border: 1px solid #8aa59a;
+  background: #f5f3edf2;
+  box-shadow: 4px 4px 0 #17251e14;
+}
+.journey-speed {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  padding-top: 17px;
+  gap: 8px;
 }
-.journey-controls > p {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  margin: 0;
-  font-size: 11px;
-  color: #526056;
-  line-height: 1.6;
+.journey-speed > span {
+  font-family: 'Courier New', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
 }
-.journey-control-heading {
-  color: #17251e;
-  font-size: 12px;
-  font-weight: 600;
-}
-.journey-controls kbd {
-  padding: 1px 4px;
-  border: 1px solid #c0c4b9;
-  border-radius: 3px;
-  font-family: inherit;
-  font-size: 11px;
-  background: #eeeee5;
+.journey-speed strong {
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: -0.06em;
 }
 .journey-buttons {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 5px;
+  width: 100%;
 }
 .journey-ride-button {
   display: flex;
@@ -378,9 +382,10 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  min-width: 51px;
-  min-height: 51px;
-  border: 1px solid #c0c4b9;
+  min-width: 44px;
+  min-height: 48px;
+  padding: 5px 3px;
+  border: 1px solid #96a99d;
   border-radius: 0;
   background: transparent;
   color: #17251e;
@@ -404,9 +409,20 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.journey-button-divider {
-  display: block;
-  width: 5px;
+.journey-control-hints {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  font-size: 9px;
+  line-height: 1.5;
+  color: #33493c;
+}
+.journey-controls .journey-restart {
+  min-height: 44px;
+  padding: 7px 3px;
+  font-size: 10px;
+  white-space: normal;
 }
 .journey :is(a, button):focus-visible,
 .journey-stage:focus-visible {
@@ -451,6 +467,11 @@
     padding: 34px 38px 0;
   }
 }
+@media (min-width: 761px) {
+  .journey-story {
+    max-width: min(820px, calc(100% - 176px));
+  }
+}
 @media (max-width: 760px) {
   .journey-topline {
     align-items: flex-start;
@@ -480,15 +501,8 @@
   .journey-story h3 {
     font-size: 36px;
   }
-  .journey-controls {
-    align-items: flex-start;
-  }
-  .journey-controls > p {
-    max-width: 270px;
-  }
-  .journey-ride-button {
-    min-width: 45px;
-    min-height: 49px;
+  .journey-stage {
+    height: max(800px, 82svh);
   }
 }
 @media (max-width: 520px) {
@@ -508,7 +522,7 @@
     display: none;
   }
   .journey-stage {
-    height: max(850px, 82svh);
+    height: max(950px, 82svh);
   }
   .journey-story {
     padding: 25px 20px 0;
@@ -540,25 +554,11 @@
     padding: 4px 6px;
   }
   .journey-controls {
-    flex-direction: column;
-    gap: 13px;
-  }
-  .journey-controls > p {
-    max-width: none;
-    width: 100%;
-    font-size: 10px;
-  }
-  .journey-control-heading {
-    font-size: 11px;
-  }
-  .journey-buttons {
-    width: 100%;
-  }
-  .journey-ride-button {
-    flex: 1;
-    min-height: 48px;
-    flex-direction: row;
-    gap: 9px;
+    right: 10px;
+    bottom: 38px;
+    width: 116px;
+    padding: 8px;
+    gap: 8px;
   }
   .journey-stage-caption {
     font-size: 6px;
@@ -588,8 +588,7 @@
   flex-shrink: 0;
   margin-bottom: 16px;
 }
-.journey:fullscreen .journey-timelines,
-.journey:fullscreen .journey-controls {
+.journey:fullscreen .journey-timelines {
   flex-shrink: 0;
 }
 .journey:fullscreen .journey-stage {
@@ -606,22 +605,31 @@
     min-height: 560px;
   }
 }
+@media (max-width: 760px) {
+  .journey:fullscreen .journey-stage {
+    flex-basis: 800px;
+    min-height: 800px;
+  }
+}
 @media (max-width: 520px) {
   .journey:fullscreen {
     padding: 16px;
   }
   .journey:fullscreen .journey-stage {
-    flex-basis: 850px;
-    min-height: 850px;
+    flex-basis: 950px;
+    min-height: 950px;
   }
 }
 @media (max-width: 380px) {
   .journey-stage {
-    height: max(1000px, 82svh);
+    height: max(1140px, 82svh);
+  }
+  .journey-controls {
+    bottom: 120px;
   }
   .journey:fullscreen .journey-stage {
-    flex-basis: 1000px;
-    min-height: 1000px;
+    flex-basis: 1140px;
+    min-height: 1140px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

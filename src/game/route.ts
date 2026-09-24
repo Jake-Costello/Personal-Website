@@ -1,4 +1,4 @@
-export const WORDS_PER_SECOND = 250 / 60;
+export const WORDS_PER_SECOND = 300 / 60;
 export const INTRO_SECONDS = 1.8;
 
 const MIN_READING_SECONDS = 8;

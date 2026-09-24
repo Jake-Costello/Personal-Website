@@ -42,6 +42,8 @@ The reference homepage was visually inspected: bright yellow, large charcoal tex
 
 - A pixel-art rider travels across a side-scrolling water scene near the bottom of the screen.
 - Left and right move the jetski in the corresponding direction, with acceleration and a short turning animation when reversing.
+- Place the controls inside the scene on its right edge. Show the current speed and compact control hints. Three completed quick Right taps increase both horizontal riding speed and the story-reveal clock; three Left taps decrease them. Use 0.75×, 1× (default), 1.25×, 1.5×, and 2×. Each tap lasts at most 250 ms, with all three completed within 750 ms. Ignore holds/repeats and cancel unfinished gestures on blur, navigation, or interrupted input. Keep pump/jump physics unchanged. Restart restores 1×.
+- Reveal details at 300 words per minute at 1×. Changing the speed partway through a story continues from the words already shown; it must not restart or hide them. Reduced-motion and Show full story remain immediate.
 - Down dips the nose and charges a jump; a following up press launches the rider. Tune timing through playtesting.
 - Career and life milestones appear above the water as the rider reaches their locations. A year/story track and a separate life-stage track (High school, College, Professional career) show where the visitor is; both support direct navigation and update when riding backward. Use date ranges or Now where individual work-project years are unconfirmed.
 - A visitor can stop to read and travel back to earlier milestones.

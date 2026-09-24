@@ -10,9 +10,9 @@ const near = (actual: number, expected: number) =>
 test('full-speed travel gives every chapter a reading window and time to settle', () => {
   const route = buildJourneyRoute([story(80), story(12), { story: ' \n\t ' }], SPEED);
   const first = route.stops[0];
-  assert.equal(WORDS_PER_SECOND, 250 / 60);
-  assert.equal(first.readingSeconds, 19.2);
-  near((first.detailsOut - first.start) / SPEED, INTRO_SECONDS + 19.2 + 3);
+  assert.equal(WORDS_PER_SECOND, 300 / 60);
+  assert.equal(first.readingSeconds, 16);
+  near((first.detailsOut - first.start) / SPEED, INTRO_SECONDS + 16 + 3);
   assert.equal(route.stops[1].readingSeconds, 8);
   assert.equal(route.stops[2].readingSeconds, 8);
   assert.equal(getJourneyFrame(route, first.detailsOut).detailsOpacity, 1);

@@ -1,3 +1,5 @@
+import { clampRideSpeed } from './speed';
+
 export const WORLD_LENGTH = 4000;
 const ACCELERATION = 1150;
 export const MAX_SPEED = 440;
@@ -57,9 +59,14 @@ export function advanceRide(
   input: RideInput,
   elapsed: number,
   worldLength = WORLD_LENGTH,
+  speed = 1,
 ): RideState {
   const dt = Math.max(0, Math.min(elapsed, 0.05));
   const next = { ...current };
+  // Pace changes horizontal travel only; pump timing and jump physics stay familiar.
+  const pace = clampRideSpeed(speed);
+  const maximum = MAX_SPEED * pace;
+  next.velocity = Math.max(-maximum, Math.min(maximum, current.velocity));
   if (current.splash) {
     const age = current.splash.age + dt;
     next.splash = age < SPLASH_SECONDS ? { ...current.splash, age } : null;
@@ -67,8 +74,8 @@ export function advanceRide(
   const direction = Number(input.right) - Number(input.left);
   if (direction) {
     next.velocity = Math.max(
-      -MAX_SPEED,
-      Math.min(MAX_SPEED, current.velocity + direction * ACCELERATION * dt),
+      -maximum,
+      Math.min(maximum, next.velocity + direction * ACCELERATION * pace * dt),
     );
     if (direction !== current.facing) {
       next.facing = direction as 1 | -1;

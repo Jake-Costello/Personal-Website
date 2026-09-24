@@ -60,6 +60,18 @@ test('every chapter is reachable without playing and appears in the readable tim
       storyBox!.y + storyBox!.height,
       `${chapter.id} story should fit above the caption`,
     ).toBeLessThan(captionBox!.y);
+    const controlsBox = await page.locator('.journey-stage .journey-controls').boundingBox();
+    const stageBox = await page.locator('.journey-stage').boundingBox();
+    expect(controlsBox!.x).toBeGreaterThanOrEqual(stageBox!.x);
+    expect(controlsBox!.x + controlsBox!.width).toBeLessThanOrEqual(stageBox!.x + stageBox!.width);
+    expect(controlsBox!.y + controlsBox!.height).toBeLessThanOrEqual(
+      stageBox!.y + stageBox!.height,
+    );
+    expect(
+      storyBox!.y + storyBox!.height <= controlsBox!.y ||
+        storyBox!.x + storyBox!.width <= controlsBox!.x,
+      `${chapter.id} text should not collide with the inset controls`,
+    ).toBe(true);
   }
   await page.getByRole('button', { name: 'Read as a timeline ↗' }).click();
   await expect(page.locator('.journey-overview > li')).toHaveCount(experience.length);

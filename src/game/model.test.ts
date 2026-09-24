@@ -107,3 +107,33 @@ test('the same controls can traverse a longer route and stop at its destination'
   assert.equal(state.position, length);
   assert.equal(state.velocity, 0);
 });
+
+test('ride pace scales horizontal travel while preserving pump and jump physics', () => {
+  function pacedRide(pace: number) {
+    let state = initialRide(1000);
+    for (let frame = 0; frame < 90; frame += 1) {
+      state = advanceRide(
+        state,
+        { ...idleInput(), right: true, down: true, jump: frame === 30 },
+        1 / 60,
+        10000,
+        pace,
+      );
+    }
+    return state;
+  }
+  const normal = pacedRide(1);
+  for (const pace of [0.75, 1.25, 1.5, 2]) {
+    const state = pacedRide(pace);
+    assert.ok(Math.abs((state.position - 1000) / (normal.position - 1000) - pace) < 1e-8);
+    assert.equal(state.velocity, normal.velocity * pace);
+    assert.equal(state.height, normal.height);
+    assert.equal(state.lift, normal.lift);
+    assert.equal(state.jumps, normal.jumps);
+  }
+  const fast = pacedRide(2);
+  const slowed = advanceRide(fast, idleInput(), 1 / 60, 10000, 0.75);
+  assert.ok(slowed.velocity <= normal.velocity * 0.75);
+  assert.deepEqual(pacedRide(NaN), normal);
+  assert.deepEqual(pacedRide(100), pacedRide(2));
+});

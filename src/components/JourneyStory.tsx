@@ -11,12 +11,14 @@ function StoryContent({
   frame,
   visible,
   reduced,
+  speed,
   onFollowLink,
 }: {
   chapter: ExperienceChapter;
   frame: JourneyFrame;
   visible: boolean;
   reduced: boolean;
+  speed: number;
   onFollowLink: () => void;
 }) {
   const [seconds, setSeconds] = useState(0);
@@ -45,13 +47,13 @@ function StoryContent({
       previous = now;
       if (document.hidden) return;
       setSeconds((current) => {
-        const next = Math.min(INTRO_SECONDS + readingSeconds + 1, current + dt);
+        const next = Math.min(INTRO_SECONDS + readingSeconds + 1, current + dt * speed);
         if (next >= INTRO_SECONDS + readingSeconds + 1) window.clearInterval(timer);
         return next;
       });
     }, 100);
     return () => window.clearInterval(timer);
-  }, [visible, immediate, readingSeconds]);
+  }, [visible, immediate, readingSeconds, speed]);
 
   return (
     <article className="journey-story" data-story-id={chapter.id}>
@@ -132,11 +134,13 @@ export default function JourneyStory({
   frame,
   visible,
   reduced,
+  speed,
   onFollowLink,
 }: {
   frame: JourneyFrame;
   visible: boolean;
   reduced: boolean;
+  speed: number;
   onFollowLink: () => void;
 }) {
   const chapter = frame.stop ? experience[frame.index] : null;
@@ -150,6 +154,7 @@ export default function JourneyStory({
             frame={frame}
             visible={visible}
             reduced={reduced}
+            speed={speed}
             onFollowLink={onFollowLink}
           />
         )}

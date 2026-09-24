@@ -1,14 +1,16 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import type { KeyboardEvent, PointerEvent } from 'react';
+import type { KeyboardEvent } from 'react';
 import { experience } from '../data/experience';
 import { advanceRide, idleInput, initialRide, MAX_SPEED } from '../game/model';
 import type { RideInput, RideState } from '../game/model';
 import { buildJourneyRoute, getJourneyFrame } from '../game/route';
+import { changeRideSpeed, DEFAULT_RIDE_SPEED, emptySpeedTaps, trackSpeedTap } from '../game/speed';
 import ClevelandSkyline from './ClevelandSkyline';
 import JetskiSprite from './JetskiSprite';
 import { JetskiSplash } from './JetskiWater';
 import JourneyStory from './JourneyStory';
 import JourneyProgress from './JourneyProgress';
+import JourneyControls from './JourneyControls';
 import './jetski.css';
 
 const route = buildJourneyRoute(experience, MAX_SPEED);
@@ -201,86 +203,15 @@ function Scene({
         scale={width < 560 ? 1.65 : 2.3}
         reduced={reduced}
       />
-      <g
-        transform={`translate(${width - 27} ${waterline + 117})`}
-        stroke="#17251e"
-        strokeWidth="2"
-        fill="none"
-      >
-        <circle r="13" />
-        <path d="M-5 0h10M1-4l4 4-4 4" />
-      </g>
     </svg>
-  );
-}
-
-function RideButton({
-  control,
-  symbol,
-  label,
-  setInput,
-}: {
-  control: Control;
-  symbol: string;
-  label: string;
-  setInput: (key: Control, active: boolean) => void;
-}) {
-  const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(
-    () => () => {
-      if (timeout.current) clearTimeout(timeout.current);
-    },
-    [],
-  );
-  function pointerDown(event: PointerEvent<HTMLButtonElement>) {
-    event.preventDefault();
-    event.currentTarget.focus({ preventScroll: true });
-    event.currentTarget.setPointerCapture(event.pointerId);
-    setInput(control, true);
-  }
-  function keyDown(event: KeyboardEvent<HTMLButtonElement>) {
-    if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) {
-      event.preventDefault();
-      setInput(control, true);
-    }
-  }
-  return (
-    <button
-      className="journey-ride-button"
-      type="button"
-      aria-label={label}
-      onPointerDown={pointerDown}
-      onPointerUp={() => setInput(control, false)}
-      onPointerCancel={() => setInput(control, false)}
-      onLostPointerCapture={() => setInput(control, false)}
-      onKeyDown={keyDown}
-      onKeyUp={(event) => {
-        if (event.key === ' ' || event.key === 'Enter') {
-          event.preventDefault();
-          setInput(control, false);
-        }
-      }}
-      onBlur={() => setInput(control, false)}
-      onClick={(event) => {
-        // Screen readers can dispatch a click without pointer or keyboard events.
-        if (event.detail === 0) {
-          setInput(control, true);
-          if (timeout.current) clearTimeout(timeout.current);
-          timeout.current = setTimeout(
-            () => setInput(control, false),
-            control === 'jump' ? 100 : 300,
-          );
-        }
-      }}
-    >
-      <span aria-hidden="true">{symbol}</span>
-      <span>{label}</span>
-    </button>
   );
 }
 
 export default function JetskiJourney() {
   const [ride, setRide] = useState(initialRide);
+  const [speed, setSpeed] = useState<number>(DEFAULT_RIDE_SPEED);
+  const speedRef = useRef<number>(DEFAULT_RIDE_SPEED);
+  const speedTaps = useRef(emptySpeedTaps());
   // Keep the event timestamp outside the scene: chapter navigation and the
   // readable overview must not replay it or stop its clock.
   const [blimpStartedAt, setBlimpStartedAt] = useState<number | null>(null);
@@ -315,6 +246,7 @@ export default function JetskiJourney() {
       const active = document.fullscreenElement === journey.current;
       setFullscreen(active);
       input.current = idleInput();
+      speedTaps.current = emptySpeedTaps();
       if (active) stage.current?.focus({ preventScroll: true });
       else fullscreenButton.current?.focus({ preventScroll: true });
     }
@@ -357,7 +289,13 @@ export default function JetskiJourney() {
     function animate(now: number) {
       const dt = previous ? (now - previous) / 1000 : 0;
       previous = now;
-      simulation.current = advanceRide(simulation.current, input.current, dt, route.length);
+      simulation.current = advanceRide(
+        simulation.current,
+        input.current,
+        dt,
+        route.length,
+        speedRef.current,
+      );
       input.current.jump = false;
       if (now - lastPaint > 1000 / 30) {
         const next = simulation.current;
@@ -375,21 +313,32 @@ export default function JetskiJourney() {
     frame = requestAnimationFrame(animate);
     function stop() {
       input.current = idleInput();
+      speedTaps.current = emptySpeedTaps();
     }
     window.addEventListener('blur', stop);
     document.addEventListener('visibilitychange', stop);
     return () => {
       cancelAnimationFrame(frame);
       input.current = idleInput();
+      speedTaps.current = emptySpeedTaps();
       simulation.current = { ...simulation.current, velocity: 0 };
       window.removeEventListener('blur', stop);
       document.removeEventListener('visibilitychange', stop);
     };
   }, [visible, overview]);
 
-  function setInput(key: Control, active: boolean) {
+  function setInput(key: Control, active: boolean, cancelled = false) {
+    if (cancelled) speedTaps.current = emptySpeedTaps();
     // Queue a jump until the next simulation frame, even for a very quick tap.
     if (key === 'jump' && !active) return;
+    if (input.current[key] === active) return;
+    const gesture = trackSpeedTap(speedTaps.current, key, active, performance.now(), cancelled);
+    speedTaps.current = gesture.state;
+    if (gesture.change) {
+      const next = changeRideSpeed(speedRef.current, gesture.change);
+      speedRef.current = next;
+      setSpeed(next);
+    }
     input.current[key] = active;
   }
 
@@ -405,6 +354,7 @@ export default function JetskiJourney() {
 
   function resetRide(position: number) {
     input.current = idleInput();
+    speedTaps.current = emptySpeedTaps();
     const next = initialRide(position);
     simulation.current = next;
     setRide(next);
@@ -422,14 +372,19 @@ export default function JetskiJourney() {
       ArrowUp: 'jump',
     };
     const control = keys[event.key];
-    if (control && event.target === event.currentTarget) {
+    if (
+      control &&
+      (event.target === event.currentTarget ||
+        (event.target instanceof Element && event.target.closest('.journey-ride-button')) ||
+        (!active && input.current[control]))
+    ) {
       event.preventDefault();
-      if (control !== 'jump' || !event.repeat) setInput(control, active);
+      if (!event.repeat) setInput(control, active);
     }
   }
 
   return (
-    <div className="journey" ref={journey}>
+    <div className="journey" ref={journey} data-speed={speed}>
       <div className="journey-topline">
         <span className="journey-mini-label">
           <span className="journey-status-dot" /> LAKE ERIE / A FEW STOPS ALONG THE WAY
@@ -452,6 +407,7 @@ export default function JetskiJourney() {
             aria-pressed={overview}
             onClick={() => {
               input.current = idleInput();
+              speedTaps.current = emptySpeedTaps();
               simulation.current = { ...simulation.current, velocity: 0 };
               setOverview(!overview);
             }}
@@ -483,8 +439,16 @@ export default function JetskiJourney() {
             aria-describedby={instructionsId}
             onKeyDown={(event) => handleKeys(event, true)}
             onKeyUp={(event) => handleKeys(event, false)}
-            onBlur={() => {
-              input.current = idleInput();
+            onBlur={(event) => {
+              const nextTarget = event.relatedTarget;
+              if (
+                !(nextTarget instanceof Element) ||
+                !event.currentTarget.contains(nextTarget) ||
+                (nextTarget !== event.currentTarget && !nextTarget.closest('.journey-ride-button'))
+              ) {
+                input.current = idleInput();
+                speedTaps.current = emptySpeedTaps();
+              }
             }}
             onPointerDown={(event) => {
               if (!(event.target instanceof Element) || !event.target.closest('a, button'))
@@ -502,6 +466,7 @@ export default function JetskiJourney() {
               frame={journeyFrame}
               visible={visible}
               reduced={reduced}
+              speed={speed}
               onFollowLink={() => {
                 if (document.fullscreenElement === journey.current) void document.exitFullscreen();
               }}
@@ -526,35 +491,19 @@ export default function JetskiJourney() {
                 ↑ to jump <span style={{ width: `${ride.charge * 100}%` }} />
               </span>
             )}
-          </div>
-          <div className="journey-controls">
-            <p id={instructionsId}>
-              <span className="journey-control-heading">A career path. With a little wake.</span>
-              <span>
-                Click the scene. <kbd>←</kbd> <kbd>→</kbd> to ride. <kbd>↓</kbd> then <kbd>↑</kbd>{' '}
-                to jump.
-              </span>
-            </p>
-            {atDestination && (
-              <button
-                className="journey-restart"
-                type="button"
-                onClick={() => {
-                  setBlimpStartedAt(null);
-                  resetRide(0);
-                  stage.current?.focus({ preventScroll: true });
-                }}
-              >
-                <span aria-hidden="true">↶</span> Back to start
-              </button>
-            )}
-            <div className="journey-buttons" role="group" aria-label="Jetski controls">
-              <RideButton control="left" symbol="←" label="Left" setInput={setInput} />
-              <RideButton control="right" symbol="→" label="Right" setInput={setInput} />
-              <span className="journey-button-divider" />
-              <RideButton control="down" symbol="↓" label="Pump" setInput={setInput} />
-              <RideButton control="jump" symbol="↑" label="Jump" setInput={setInput} />
-            </div>
+            <JourneyControls
+              setInput={setInput}
+              speed={speed}
+              atDestination={atDestination}
+              instructionsId={instructionsId}
+              onRestart={() => {
+                setBlimpStartedAt(null);
+                speedRef.current = DEFAULT_RIDE_SPEED;
+                setSpeed(DEFAULT_RIDE_SPEED);
+                resetRide(0);
+                stage.current?.focus({ preventScroll: true });
+              }}
+            />
           </div>
         </>
       ) : (
