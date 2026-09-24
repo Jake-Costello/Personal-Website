@@ -224,3 +224,9 @@ Prioritize a complete, polished set of features. Introduce additional techniques
 - Final public contact details and optional downloadable resume.
 
 Resolve these as their build stages approach. They do not reopen the agreed site concept or require another general planning round.
+
+### Protein lab layout refinement
+
+- Keep the selected protein description visible in a fixed-height excerpt area, reserving whitespace for short or unavailable descriptions and linking to the full STRING record.
+- Keep the network controls at the foot of the visualization, without an unused green extension below them.
+- Place concise, implementation-grounded copy beside the experimental structure section: API integration, validation and data processing, evidence-grounded AI, and operational reliability. Preserve the accessible protein list and source details in the data disclosure. Stack the support areas on smaller screens.

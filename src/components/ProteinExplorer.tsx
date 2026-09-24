@@ -10,6 +10,7 @@ import {
 import type { ProteinCatalog, ProteinNetwork } from '../lib/protein';
 import ProteinComparison from './ProteinComparison';
 import ExperimentalStructure from './ExperimentalStructure';
+import LabImplementation from './LabImplementation';
 import './protein.css';
 
 const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '');
@@ -666,24 +667,39 @@ export default function ProteinExplorer() {
                   ? 'No proteins are available for this query.'
                   : 'Choose a protein once the network loads.'}
             </p>
-            {selectedDescription && (
-              <details className="protein-annotation" key={selected?.id}>
-                <summary>About this protein</summary>
+            <section className="protein-annotation" aria-label="About this protein">
+              <h5>About this protein</h5>
+              <div className="protein-annotation-copy">
                 <p>
-                  {selectedDescription.length === 500
-                    ? `${selectedDescription.slice(0, selectedDescription.lastIndexOf(' '))}…`
-                    : selectedDescription}
+                  {selectedDescription && selectedDescription !== selected?.label
+                    ? selectedDescription.length === 500
+                      ? `${selectedDescription.slice(0, selectedDescription.lastIndexOf(' '))}…`
+                      : selectedDescription
+                    : selected
+                      ? 'No description is included in this result. Open the source record for more information.'
+                      : 'Select a protein once the network loads to read about its function.'}
                 </p>
-                <span>Source: STRING{selectedDescription.length === 500 ? ' · excerpt' : ''}</span>
-              </details>
-            )}
+              </div>
+              {selected && (
+                <a
+                  href={`https://version-12-0.string-db.org/network/${encodeURIComponent(selected.id)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Full protein record at STRING ↗
+                </a>
+              )}
+            </section>
           </div>
         </aside>
       </div>
-      <ExperimentalStructure
-        protein={selected?.label}
-        disabled={loading || Boolean(pendingChanges)}
-      />
+      <div className="protein-support">
+        <ExperimentalStructure
+          protein={selected?.label}
+          disabled={loading || Boolean(pendingChanges)}
+        />
+        <LabImplementation />
+      </div>
       <ProteinComparison
         key={
           loadedQuery
@@ -711,7 +727,7 @@ export default function ProteinExplorer() {
         </p>
         <details>
           <summary>
-            Explore the data & how it works <span aria-hidden="true">+</span>
+            Explore network data <span aria-hidden="true">+</span>
           </summary>
           <div className="protein-details-grid">
             <div>
@@ -737,7 +753,7 @@ export default function ProteinExplorer() {
               </div>
             </div>
             <div>
-              <h4>From data to discovery</h4>
+              <h4>Sources & interpretation</h4>
               {catalog && (
                 <p>
                   Selector hints:{' '}
@@ -751,9 +767,7 @@ export default function ProteinExplorer() {
                 </p>
               )}
               <p>
-                The Python service resolves identifiers with STRING, cleans the data with pandas,
-                and finds communities using seeded Louvain clustering in NetworkX. Associations can
-                be functional; they do not always mean physical contact.
+                STRING associations can be functional; they do not always mean physical contact.
               </p>
               <p>
                 Communities are algorithmic groups, not established biological pathways. Species

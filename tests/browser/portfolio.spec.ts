@@ -538,7 +538,7 @@ test('live protein network loads automatically and supports filtering and select
   await threshold.focus();
   await threshold.press('End');
   await expect.poll(async () => Number(await readout.textContent())).toBeLessThan(initialEdges);
-  await page.getByText('Explore the data & how it works').click();
+  await page.getByText('Explore network data').click();
   await page
     .locator('.protein-node-list')
     .getByRole('button', { name: 'BRCA1', exact: true })

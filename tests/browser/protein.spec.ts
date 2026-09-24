@@ -5,6 +5,60 @@ test.beforeEach(async ({ page }) => {
   await installProteinApi(page);
 });
 
+test('protein descriptions stay visible and keep a fixed height across selections', async ({
+  page,
+}) => {
+  await page.route('**/api/proteins', (route) =>
+    route.fulfill({
+      json: {
+        ...catalog,
+        proteins: catalog.proteins.map((protein) => ({
+          ...protein,
+          name:
+            protein.symbol === 'TP53'
+              ? 'Long annotation about protein function and interactions. '.repeat(10).slice(0, 500)
+              : protein.symbol === 'MDM2'
+                ? 'A short protein description.'
+                : protein.symbol,
+        })),
+      },
+    }),
+  );
+  await page.goto('/#lab');
+  await expect(page.locator('.protein-status')).toHaveText('LIVE STRING DATA');
+  await page.getByLabel('First protein', { exact: true }).selectOption('TP53');
+  await page.getByLabel('Second protein', { exact: true }).selectOption('MDM2');
+  await page.getByRole('button', { name: /^Explore network/ }).click();
+  const about = page.getByRole('region', { name: 'About this protein' });
+  await expect(about).toContainText('Long annotation');
+  await expect(about.getByRole('link')).toHaveAttribute(
+    'href',
+    'https://version-12-0.string-db.org/network/9606.TP53',
+  );
+  const height = (await about.boundingBox())!.height;
+  const graphHeight = (await page.locator('.protein-canvas-panel').boundingBox())!.height;
+  const copy = about.locator('p');
+  expect(await copy.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+  await page.getByRole('button', { name: /^MDM2, group/ }).click();
+  await expect(about).toContainText('A short protein description.');
+  expect((await about.boundingBox())!.height).toBe(height);
+  expect((await page.locator('.protein-canvas-panel').boundingBox())!.height).toBe(graphHeight);
+  await expect(about.getByRole('link')).toHaveAttribute(
+    'href',
+    'https://version-12-0.string-db.org/network/9606.MDM2',
+  );
+  await page.getByRole('button', { name: /^CDK2, group/ }).click();
+  await expect(about).toContainText('No description is included');
+  expect((await about.boundingBox())!.height).toBe(height);
+  await expect(page.getByRole('heading', { name: 'From APIs to a working tool.' })).toBeVisible();
+  await page
+    .locator('.protein-layout')
+    .screenshot({ path: `.cache/lab-layout-${page.viewportSize()!.width}.png` });
+  await page
+    .locator('.protein-support')
+    .screenshot({ path: `.cache/lab-support-${page.viewportSize()!.width}.png` });
+});
+
 test('loads two distinct random proteins without a click or synthetic fallback', async ({
   page,
 }) => {

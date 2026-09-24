@@ -152,6 +152,8 @@
   grid-template-columns: minmax(0, 1fr) 310px;
 }
 .protein-canvas-panel {
+  display: flex;
+  flex-direction: column;
   position: relative;
   overflow: hidden;
   background: #17251e;
@@ -199,9 +201,10 @@
 .protein-graph {
   display: block;
   width: 100%;
-  height: auto;
+  height: 0;
+  flex: 1 1 0px;
+  contain: size;
   min-height: 270px;
-  max-height: 460px;
   touch-action: none;
   cursor: grab;
 }
@@ -338,8 +341,7 @@
   color: #566056;
 }
 .protein-selection {
-  padding: 24px 0;
-  border-bottom: 1px solid #c9cdc3;
+  padding: 20px 0 0;
 }
 .protein-selected-heading {
   display: flex;
@@ -378,21 +380,31 @@
   font-size: 11px;
   line-height: 1.6;
   overflow-wrap: anywhere;
+  height: 210px;
+  display: flex;
+  flex-direction: column;
 }
-.protein-annotation summary {
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+.protein-annotation h5 {
+  font-size: 12px;
+  font-weight: 500;
+  margin: 0 0 9px;
+}
+.protein-annotation-copy {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 .protein-selection .protein-annotation p {
-  margin-top: 10px;
+  margin: 0;
   font-size: 11px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 8;
+  overflow: hidden;
 }
-.protein-annotation > span {
-  display: block;
-  margin-top: 8px;
-  color: #64705f;
-  font-size: 10px;
+.protein-selection .protein-annotation a {
+  flex-shrink: 0;
+  margin-top: 9px;
 }
 .protein-unavailable {
   display: block;
@@ -589,12 +601,15 @@
     border: 0;
   }
   .protein-selection {
-    padding-left: 18px;
-    border-left: 1px solid #c9cdc3;
+    grid-column: 1 / -1;
+    padding-top: 18px;
+    border-top: 1px solid #c9cdc3;
+  }
+  .protein-control-block {
+    grid-column: 1 / -1;
   }
   .protein-selected-heading {
-    align-items: flex-start;
-    flex-direction: column;
+    align-items: center;
   }
   .protein-selected-heading h4 {
     font-size: 27px;
