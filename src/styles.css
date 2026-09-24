@@ -603,11 +603,6 @@ article[id] {
 .about-copy .text-link {
   margin-top: 4px;
 }
-.about-copy p.about-link-note {
-  margin-top: 8px;
-  margin-bottom: 0;
-  font-size: 10px;
-}
 .contact-section {
   background: var(--lime);
   border-top: 1px solid var(--ink);

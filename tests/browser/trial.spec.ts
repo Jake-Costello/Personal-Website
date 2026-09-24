@@ -177,7 +177,7 @@ test('finishing the story unlocks a persistent trial with fixed controls and pau
   await expect(page.locator('.trial-hud')).toHaveAttribute('data-trial-phase', 'paused');
   await page.getByRole('button', { name: 'Resume ride →' }).click();
   await page.clock.runFor(300);
-  await page.getByRole('heading', { name: 'JACOB COSTELLO.' }).scrollIntoViewIfNeeded();
+  await page.getByRole('heading', { name: 'JAKE COSTELLO.' }).scrollIntoViewIfNeeded();
   await expect(page.locator('.trial-hud')).toHaveAttribute('data-trial-phase', 'paused');
   await page.getByRole('button', { name: 'Back to story', exact: true }).click();
   await expect(page.locator('.journey')).toHaveAttribute('data-mode', 'story');

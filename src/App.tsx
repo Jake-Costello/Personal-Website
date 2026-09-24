@@ -268,12 +268,12 @@ function App() {
         Skip to content
       </a>
       <header className="site-header">
-        <a href="#" className="brand" aria-label="Jacob Costello, home">
+        <a href="#" className="brand" aria-label="Jake Costello, home">
           <span className="brand-mark">
             jc<span>↗</span>
           </span>
           <span>
-            JACOB COSTELLO<span className="brand-caption">ENGINEER & BUILDER</span>
+            JAKE COSTELLO<span className="brand-caption">ENGINEER & BUILDER</span>
           </span>
         </a>
         <button
@@ -319,7 +319,7 @@ function App() {
           </div>
           <div className="hero-title-row">
             <h1 id="hero-title">
-              JACOB
+              JAKE
               <br />
               <span>
                 COSTELLO<span className="name-period">.</span>
@@ -490,15 +490,11 @@ function App() {
             </h2>
             <div className="about-copy">
               <p>
-                I’m Jacob—a computer science graduate from Ohio University, a full-stack developer,
+                I’m Jake—a computer science graduate from Ohio University, a full-stack developer,
                 and the founding engineer at Revision Marine. I like making things that bring
                 engineering and creativity together. There’s a little more to me away from the
                 keyboard, too.
               </p>
-              <a href={revisionMarine.url} className="text-link" target="_blank" rel="noreferrer">
-                Visit Revision Marine <Arrow diagonal />
-              </a>
-              <p className="about-link-note">{revisionMarine.websiteNote}</p>
             </div>
           </div>
           <GolfBallCollection />
@@ -556,7 +552,7 @@ function App() {
         </section>
       </main>
       <footer className="site-footer">
-        <span>© {new Date().getFullYear()} JACOB COSTELLO</span>
+        <span>© {new Date().getFullYear()} JAKE COSTELLO</span>
         <span>BUILT WITH INTENTION. AND A LITTLE PLAY.</span>
         <a href="#">BACK TO TOP ↑</a>
       </footer>

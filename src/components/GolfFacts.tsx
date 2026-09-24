@@ -332,26 +332,6 @@ export default function GolfFacts() {
           Untimed trivia (applies to your next shot)
         </label>
       )}
-      <details className="golf-readable-facts">
-        <summary>
-          {selectedBall === 'striped' ? 'Study all 6 questions' : 'Read all 6 facts'}
-        </summary>
-        <div className="golf-facts-list">
-          {personalFacts.map((fact) => (
-            <article key={fact.id}>
-              <span>{fact.topic}</span>
-              <h4>{fact.title}</h4>
-              {fact.trivia && <p>Answer: {fact.trivia.choices[fact.trivia.correct]}</p>}
-              <p>{fact.text}</p>
-              {fact.trivia && (
-                <a href={fact.trivia.source.url} target="_blank" rel="noreferrer">
-                  {fact.trivia.source.label} ↗
-                </a>
-              )}
-            </article>
-          ))}
-        </div>
-      </details>
       <div className="golf-sr-only" aria-live="polite" aria-atomic="true">
         {phase === 'reading' && !shot.trivia ? `${shot.topic}. ${shot.text}` : ''}
       </div>

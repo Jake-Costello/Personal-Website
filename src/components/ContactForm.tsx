@@ -6,7 +6,7 @@ export default function ContactForm({ endpoint }: { endpoint: string }) {
       action={endpoint}
       method="POST"
       acceptCharset="UTF-8"
-      aria-label="Send Jacob a message"
+      aria-label="Send Jake a message"
       aria-describedby="contact-privacy"
     >
       <div className="contact-fields">

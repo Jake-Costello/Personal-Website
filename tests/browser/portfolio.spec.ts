@@ -73,7 +73,7 @@ test('the portfolio renders without errors or horizontal overflow', async ({ pag
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'JACOB COSTELLO.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'JAKE COSTELLO.' })).toBeVisible();
   await expect(page.getByText('THE PROTEIN PLAYGROUND')).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(

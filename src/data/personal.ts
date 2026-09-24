@@ -77,7 +77,7 @@ function withClubs(stories: BallStory[]): PersonalFact[] {
   return stories.map((story, index) => ({ ...whiteBallFacts[index], ...story }));
 }
 
-// Edit each ball's stories here. Club tooltips, shots, and the readable list all
+// Edit each ball's stories here. Club tooltips and shots both
 // use this collection; the selected ball only changes the stories and ball art.
 export const personalFactsByBall: Record<GolfBallColor, PersonalFact[]> = {
   white: whiteBallFacts,

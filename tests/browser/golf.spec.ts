@@ -87,10 +87,7 @@ test('Revision Marine identifies the engineering role and links to the company',
   const about = page.locator('#about');
   await expect(about).toContainText(/founding engineer/i);
   await expect(page.locator('main')).not.toContainText(/cofound(er|ing)/i);
-  await expect(about.getByRole('link', { name: /Revision Marine/ })).toHaveAttribute(
-    'href',
-    'https://revision-marine.com/',
-  );
+  await expect(about.getByRole('link', { name: /Revision Marine/ })).toHaveCount(0);
   await expect(
     page.locator('#project-revision').getByRole('link', { name: /Revision Marine/ }),
   ).toHaveAttribute('href', 'https://revision-marine.com/');
@@ -205,18 +202,15 @@ test('each unlocked ball brings six distinct stories and the striped selection p
     }
   }, STORAGE_KEY);
   const golf = await openGolf(page);
-  await golf.getByText('Read all 6 facts', { exact: true }).click();
-  const read = golf.locator('.golf-facts-list');
+  await expect(golf.locator('details')).toHaveCount(0);
   const shownStories = new Set<string>();
   for (const color of ['white', 'yellow', 'striped'] as const) {
     const ballName = { white: 'White', yellow: 'Bright yellow', striped: 'Discovery stripes' };
     await page.locator('#about').getByText(ballName[color], { exact: true }).click();
     await expect(golf).toHaveAttribute('data-ball-color', color);
-    await expect(read.locator('article')).toHaveCount(6);
     for (const fact of personalFactsByBall[color]) {
       const club = golf.getByRole('button', { name: `${fact.club} — ${fact.topic}`, exact: true });
       await expect(club).toBeVisible();
-      await expect(read.getByRole('heading', { name: fact.title, exact: true })).toBeVisible();
       await club.click();
       if (fact.trivia) {
         await expect(page.locator('.golf-trivia')).toHaveAttribute('data-result', 'playing');
@@ -325,9 +319,7 @@ test('changing balls while holding a club uses the selected ball story at launch
   await expect(page.locator('.golf-fact-copy')).toHaveText(personalFactsByBall.white[0].text);
 });
 
-test('clubs reveal personal stories with keyboard controls and a readable alternative', async ({
-  page,
-}) => {
+test('clubs reveal personal stories with keyboard controls', async ({ page }) => {
   const golf = await openGolf(page);
   const driver = golf.getByRole('button', { name: clubs[0], exact: true });
   await driver.focus();
@@ -373,21 +365,7 @@ test('clubs reveal personal stories with keyboard controls and a readable altern
     await expect(club).toBeFocused();
   }
 
-  await golf.getByText('Read all 6 facts', { exact: true }).click();
-  const facts = golf.locator('details[open]');
-  for (const topic of [
-    /animation/i,
-    /rock climbing/i,
-    /beach volleyball/i,
-    /draw/i,
-    /two cats/i,
-    /golf/i,
-  ]) {
-    await expect(facts).toContainText(topic);
-  }
-  // A completed animation minor must not be inferred from animation classes.
-  await expect(facts).not.toContainText(/earned.*animation minor|minor in animation/i);
-  await expect(facts.locator('article')).toHaveCount(6);
+  await expect(golf.locator('details')).toHaveCount(0);
 });
 
 test('reduced motion leaves each fact readable until the visitor requests the next shot', async ({
@@ -452,8 +430,9 @@ for (const width of [320, 390]) {
         const club = golf.getByRole('button', { name: label, exact: true });
         await club.scrollIntoViewIfNeeded();
         const bounds = await club.boundingBox();
-        expect(bounds!.width).toBeGreaterThanOrEqual(24);
-        expect(bounds!.height).toBeGreaterThanOrEqual(24);
+        // Transformed SVG targets can differ from 24px by floating-point roundoff.
+        expect(bounds!.width).toBeGreaterThanOrEqual(23.99);
+        expect(bounds!.height).toBeGreaterThanOrEqual(23.99);
         await tapWithSession(club, touchSession);
         await expect(page.locator('.golf-fact-kicker')).toContainText(label.split(' — ')[1]);
         if (label === clubs[0]) {

@@ -10,11 +10,11 @@ This document separates agreed product behavior from implementation choices and 
 
 ## Purpose and audience
 
-Help employers understand Jacob Costello's engineering experience, judgment, and personality through an enjoyable interactive portfolio.
+Help employers understand Jake Costello's engineering experience, judgment, and personality through an enjoyable interactive portfolio.
 
 The current target is the PGA TOUR Forward Deployed Engineer role. Relevant evidence includes translating operational needs into requirements, integrating systems and APIs, deploying reliable workflows, supporting adoption, and demonstrating practical AI. The site should remain useful for other engineering opportunities too.
 
-Success means a visitor can quickly find qualifications and project evidence, explore the career journey, try a working technical demonstration, and contact Jacob.
+Success means a visitor can quickly find qualifications and project evidence, explore the career journey, try a working technical demonstration, and contact Jake.
 
 ## Site structure
 
@@ -28,7 +28,7 @@ Success means a visitor can quickly find qualifications and project evidence, ex
 ## Visual direction
 
 - Use saturated color, oversized typography, strong contrast, and expressive graphics inspired by [The Designers Republic](https://www.thedesignersrepublic.com/).
-- Create original artwork and a consistent identity for Jacob's site.
+- Create original artwork and a consistent identity for Jake's site.
 - Use pixel art for the jetski and its world, with readable text for career stories and project details.
 - Keep information hierarchy and navigation consistent as colors and scenery change.
 - Exact palette, typography, scenery, photographs, and sprite design remain open.
@@ -52,7 +52,7 @@ The reference homepage was visually inspected: bright yellow, large charcoal tex
 
 ### Revision Marine reveal
 
-Near the end of the experience, the rider passes a Revision Marine waterfront workshop and keeps traveling. Reveal Jacob's role as **founding engineer** of a jetski parts company and connect the setting to his real interests and work. This describes his engineering responsibility, not an ownership claim.
+Near the end of the experience, the rider passes a Revision Marine waterfront workshop and keeps traveling. Reveal Jake's role as **founding engineer** of a jetski parts company and connect the setting to his real interests and work. This describes his engineering responsibility, not an ownership claim.
 
 Provide a link to the confirmed company website and a link to the portfolio's Revision Marine case study. The timeline tells the personal story; the case study explains business needs, technical contributions, and implementation decisions. Revision Marine is the penultimate chapter, followed by a forward-looking final chapter and a visible FINISH line. Restart becomes available at the actual end, beyond the store.
 
@@ -77,7 +77,7 @@ The confirmed website is [revision-marine.com](https://revision-marine.com/). On
 
 ## Experience content
 
-Use the supplied resume as the starting source. Each story should explain the problem, Jacob's contribution, and the outcome, with technical details available when useful.
+Use the supplied resume as the starting source. Each story should explain the problem, Jake's contribution, and the outcome, with technical details available when useful.
 
 | Milestone | Confirmed source material |
 | --- | --- |
@@ -95,9 +95,9 @@ Use the supplied resume as the starting source. Each story should explain the pr
 | Revision Marine, alongside career | Founding engineer: website, infrastructure, warehouse software, internal apps, and merchandise design; drive by the waterfront store |
 | Looking forward | Finish the ride with future interests in useful software, working alongside teams, practical AI, and continued learning |
 
-Jacob reconfirmed the supplied resume dates on September 24, 2026: CRT August 2021–January 2022, OU graduation May 2024, and Sherwin-Williams start July 2024. He subsequently clarified the sequence: Cincinnati, return home, CRT internship, then OU. This supersedes the earlier OU-start-in-2021 story. Use “After CRT” for the OU return checkpoint until the start year is confirmed, and avoid a precise semester count at Cincinnati. Do not describe four elapsed years at OU. Dates of individual workplace projects and the Revision Marine founding date are not confirmed.
+Jake reconfirmed the supplied resume dates on September 24, 2026: CRT August 2021–January 2022, OU graduation May 2024, and Sherwin-Williams start July 2024. He subsequently clarified the sequence: Cincinnati, return home, CRT internship, then OU. This supersedes the earlier OU-start-in-2021 story. Use “After CRT” for the OU return checkpoint until the start year is confirmed, and avoid a precise semester count at Cincinnati. Do not describe four elapsed years at OU. Dates of individual workplace projects and the Revision Marine founding date are not confirmed.
 
-Statesville's North Carolina location was checked against the [official city site](https://www.statesvillenc.net/). Workplace details and system capacities are Jacob's supplied content, not independently measured outcomes.
+Statesville's North Carolina location was checked against the [official city site](https://www.statesvillenc.net/). Workplace details and system capacities are Jake's supplied content, not independently measured outcomes.
 
 Do not invent dates for individual projects within the current job, personal milestones, or results. Describe order throughput as system scale; do not turn it into an unmeasured efficiency gain. Use public-safe descriptions and original explanatory diagrams for employer work.
 
@@ -105,14 +105,14 @@ The original community-detection coursework may be referenced accurately as back
 
 ## Featured project case studies
 
-Each case study should explain the need, Jacob's role, implementation choices, integrations, validation, current status, and results. Include screenshots or demonstrations and source links where available. Clearly distinguish completed features from future work.
+Each case study should explain the need, Jake's role, implementation choices, integrations, validation, current status, and results. Include screenshots or demonstrations and source links where available. Clearly distinguish completed features from future work.
 
 ### Revision Marine
 
-- Explain the founding engineer role and the business needs behind the storefront and internal systems. Jacob confirmed building the entire technology stack and taking responsibility for the website, infrastructure, warehousing system, internal apps, and merchandise design. Avoid claiming company ownership.
+- Explain the founding engineer role and the business needs behind the storefront and internal systems. Jake confirmed building the entire technology stack and taking responsibility for the website, infrastructure, warehousing system, internal apps, and merchandise design. Avoid claiming company ownership.
 - Show the relevant commerce data flow and selected engineering decisions.
 - A read-only review found a separate Next.js storefront and Medusa backend, including a product page connected to Medusa and cart-related components.
-- Link the confirmed website from the project, timeline, and about section. Identify its current private-preview status. Specific technical contributions are user-confirmed; public checkout/warehouse functionality has not been evaluated here.
+- Link the confirmed website from the project and timeline. Identify its current private-preview status. Specific technical contributions are user-confirmed; public checkout/warehouse functionality has not been evaluated here.
 - Work in this portfolio repository does not authorize changes to the separate Revision Marine repository.
 
 ### Multifunctional payphone (timeline only)
@@ -127,22 +127,22 @@ The senior-project story remains in the college journey with Python, Asterisk/SI
 
 ## Off the clock: the personal golf bag
 
-The about section introduces Jacob as a developer, founding engineer, and creative person. Its desktop layout places the heading and short biography on the left, a slim golf-ball collection in the middle, and a separate golf interaction on the right. Keep the section unboxed, with room between the biography and golfer, compact top padding, and the unused space above the drawing removed. Stack these on small screens, with the balls in a horizontal row.
+The about section introduces Jake as a developer, founding engineer, and creative person. Its desktop layout places the heading and short biography on the left, a slim golf-ball collection in the middle, and a separate golf interaction on the right. Keep the section unboxed, with room between the biography and golfer, compact top padding, and the unused space above the drawing removed. Stack these on small screens, with the balls in a horizontal row.
 
 - Show only a small circular grass tee, two markers, the golfer, and a bag to his right near the grass edge. Remove the course backdrop, dashboard framing, and club selection panel.
-- The pixel character wears a black hat, blue shirt with white flowers, black pants, and tan shoes, with a light skin tone, a small brown mustache, and compact brown/blond curls beneath the cap that cover most of the ears without extending below them in profile. Jacob is right-handed; use his requested mirrored stance and swing, with the ball traveling toward the screen. Mirror the tee and impact with the golfer and align the flight origin with the mirrored ball.
+- The pixel character wears a black hat, blue shirt with white flowers, black pants, and tan shoes, with a light skin tone, a small brown mustache, and compact brown/blond curls beneath the cap that cover most of the ears without extending below them in profile. Jake is right-handed; use his requested mirrored stance and swing, with the ball traveling toward the screen. Mirror the tee and impact with the golfer and align the flight origin with the mirrored ball.
 - Show the golfer's side profile at address with a slightly taller, more upright posture: keep a gentle hip hinge and knee flex, head looking down, and hands below the near shoulder with an angled shaft reaching the ball. Keep the shoes and ball contact fixed as height is added through the body. Animate a continuous inclined arc through address, takeaway, wrist hinge, top, delivery, contact, extension, and follow-through. Compute the hand and club paths together in three dimensions so the club keeps its length as it moves around the body; project them into the existing pixel artwork. Turn the shoulders, shirt, arms, and hips together: reveal more of the shirt back and shoulder yoke at the top, then unwind the hips ahead of the chest on delivery. Add slight knee movement while both feet stay planted through contact; begin the heel rise and shoe turn only in follow-through. Keep the head steady through contact, then finish tall with the chest facing the target, the club wrapped behind the shoulders, and the trail heel raised over a planted toe. Launch the ball at contact before settling into the finish.
 - Clubs stand upright in the bag with parallel shafts and staggered head heights. Use rounded driver/wood heads, compact angled silver irons, and a thin blade putter. Keep head proportions fixed as the shafts change length; use the visible heads as the controls without fanning the shafts apart.
 - Use the same club-head artwork for the bag, dragged club, and held club, including the idle pose after a shot. The takeaway moves away and around the body before rising. Let the wrists hinge as the hands rise above the trail shoulder, retain the hinge in early delivery, and release it through contact. Hide only the portions of arms, hands, and shaft that actually pass behind the opaque torso, neck, or head; do not force the hands inside the shirt to conceal them. The clubface turns with the swing and is square toward the camera-facing target at contact. Finish with visible hands at the upper right and the shaft wrapping behind the head. After a 90 ms address pause, use 540 ms for the backswing and 270 ms for the forward swing to contact (2:1 rhythm). Keep the gloved lead left hand nearer the grip butt and the bare trail right hand below it toward the clubhead; draw the lead arm in front where the arms overlap. Build shoulder caps that merge into the shirt, with the near lead shoulder inside the torso line and relaxed arms converging toward the grip at setup, with the elbow points on the torso side of the shoulder-to-grip line and the inner elbows opening upward, avoiding an outward bow. Fold the finishing elbows beside the head to keep the face visible. Draw the trouser leg contours directly from the tucked hem without a separate waist patch. Preserve the approved finish shape above the waist, including the face, arms, shoulder positions, and shirt boundary; lift that complete pose together to match the slightly taller body. Open the lead hip through the trouser panels and a slight turnout of the flat leading shoe. Extend the trailing leg diagonally toward its toe with enough shin length between knee and raised ankle; let the trailing foot settle closer to the ground during follow-through and finish on its toe with the sole facing the viewer. Connect each trouser cuff to its shoe ankle.
 - Swing references: the supplied multi-angle pose sheets, [PGA First Swing guide](https://pdf.pgalinks.com/p-g-a/FS_Golfers_Guide_1.pdf), [TPI kinematic sequence](https://www.mytpi.com/articles/biomechanics/kinematic-sequence-revisited), and [Trackman swing plane](https://www.trackman.com/blog/what-is-swing-plane). This remains a stylized animation, not a measured biomechanics simulation. The supplied stock illustrations are reference material only and are not site assets.
 - The putter shot reveals “Are You Crazy??? Putter off the Tee???” with a short playful response.
-- Offer white, bright yellow earned by beating the jetski time trial, and a white ball with blue/red/blue alignment stripes earned by inspecting experimental structures for two distinct human proteins. Keep the current ball selected until the visitor explicitly chooses a reward. Apply the selected appearance to both the tee and flying ball, retaining dimples and clear text. White and yellow each have a different six-story collection based on user-confirmed facts; striped uses six trivia questions. Club hints and the readable alternative follow the selected collection; active shots retain their launch story and appearance.
+- Offer white, bright yellow earned by beating the jetski time trial, and a white ball with blue/red/blue alignment stripes earned by inspecting experimental structures for two distinct human proteins. Keep the current ball selected until the visitor explicitly chooses a reward. Apply the selected appearance to both the tee and flying ball, retaining dimples and clear text. White and yellow each have a different six-story collection based on user-confirmed facts; striped uses six trivia questions. Club hints follow the selected collection; active shots retain their launch story and appearance.
 - Show a dismissible popup once for each newly earned ball, with **Use this ball** and **Keep exploring**. Show an additional congratulatory line when both challenge balls are collected. Persist acknowledgements across visits and preserve earlier yellow unlocks without replaying historical notifications. Keep story and achievement wording in editable data files; see `docs/GOLF-CONTENT.md`.
-- Striped-ball content now uses six sourced bioinformatics multiple-choice questions instead of personal stories. Give seven seconds from question appearance, accept one answer, reject late answers, and show the correct answer with an explanation/source after answering or timing out. Keep results until **Next shot**. Pause the clock in hidden tabs; provide an untimed option before launch and a readable study list. Preserve white/yellow personal stories and the approved golf animation.
+- Striped-ball content now uses six sourced bioinformatics multiple-choice questions instead of personal stories. Give seven seconds from question appearance, accept one answer, reject late answers, and show the correct answer with an explanation/source after answering or timing out. Keep results until **Next shot**. Pause the clock in hidden tabs; provide an untimed option before launch. Preserve white/yellow personal stories and the approved golf animation.
 - The structure challenge requires explicit inspection and successful live RCSB verification of an experimental entry and matching human protein entity. Count distinct protein symbols, including different entities in one PDB entry; repeated inspection does not advance progress. Predicted structures, errors, and responses abandoned after changing proteins do not count. No new paid service is needed. An embedded molecular viewer remains future work.
 - Highlight the actual clubs in the bag on hover/focus; dragging a club to the golfer starts the swing. Clicking, tapping, or keyboard activation provides an equivalent action. Use minimal instructions and keep ordinary scrolling available outside club handles.
 - The ball flies from the tee out of the local artwork to the center of the viewport. Its classic white surface has recessed dimples, and its large readable face reveals the chosen fact for seven seconds before falling and fading away. Provide **Keep reading**, **Next shot**, and Escape dismissal; text and controls remain visible on small screens.
-- Reduced motion skips the approach/fall and keeps the fact available until dismissed. A readable list exposes every story without playing.
+- Reduced motion skips the approach/fall and keeps the fact available until dismissed. Activate any club by keyboard or tap to read its story.
 - Start with six user-confirmed subjects: originally pursuing animation before choosing computer science, rock climbing, beach volleyball, drawing, golf, and a putter joke. The animation story may mention skills learned at school, but must not imply a completed animation minor.
 - Keep facts and their club mapping in `src/data/personal.ts` so new stories can be added without editing animation code. Do not invent cat names, hobby skill levels, travel details, or dates.
 
