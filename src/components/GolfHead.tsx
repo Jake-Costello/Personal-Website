@@ -8,7 +8,7 @@ const ink = '#18201e';
 const skin = '#f0cfb7';
 const hair = '#51382a';
 const frontCurls = 'M-18-7h-5v4h-2v5h4v5h4V4h3V-4h-4zM15-7h5v4h3v5h-3v5h-4V4h-3V-4h2z';
-const profileCurls = 'M-16-12h-5v4h-3v6h3v5h-3v6h4v5h6v-4h4V-8h-2z';
+const profileCurls = 'M-18-9h10v3h5v8h-3v5h-3v2h-7V6h-3V2h-2V-5h3z';
 const frontFace = 'M-16-12h31v9h5v14h-5v11h-7v5H-8v-5h-7V11h-5V-3h4z';
 const profileFace = 'M-10-17h22v5h8V1h5v6h-6v12h-9v7H-2v-5h-9V9h-6V-8h7z';
 const frontHat = 'M-12-25h23v4h7v10h4v10h-43v-10h3v-9h6z';
@@ -48,14 +48,16 @@ export default function GolfHead({ head: [x, y], face, tilt }: GolfHeadProps) {
         </>
       ) : (
         <>
-          <path d={profileCurls} fill={ink} />
-          <path d="M-18-9h-3v3h-1v3h3v5h-2v5h4v3h3V6h2V-7h-3z" fill={hair} />
-          <path d="M-20-5h2v2h-2zm1 9h2v2h-2z" fill="#79543c" />
           <path d={profileFace} fill={ink} />
           <path d="M-8-11H8v5h8V4h5v2h-6v11H6v5H0v-6h-9V6h-5V-4h6z" fill={skin} />
           <path d="M-11-3h7V9h-7zm6 15h8v6h-8z" fill="#d8ac91" />
           <path d="M-9 0h3v5h-3z" fill="#bb876e" />
-          <path d="M-4-8h9v4H2v3h-4v-2h-3z" fill={hair} />
+          {/* A short band of curls wraps the head and covers most of the ear. */}
+          <path d={profileCurls} fill={ink} />
+          <path d="M-17-7h7v3h5v5h-3v5h-3v2h-4V4h-3V0h-1v-4h2z" fill="#896140" />
+          <path d="M-16-4h4v2h-2v2h-2zm5 4h4v2h-2v2h-2z" fill="#bd945f" />
+          <path d="M-15 3h3v2h-3zm4-7h2v2h-2z" fill="#62462f" />
+          <path d="M-4-8h9v4H2v3h-4v-2h-3z" fill="#896140" />
           <path d="M9 1h4v3H9z" fill={ink} />
           {face === 'quarter' && <path d="M-1 1h3v3h-3z" fill={ink} />}
           <path d="M11 14h6v2h-6z" fill="#ab745d" />

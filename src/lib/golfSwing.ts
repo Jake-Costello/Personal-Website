@@ -156,6 +156,17 @@ export function armChain(
     : mix([0.1, 0.1, -1], [-1, 1, -0.3], finish);
   const bend = unit(add(bias, scale(axis, -dot(bias, axis))));
   const halfLength = trail ? 38 : 41;
-  const height = Math.sqrt(Math.max(0, halfLength * halfLength - (distance * distance) / 4));
-  return [shoulder, add(mix(shoulder, grip, 0.5), scale(bend, height)), grip];
+  // Let the hanging elbows settle slightly lower without changing the grip,
+  // bend direction, or total arm length. Ease back to equal bones as they rise.
+  const settle = 1.5 * hanging * (1 - finish);
+  const fraction = 0.5 + (settle === 0 ? 0 : (2 * halfLength * settle) / (distance * distance));
+  const height = Math.sqrt(
+    Math.max(
+      0,
+      settle === 0
+        ? halfLength * halfLength - (distance * distance) / 4
+        : (halfLength + settle) ** 2 - (distance * fraction) ** 2,
+    ),
+  );
+  return [shoulder, add(mix(shoulder, grip, fraction), scale(bend, height)), grip];
 }
