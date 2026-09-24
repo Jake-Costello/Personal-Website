@@ -142,7 +142,9 @@ export function armChain(
   const offset = add(grip, scale(shoulder, -1));
   const distance = Math.hypot(...offset);
   const axis = unit(offset);
-  const bias: GolfPoint = trail ? [-0.25, 0.7, 1 - 2 * finish] : [0.1, 0.1, 1 - 2 * finish];
+  // The near/lead elbow bends toward the camera at address; bending it away
+  // made the exposed arm disappear under the torso just below its sleeve.
+  const bias: GolfPoint = trail ? [-0.25, 0.7, 1 - 2 * finish] : [0.1, 0.1, -1];
   const bend = unit(add(bias, scale(axis, -dot(bias, axis))));
   const halfLength = trail ? 38 : 41;
   const height = Math.sqrt(Math.max(0, halfLength * halfLength - (distance * distance) / 4));

@@ -1,5 +1,6 @@
 import { useId, useLayoutEffect, useState } from 'react';
 import { ClubHead, GOLF_CLUB_HOSEL } from './GolfClub';
+import GolfTrailingFoot, { trailingFootAnkle } from './GolfTrailingFoot';
 import {
   armChain,
   add,
@@ -45,7 +46,7 @@ const poses: Record<'address' | 'backswing' | 'impact' | 'followthrough', BodyPo
       [259, 290],
       [229, 287],
     ],
-    leadShoulder: [279, 251],
+    leadShoulder: [277, 244],
     trailShoulder: [265, 245],
     leadLeg: [
       [235, 291],
@@ -69,7 +70,7 @@ const poses: Record<'address' | 'backswing' | 'impact' | 'followthrough', BodyPo
       [258, 290],
       [227, 287],
     ],
-    leadShoulder: [277, 251],
+    leadShoulder: [275, 244],
     trailShoulder: [246, 248],
     leadLeg: [
       [235, 291],
@@ -93,7 +94,7 @@ const poses: Record<'address' | 'backswing' | 'impact' | 'followthrough', BodyPo
       [268, 291],
       [239, 291],
     ],
-    leadShoulder: [282, 251],
+    leadShoulder: [280, 246],
     trailShoulder: [264, 245],
     leadLeg: [
       [244, 293],
@@ -131,7 +132,7 @@ const poses: Record<'address' | 'backswing' | 'impact' | 'followthrough', BodyPo
       [258, 347],
     ],
     heel: 48,
-    footTurn: 0.65,
+    footTurn: 1,
   },
 };
 
@@ -162,28 +163,9 @@ function Flower({ x, y }: { x: number; y: number }) {
     </g>
   );
 }
-function shoeAnkle(x: number, y: number, angle: number, turn: number): Point {
-  const radians = (angle * Math.PI) / 180;
-  return [
-    x + 30 + (1 - 0.35 * turn) * (-20 * Math.cos(radians) + 11 * Math.sin(radians)),
-    y + 13 - 20 * Math.sin(radians) - 11 * Math.cos(radians),
-  ];
-}
-function Shoe({
-  x,
-  y,
-  angle = 0,
-  turn = 0,
-}: {
-  x: number;
-  y: number;
-  angle?: number;
-  turn?: number;
-}) {
+function Shoe({ x, y }: { x: number; y: number }) {
   return (
-    <g
-      transform={`translate(${x + 30} ${y + 13}) scale(${1 - 0.35 * turn} 1) rotate(${angle}) translate(-30 -13)`}
-    >
+    <g transform={`translate(${x} ${y})`}>
       <path d="M0 0h18v4h11v4h5v8H-3V5h3z" fill={ink} />
       <path d="M3 3h12v5h13v3h3v2H0V7h3z" fill="#c6a078" />
       <path d="M3 3h12v3H3zm11 5h11v2H14z" fill="#e2c59b" />
@@ -241,11 +223,14 @@ function sleeveOutline(arm: Chain): readonly Point[] {
   const length = Math.hypot(dx, dy) || 1;
   const nx = -dy / length;
   const ny = dx / length;
+  // Carry the sleeve into the shoulder instead of attaching a short band below
+  // it. Its cap overlaps the shirt; only the outer sides and cuff are outlined.
+  const cap: Point = [shoulder[0] - (dx / length) * 7, shoulder[1] - (dy / length) * 7];
   return [
-    [shoulder[0] + nx * 9, shoulder[1] + ny * 9],
-    [cuff[0] + nx * 8, cuff[1] + ny * 8],
-    [cuff[0] - nx * 8, cuff[1] - ny * 8],
-    [shoulder[0] - nx * 9, shoulder[1] - ny * 9],
+    [cap[0] + nx * 8, cap[1] + ny * 8],
+    [cuff[0] + nx * 7, cuff[1] + ny * 7],
+    [cuff[0] - nx * 7, cuff[1] - ny * 7],
+    [cap[0] - nx * 8, cap[1] - ny * 8],
   ];
 }
 function Sleeve({ arm, color }: { arm: Chain; color: string }) {
@@ -258,15 +243,43 @@ function Sleeve({ arm, color }: { arm: Chain; color: string }) {
     </g>
   );
 }
-function waistband({ shirt, leadLeg, trailLeg }: Skeleton): readonly Point[] {
+function trouserPanels({ shirt, leadLeg, trailLeg }: Skeleton) {
   const [, , right, left] = shirt;
-  return [
-    [left[0] - 1, left[1] - 4],
-    [right[0] + 1, right[1] - 4],
-    [trailLeg[0][0] + 9, trailLeg[0][1] + 18],
-    [(leadLeg[0][0] + trailLeg[0][0]) / 2, Math.max(leadLeg[0][1], trailLeg[0][1]) + 16],
-    [leadLeg[0][0] - 11, leadLeg[0][1] + 18],
+  const waist: Point = [(left[0] + right[0]) / 2, (left[1] + right[1]) / 2];
+  const crotch: Point = [waist[0] + 3, Math.max(left[1], right[1]) + 23];
+  const trail: readonly Point[] = [
+    waist,
+    right,
+    [trailLeg[1][0] + 8, trailLeg[1][1]],
+    [trailLeg[2][0] + 7, trailLeg[2][1] + 2],
+    [trailLeg[2][0] - 7, trailLeg[2][1] + 2],
+    [trailLeg[1][0] - 7, trailLeg[1][1]],
+    crotch,
   ];
+  const lead: readonly Point[] = [
+    left,
+    [waist[0] + 4, waist[1]],
+    crotch,
+    [leadLeg[1][0] + 10, leadLeg[1][1]],
+    [leadLeg[2][0] + 10, leadLeg[2][1] + 2],
+    [leadLeg[2][0] - 10, leadLeg[2][1] + 2],
+    [leadLeg[1][0] - 10, leadLeg[1][1]],
+  ];
+  return { lead, trail };
+}
+function Trousers({ skeleton, mask = false }: { skeleton: Skeleton; mask?: boolean }) {
+  const { lead, trail } = trouserPanels(skeleton);
+  return (
+    <g
+      className={mask ? undefined : 'golf-golfer-trousers'}
+      stroke={mask ? 'black' : ink}
+      strokeWidth={4}
+      strokeLinejoin="bevel"
+    >
+      <polygon points={vertices(trail)} fill={mask ? 'black' : '#313934'} />
+      <polygon points={vertices(lead)} fill={mask ? 'black' : '#202825'} />
+    </g>
+  );
 }
 function Torso({ shirt, leadArm, trailArm }: Skeleton) {
   const [left, right, bottomRight, bottomLeft] = shirt;
@@ -411,8 +424,6 @@ function BodyMask({ skeleton, id }: { skeleton: Skeleton; id: string }) {
     tilt,
     face,
     shirt,
-    leadLeg,
-    trailLeg,
     leadArm,
     trailArm,
   } = skeleton;
@@ -429,9 +440,7 @@ function BodyMask({ skeleton, id }: { skeleton: Skeleton; id: string }) {
           strokeWidth="15"
           strokeLinecap="square"
         />
-        <polyline points={vertices(leadLeg)} fill="none" strokeWidth="26" />
-        <polyline points={vertices(trailLeg)} fill="none" strokeWidth="22" />
-        <polygon points={vertices(waistband(skeleton))} stroke="none" />
+        <Trousers skeleton={skeleton} mask />
         <polygon points={vertices(shirt)} strokeWidth="6" />
         {[trailArm, leadArm].map((arm, index) => (
           <g key={index}>
@@ -540,11 +549,7 @@ export function GolferFrame({
   body.trailLeg = hips.trailLeg;
   body.heel = timeMs > 630 ? 15 * Math.min(1, (timeMs - 630) / 270) : 0;
   if (timeMs > 900) body = interpolateBody(poses.impact, poses.followthrough, rig.finish);
-  body.trailLeg = [
-    body.trailLeg[0],
-    body.trailLeg[1],
-    shoeAnkle(248, 345, body.heel, body.footTurn),
-  ];
+  body.trailLeg = [body.trailLeg[0], body.trailLeg[1], trailingFootAnkle(body.heel, body.footTurn)];
   // A conventional right-handed grip: left/gloved hand nearer the butt,
   // right/bare hand below it toward the head, both carried by the same shaft.
   const leadGrip = add(rig.grip, scale(rig.direction, -4.5));
@@ -556,7 +561,7 @@ export function GolferFrame({
     leadArm: lead.map(projected) as unknown as Chain,
     trailArm: trail.map(projected) as unknown as Chain,
   };
-  const { head, shirt, leadLeg, trailLeg, heel, footTurn } = skeleton;
+  const { head, shirt, heel, footTurn } = skeleton;
   const arm = (points: readonly GolfPoint[], leading: boolean) => (
     <g className={`golf-golfer-arm--${leading ? 'lead' : 'trail'}`}>
       {[false, true].map((front) => (
@@ -593,15 +598,9 @@ export function GolferFrame({
           </g>
         </mask>
       </defs>
-      <Limb points={trailLeg} color="#313934" width={17} />
-      <Shoe x={248} y={345} angle={heel} turn={footTurn} />
-      <Limb points={leadLeg} color="#202825" width={21} />
+      <Trousers skeleton={skeleton} />
+      <GolfTrailingFoot heel={heel} turn={footTurn} />
       <Shoe x={228} y={364} />
-      <polygon
-        className="golf-golfer-waist"
-        points={vertices(waistband(skeleton))}
-        fill="#202825"
-      />
       <Limb
         points={[
           [head[0] - 3, head[1] + 19],
