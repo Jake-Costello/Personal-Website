@@ -5,15 +5,28 @@ import { advanceRide, idleInput, initialRide, MAX_SPEED } from '../game/model';
 import type { RideInput, RideState } from '../game/model';
 import { buildJourneyRoute, getJourneyFrame } from '../game/route';
 import { changeRideSpeed, DEFAULT_RIDE_SPEED, emptySpeedTaps, trackSpeedTap } from '../game/speed';
+import {
+  advanceTrial,
+  buildTrialCourse,
+  initialTrial,
+  qualifiesForTrialReward,
+  trialScore,
+  TRIAL_SPEED,
+} from '../game/trial';
+import { markStoryFinished, recordTrialResult, useAchievements } from '../lib/achievements';
 import ClevelandSkyline from './ClevelandSkyline';
 import JetskiSprite from './JetskiSprite';
 import { JetskiSplash } from './JetskiWater';
 import JourneyStory from './JourneyStory';
 import JourneyProgress from './JourneyProgress';
 import JourneyControls from './JourneyControls';
+import TrialObstacles from './TrialObstacles';
+import TrialHud from './TrialHud';
 import './jetski.css';
+import './trial.css';
 
 const route = buildJourneyRoute(experience, MAX_SPEED);
+const trialCourse = buildTrialCourse(route, experience);
 const lifeStageLabels = {
   'high-school': 'High school',
   college: 'College',
@@ -21,6 +34,7 @@ const lifeStageLabels = {
 };
 
 type Control = keyof RideInput;
+type TrialPhase = 'ready' | 'running' | 'paused' | 'finished';
 
 function Dock({ x, waterline, scale }: { x: number; waterline: number; scale: number }) {
   return (
@@ -105,12 +119,16 @@ function Scene({
   height,
   reduced,
   blimpStartedAt,
+  racing,
+  lastHit,
 }: {
   state: RideState;
   width: number;
   height: number;
   reduced: boolean;
   blimpStartedAt: number | null;
+  racing: boolean;
+  lastHit: string | null;
 }) {
   const waterline = height - 155;
   const progress = state.position / route.length;
@@ -181,6 +199,16 @@ function Scene({
       </g>
       {revisionStop && <Dock x={dockX} waterline={waterline + 52} scale={dockScale} />}
       <FinishLine x={finishX} waterline={waterline + 24} scale={width < 560 ? 0.8 : 1.15} />
+      {racing && (
+        <TrialObstacles
+          obstacles={trialCourse.obstacles}
+          position={state.position}
+          width={width}
+          height={height}
+          reduced={reduced}
+          lastHit={lastHit}
+        />
+      )}
       <ellipse
         cx={boatX}
         cy={waterline + 111}
@@ -195,6 +223,7 @@ function Scene({
         y={waterline + 86}
         reduced={reduced}
         scale={width < 560 ? 1.65 : 2.3}
+        fullJumpHeight={racing}
       />
       <JetskiSplash
         state={state}
@@ -208,6 +237,11 @@ function Scene({
 }
 
 export default function JetskiJourney() {
+  const achievements = useAchievements();
+  const [mode, setMode] = useState<'story' | 'trial'>('story');
+  const [trialPhase, setTrialPhase] = useState<TrialPhase>('ready');
+  const [trial, setTrial] = useState(initialTrial);
+  const trialSimulation = useRef(initialTrial());
   const [ride, setRide] = useState(initialRide);
   const [speed, setSpeed] = useState<number>(DEFAULT_RIDE_SPEED);
   const speedRef = useRef<number>(DEFAULT_RIDE_SPEED);
@@ -233,6 +267,23 @@ export default function JetskiJourney() {
   const journeyFrame = getJourneyFrame(route, ride.position);
   const chapterIndex = journeyFrame.index;
   const atDestination = ride.position >= route.length - 1;
+
+  useEffect(() => {
+    if (mode === 'story' && atDestination) markStoryFinished();
+  }, [mode, atDestination]);
+
+  useEffect(() => {
+    if (mode === 'trial' && trialPhase === 'finished') {
+      recordTrialResult(
+        trialScore(trialSimulation.current),
+        qualifiesForTrialReward(trialSimulation.current, trialCourse),
+      );
+    }
+  }, [mode, trialPhase]);
+
+  useEffect(() => {
+    if (!visible && mode === 'trial' && trialPhase === 'running') setTrialPhase('paused');
+  }, [visible, mode, trialPhase]);
 
   useEffect(() => {
     if (blimpStartedAt === null && ride.position / route.length >= 0.84) {
@@ -282,20 +333,47 @@ export default function JetskiJourney() {
   }, [overview]);
 
   useEffect(() => {
-    if (!visible || overview) return;
+    if (!visible || overview || (mode === 'trial' && trialPhase !== 'running')) return;
     let frame: number;
     let previous = 0;
     let lastPaint = 0;
     function animate(now: number) {
       const dt = previous ? (now - previous) / 1000 : 0;
       previous = now;
-      simulation.current = advanceRide(
-        simulation.current,
-        input.current,
-        dt,
-        route.length,
-        speedRef.current,
-      );
+      if (mode === 'trial') {
+        // Use the same fixed physics steps at every refresh rate. Hidden or
+        // unfocused races pause explicitly rather than running off-screen.
+        let remaining = dt;
+        while (remaining > 0 && !trialSimulation.current.finished) {
+          const step = Math.min(remaining, 1 / 60);
+          const before = simulation.current;
+          simulation.current = advanceRide(
+            before,
+            { ...input.current, right: true, left: false },
+            step,
+            route.length,
+            TRIAL_SPEED,
+          );
+          trialSimulation.current = advanceTrial(
+            trialSimulation.current,
+            before,
+            simulation.current,
+            step,
+            trialCourse,
+            route.length,
+          );
+          input.current.jump = false;
+          remaining -= step;
+        }
+      } else {
+        simulation.current = advanceRide(
+          simulation.current,
+          input.current,
+          dt,
+          route.length,
+          speedRef.current,
+        );
+      }
       input.current.jump = false;
       if (now - lastPaint > 1000 / 30) {
         const next = simulation.current;
@@ -307,6 +385,14 @@ export default function JetskiJourney() {
             : current,
         );
         lastPaint = now;
+        if (mode === 'trial') setTrial(trialSimulation.current);
+      }
+      if (mode === 'trial' && trialSimulation.current.finished) {
+        input.current = idleInput();
+        setRide(simulation.current);
+        setTrial(trialSimulation.current);
+        setTrialPhase('finished');
+        return;
       }
       frame = requestAnimationFrame(animate);
     }
@@ -314,6 +400,7 @@ export default function JetskiJourney() {
     function stop() {
       input.current = idleInput();
       speedTaps.current = emptySpeedTaps();
+      if (mode === 'trial') setTrialPhase('paused');
     }
     window.addEventListener('blur', stop);
     document.addEventListener('visibilitychange', stop);
@@ -325,9 +412,15 @@ export default function JetskiJourney() {
       window.removeEventListener('blur', stop);
       document.removeEventListener('visibilitychange', stop);
     };
-  }, [visible, overview]);
+  }, [visible, overview, mode, trialPhase]);
 
   function setInput(key: Control, active: boolean, cancelled = false) {
+    if (mode === 'trial') {
+      if (trialPhase !== 'running' || key === 'left' || key === 'right') return;
+      if (key === 'jump' && !active) return;
+      input.current[key] = active;
+      return;
+    }
     if (cancelled) speedTaps.current = emptySpeedTaps();
     // Queue a jump until the next simulation frame, even for a very quick tap.
     if (key === 'jump' && !active) return;
@@ -361,7 +454,48 @@ export default function JetskiJourney() {
   }
 
   function navigate(index: number) {
+    if (mode === 'trial') return;
     resetRide(index === experience.length - 1 ? route.length : route.stops[index].start);
+  }
+
+  function startOver() {
+    setMode('story');
+    setBlimpStartedAt(null);
+    speedRef.current = DEFAULT_RIDE_SPEED;
+    setSpeed(DEFAULT_RIDE_SPEED);
+    resetRide(0);
+    stage.current?.focus({ preventScroll: true });
+  }
+
+  function prepareTrial() {
+    if (!achievements.storyFinished && !atDestination) return;
+    setOverview(false);
+    setMode('trial');
+    setTrialPhase('ready');
+    setBlimpStartedAt(null);
+    const fresh = initialTrial();
+    trialSimulation.current = fresh;
+    setTrial(fresh);
+    speedRef.current = TRIAL_SPEED;
+    setSpeed(TRIAL_SPEED);
+    resetRide(0);
+    stage.current?.focus({ preventScroll: true });
+  }
+
+  function resumeTrial() {
+    input.current = idleInput();
+    setTrialPhase('running');
+    stage.current?.focus({ preventScroll: true });
+  }
+
+  function exitTrial() {
+    setMode('story');
+    setTrialPhase('ready');
+    speedRef.current = DEFAULT_RIDE_SPEED;
+    setSpeed(DEFAULT_RIDE_SPEED);
+    resetRide(route.length);
+    if (document.fullscreenElement === journey.current) void document.exitFullscreen();
+    stage.current?.focus({ preventScroll: true });
   }
 
   function handleKeys(event: KeyboardEvent<HTMLDivElement>, active: boolean) {
@@ -384,12 +518,23 @@ export default function JetskiJourney() {
   }
 
   return (
-    <div className="journey" ref={journey} data-speed={speed}>
+    <div
+      className="journey"
+      ref={journey}
+      data-speed={speed}
+      data-mode={mode}
+      data-trial-phase={mode === 'trial' ? trialPhase : undefined}
+    >
       <div className="journey-topline">
         <span className="journey-mini-label">
           <span className="journey-status-dot" /> LAKE ERIE / A FEW STOPS ALONG THE WAY
         </span>
         <div className="journey-view-actions">
+          {mode === 'story' && achievements.storyFinished && !atDestination && !overview && (
+            <button className="journey-view-toggle" type="button" onClick={prepareTrial}>
+              Time trial ↗
+            </button>
+          )}
           {fullscreenAvailable && (
             <button
               className="journey-view-toggle"
@@ -401,19 +546,21 @@ export default function JetskiJourney() {
               {fullscreen ? 'Exit full screen ↙' : 'Full screen ↗'}
             </button>
           )}
-          <button
-            className="journey-view-toggle"
-            type="button"
-            aria-pressed={overview}
-            onClick={() => {
-              input.current = idleInput();
-              speedTaps.current = emptySpeedTaps();
-              simulation.current = { ...simulation.current, velocity: 0 };
-              setOverview(!overview);
-            }}
-          >
-            {overview ? '↳ Back to the ride' : 'Read as a timeline ↗'}
-          </button>
+          {mode === 'story' && (
+            <button
+              className="journey-view-toggle"
+              type="button"
+              aria-pressed={overview}
+              onClick={() => {
+                input.current = idleInput();
+                speedTaps.current = emptySpeedTaps();
+                simulation.current = { ...simulation.current, velocity: 0 };
+                setOverview(!overview);
+              }}
+            >
+              {overview ? '↳ Back to the ride' : 'Read as a timeline ↗'}
+            </button>
+          )}
         </div>
       </div>
       {fullscreenError && (
@@ -429,14 +576,21 @@ export default function JetskiJourney() {
             position={ride.position}
             chapters={experience}
             onNavigate={navigate}
+            disabled={mode === 'trial'}
           />
           <div
-            className="journey-stage"
+            className={`journey-stage${mode === 'trial' ? ' journey-stage--trial' : ''}`}
             ref={stage}
             tabIndex={0}
             role="group"
-            aria-label="Playable jetski experience. Use left and right arrows to ride between chapters."
-            aria-describedby={instructionsId}
+            aria-label={
+              mode === 'trial'
+                ? 'Jetski time trial. Use down to pump and up to jump over obstacles.'
+                : 'Playable jetski experience. Use left and right arrows to ride between chapters.'
+            }
+            aria-describedby={
+              mode === 'story' || trialPhase === 'running' ? instructionsId : undefined
+            }
             onKeyDown={(event) => handleKeys(event, true)}
             onKeyUp={(event) => handleKeys(event, false)}
             onBlur={(event) => {
@@ -448,6 +602,7 @@ export default function JetskiJourney() {
               ) {
                 input.current = idleInput();
                 speedTaps.current = emptySpeedTaps();
+                if (mode === 'trial' && trialPhase === 'running') setTrialPhase('paused');
               }
             }}
             onPointerDown={(event) => {
@@ -461,16 +616,39 @@ export default function JetskiJourney() {
               height={size.height}
               reduced={reduced}
               blimpStartedAt={blimpStartedAt}
+              racing={mode === 'trial'}
+              lastHit={trial.lastHitAge < 0.7 ? trial.lastHit : null}
             />
-            <JourneyStory
-              frame={journeyFrame}
-              visible={visible}
-              reduced={reduced}
-              speed={speed}
-              onFollowLink={() => {
-                if (document.fullscreenElement === journey.current) void document.exitFullscreen();
-              }}
-            />
+            {mode === 'story' ? (
+              <JourneyStory
+                frame={journeyFrame}
+                visible={visible}
+                reduced={reduced}
+                speed={speed}
+                onFollowLink={() => {
+                  if (document.fullscreenElement === journey.current)
+                    void document.exitFullscreen();
+                }}
+              />
+            ) : (
+              <TrialHud
+                phase={trialPhase}
+                elapsed={trial.elapsed}
+                penalty={trial.penalty}
+                hits={trial.hits}
+                cleared={trial.cleared}
+                total={trialCourse.obstacles.length}
+                target={trialCourse.targetSeconds}
+                best={achievements.bestTrialSeconds}
+                qualified={qualifiesForTrialReward(trial, trialCourse)}
+                chapter={experience[chapterIndex]}
+                onStart={resumeTrial}
+                onPause={() => setTrialPhase('paused')}
+                onResume={resumeTrial}
+                onRetry={prepareTrial}
+                onExit={exitTrial}
+              />
+            )}
             <div className="journey-stage-caption" aria-hidden="true">
               <span>
                 {!journeyFrame.stop
@@ -491,19 +669,17 @@ export default function JetskiJourney() {
                 ↑ to jump <span style={{ width: `${ride.charge * 100}%` }} />
               </span>
             )}
-            <JourneyControls
-              setInput={setInput}
-              speed={speed}
-              atDestination={atDestination}
-              instructionsId={instructionsId}
-              onRestart={() => {
-                setBlimpStartedAt(null);
-                speedRef.current = DEFAULT_RIDE_SPEED;
-                setSpeed(DEFAULT_RIDE_SPEED);
-                resetRide(0);
-                stage.current?.focus({ preventScroll: true });
-              }}
-            />
+            {(mode === 'story' || trialPhase === 'running') && (
+              <JourneyControls
+                setInput={setInput}
+                speed={speed}
+                atDestination={mode === 'story' && atDestination}
+                instructionsId={instructionsId}
+                onRestart={startOver}
+                trial={mode === 'trial'}
+                onTimeTrial={mode === 'story' && atDestination ? prepareTrial : undefined}
+              />
+            )}
           </div>
         </>
       ) : (

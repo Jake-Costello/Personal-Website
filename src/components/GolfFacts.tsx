@@ -3,6 +3,7 @@ import type { CSSProperties, KeyboardEvent, PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { personalFacts } from '../data/personal';
 import type { PersonalFact } from '../data/personal';
+import { useAchievements } from '../lib/achievements';
 import GolfScene, {
   GolfBagOverlay,
   GolfClubIcon,
@@ -23,6 +24,8 @@ interface ClubDrag {
 }
 
 export default function GolfFacts() {
+  const { selectedBall } = useAchievements();
+  const [shotBall, setShotBall] = useState(selectedBall);
   const [shot, setShot] = useState(personalFacts[0]);
   const [phase, setPhase] = useState<Phase>('idle');
   const phaseRef = useRef<Phase>('idle');
@@ -111,6 +114,7 @@ export default function GolfFacts() {
     endDrag();
     originRef.current = origin;
     setShot(fact);
+    setShotBall(selectedBall);
     setHeld(false);
     setFocused(false);
     nextShotTouchRef.current = null;
@@ -232,7 +236,12 @@ export default function GolfFacts() {
     >
       <div className="golf-scene-frame">
         <div ref={sceneRef} className={`golf-facts-scene${dragging ? ' is-dragging' : ''}`}>
-          <GolfScene phase={phase} clubColor={shot.color} clubKind={shot.kind} />
+          <GolfScene
+            phase={phase}
+            clubColor={shot.color}
+            clubKind={shot.kind}
+            ballColor={busy ? shotBall : selectedBall}
+          />
           <div
             ref={dropRef}
             className={`golf-drop-zone${dropHot ? ' is-over' : ''}`}
@@ -321,7 +330,12 @@ export default function GolfFacts() {
       </div>
       {showingBall &&
         createPortal(
-          <div ref={layerRef} className={`golf-ball-layer golf-ball-${phase}`} onKeyDown={onEscape}>
+          <div
+            ref={layerRef}
+            className={`golf-ball-layer golf-ball-${phase}`}
+            data-ball-color={shotBall}
+            onKeyDown={onEscape}
+          >
             <div
               className="golf-fact-ball"
               data-visible={phase === 'reading' ? 'true' : 'false'}

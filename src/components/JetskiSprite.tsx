@@ -9,12 +9,14 @@ export default function JetskiSprite({
   y,
   reduced,
   scale,
+  fullJumpHeight = false,
 }: {
   state: RideState;
   x: number;
   y: number;
   reduced: boolean;
   scale: number;
+  fullJumpHeight?: boolean;
 }) {
   const airborne = state.height > 0;
   const extension = airborne ? 1 : 0;
@@ -38,7 +40,7 @@ export default function JetskiSprite({
     <g
       className="jetski-sprite"
       data-rider-pose={airborne ? 'extended' : crouch > 0.55 ? 'crouched' : 'cruising'}
-      transform={`translate(${x} ${y - (reduced ? state.height * 0.35 : state.height)})`}
+      transform={`translate(${x} ${y - (reduced && !fullJumpHeight ? state.height * 0.35 : state.height)})`}
     >
       <g
         transform={`scale(${state.facing * turnScale * scale} ${scale}) rotate(${reduced ? 0 : pitch})`}

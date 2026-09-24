@@ -1,4 +1,5 @@
 import Golfer from './GolfGolfer';
+import type { GolfBallColor } from '../lib/achievements';
 import './golf-scene.css';
 
 export type GolfPhase = 'idle' | 'swing' | 'flight' | 'reading' | 'falling';
@@ -74,10 +75,12 @@ export default function GolfScene({
   phase,
   clubColor,
   clubKind = 'driver',
+  ballColor = 'white',
 }: {
   phase: GolfPhase;
   clubColor: string;
   clubKind?: string;
+  ballColor?: GolfBallColor;
 }) {
   return (
     <svg
@@ -115,10 +118,10 @@ export default function GolfScene({
       <g transform={`translate(${GOLFER_MIRROR_X} 0) scale(-1 1)`}>
         <Golfer phase={phase} clubColor={clubColor} clubKind={clubKind} />
         <path d="M311 380h4v9h-4zm-3-1h10v3h-10z" fill="#f5f3ed" />
-        <g className="golf-scene__tee-ball">
+        <g className="golf-scene__tee-ball" data-ball-color={ballColor}>
           <path d="M310 369h6v3h3v6h-3v3h-6v-3h-3v-6h3z" fill="#17251e" />
-          <path d="M310 372h6v6h-6z" fill="#f5f3ed" />
-          <path d="M314 376h2v2h-2z" fill="#b6c5af" />
+          <path d="M310 372h6v6h-6z" fill={ballColor === 'yellow' ? '#efff00' : '#f5f3ed'} />
+          <path d="M314 376h2v2h-2z" fill={ballColor === 'yellow' ? '#a9b525' : '#b6c5af'} />
         </g>
         <g className="golf-scene__impact" fill="#f5f3ed">
           <path d="M294 361h4v8h-4zm32 0h4v8h-4zm-16-12h4v9h-4zm-29 25h10v4h-10zm48 0h12v4h-12z" />

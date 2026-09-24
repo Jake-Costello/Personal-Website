@@ -1,5 +1,6 @@
 import { expect, test, type CDPSession, type Locator, type Page } from '@playwright/test';
 import { installProteinApi } from './protein-fixtures';
+import { STORAGE_KEY } from '../../src/lib/achievements';
 
 const clubs = [
   'Driver — Creative beginnings',
@@ -112,11 +113,13 @@ test('Revision Marine identifies the engineering role and links to the company',
   await page.keyboard.press('Escape');
 });
 
-test('the white ball is selected while mystery achievements remain locked', async ({ page }) => {
+test('the white ball is selected while yellow and mystery achievements remain locked', async ({
+  page,
+}) => {
   const golf = await openGolf(page);
   const about = page.locator('#about');
   const white = about.getByRole('radio', { name: 'White ball', exact: true });
-  const locked = about.getByRole('radio', { name: /^Mystery achievement [12], locked$/ });
+  const locked = about.getByRole('radio', { name: /^(Yellow ball|Mystery achievement), locked$/ });
   await expect(white).toBeChecked();
   await expect(white).toBeEnabled();
   await expect(locked).toHaveCount(2);
@@ -128,6 +131,60 @@ test('the white ball is selected while mystery achievements remain locked', asyn
   await expect(white).toBeChecked();
   await expect(golf).toHaveAttribute('data-phase', 'idle');
   await expect(page.locator('.golf-fact-ball')).toHaveCount(0);
+  await expect(about.locator('#yellow-ball-unlock')).toHaveText(
+    'Reach the finish under the time-trial target',
+  );
+});
+
+test('an earned yellow ball can be selected, played, and remembered on the next visit', async ({
+  page,
+}, testInfo) => {
+  // Awarding the achievement through a full race is covered by the journey tests.
+  await page.addInitScript((key) => {
+    if (!localStorage.getItem(key)) {
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          storyFinished: true,
+          yellowBallUnlocked: true,
+          selectedBall: 'white',
+          bestTrialSeconds: 130,
+        }),
+      );
+    }
+  }, STORAGE_KEY);
+  let golf = await openGolf(page);
+  const about = page.locator('#about');
+  await expect(about.getByRole('radio', { name: 'White ball', exact: true })).toBeChecked();
+  const yellow = about.getByRole('radio', { name: 'Yellow ball', exact: true });
+  await expect(yellow).toBeEnabled();
+  await expect(yellow).not.toBeChecked();
+  await about.getByText('Bright yellow', { exact: true }).click();
+  await expect(yellow).toBeChecked();
+  await expect(golf.locator('.golf-scene__tee-ball')).toHaveAttribute('data-ball-color', 'yellow');
+  await expect(golf.locator('.golf-scene__tee-ball path').nth(1)).toHaveAttribute(
+    'fill',
+    '#efff00',
+  );
+  await golf.getByRole('button', { name: clubs[0], exact: true }).click();
+  await expect(page.locator('.golf-ball-layer')).toHaveAttribute('data-ball-color', 'yellow');
+  await expect(page.locator('.golf-fact-ball')).toHaveCSS('background-color', 'rgb(239, 255, 0)');
+  await expect(page.locator('.golf-fact-copy')).toContainText(/animation/i);
+  await page.screenshot({ path: `.cache/golf-yellow-${testInfo.project.name}.png` });
+  await page.getByRole('button', { name: 'Next shot', exact: true }).click();
+  await page.reload();
+  golf = page.getByRole('region', { name: 'Personal facts golf' });
+  await expect(yellow).toBeChecked();
+  await expect(golf.locator('.golf-scene__tee-ball')).toHaveAttribute('data-ball-color', 'yellow');
+  await about.getByText('White', { exact: true }).click();
+  await expect(about.getByRole('radio', { name: 'White ball', exact: true })).toBeChecked();
+  await expect(golf.locator('.golf-scene__tee-ball path').nth(1)).toHaveAttribute(
+    'fill',
+    '#f5f3ed',
+  );
+  await golf.getByRole('button', { name: clubs[0], exact: true }).click();
+  await expect(page.locator('.golf-ball-layer')).toHaveAttribute('data-ball-color', 'white');
+  await expect(page.locator('.golf-fact-ball')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
 });
 
 test('clubs reveal personal stories with keyboard controls and a readable alternative', async ({

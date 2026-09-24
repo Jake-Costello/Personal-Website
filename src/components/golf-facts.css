@@ -267,6 +267,27 @@
   );
   pointer-events: none;
 }
+.golf-ball-layer[data-ball-color='yellow'] .golf-fact-ball {
+  background-color: #efff00;
+  background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"%3E%3Cdefs%3E%3ClinearGradient id="d" x1="0" y1="0" x2="0" y2="1"%3E%3Cstop offset="0" stop-color="%23a6b522"/%3E%3Cstop offset=".25" stop-color="%23d4e23e"/%3E%3Cstop offset=".8" stop-color="%23f5ff55"/%3E%3Cstop offset="1" stop-color="%23fcff99"/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg fill="url(%23d)"%3E%3Ccircle cx="12" cy="12" r="5.2"/%3E%3Ccircle cx="36" cy="36" r="5.2"/%3E%3C/g%3E%3Cg fill="none" stroke="%23fcff99" stroke-width="1.1"%3E%3Cpath d="M7 13a5.1 5.1 0 0 0 10 0M31 37a5.1 5.1 0 0 0 10 0"/%3E%3C/g%3E%3C/svg%3E');
+  border-color: #cbd83c;
+  box-shadow:
+    inset -27px -30px 38px #71871d44,
+    inset 15px 19px 27px #fcff91,
+    0 25px 65px #17251e28;
+}
+.golf-ball-layer[data-ball-color='yellow'] .golf-fact-ball::before {
+  background: radial-gradient(
+    ellipse at center,
+    #efff00f0 0%,
+    #efff00e3 35%,
+    #efff0022 63%,
+    #efff0000 75%
+  );
+}
+.golf-ball-layer[data-ball-color='yellow'] .golf-reading-note {
+  color: #465626;
+}
 .golf-fact-content {
   position: relative;
   width: min(65%, 540px, calc(100vw - 48px));

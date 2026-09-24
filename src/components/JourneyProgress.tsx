@@ -17,11 +17,13 @@ export default function JourneyProgress({
   position,
   chapters,
   onNavigate,
+  disabled = false,
 }: {
   route: JourneyRoute;
   position: number;
   chapters: readonly ProgressChapter[];
   onNavigate: (index: number) => void;
+  disabled?: boolean;
 }) {
   const timelineScroll = useRef<HTMLDivElement>(null);
   const boundedPosition = Number.isNaN(position)
@@ -86,6 +88,7 @@ export default function JourneyProgress({
                   key={item?.id ?? stop.index}
                   className={`journey-chapter${boundedPosition >= stop.start ? ' is-reached' : ''}${current.index === stop.index ? ' is-current' : ''}`}
                   onClick={() => onNavigate(stop.index)}
+                  disabled={disabled}
                   aria-current={current.index === stop.index ? 'step' : undefined}
                   aria-label={`${checkpointLabel(stop.index)}. ${item?.title ?? ''}`}
                   title={item?.title}
@@ -119,6 +122,7 @@ export default function JourneyProgress({
                     style={{ gridColumn: `${first + 1} / span ${count}` }}
                     aria-current={chapter?.lifeStage === stage.id ? 'step' : undefined}
                     onClick={() => onNavigate(first)}
+                    disabled={disabled}
                     data-life-stage={stage.id}
                   >
                     <span className="journey-life-stage-label">
