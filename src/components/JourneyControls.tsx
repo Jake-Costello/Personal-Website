@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent } from 'react';
 import type { RideInput } from '../game/model';
 
@@ -17,27 +17,53 @@ function RideButton({
   setInput: SetInput;
 }) {
   const pressed = useRef(false);
+  const pointer = useRef<number | null>(null);
+  const keyboardPressed = useRef(false);
+  const inputSetter = useRef(setInput);
+  inputSetter.current = setInput;
+  const [held, setHeld] = useState(false);
   const ignoreClick = useRef(false);
   const releaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    function stop() {
+      pointer.current = null;
+      keyboardPressed.current = false;
+      ignoreClick.current = false;
       if (releaseTimer.current) clearTimeout(releaseTimer.current);
       if (clickTimer.current) clearTimeout(clickTimer.current);
-    },
-    [],
-  );
+      if (pressed.current) {
+        pressed.current = false;
+        setHeld(false);
+        inputSetter.current(control, false, true);
+      }
+    }
+    function visibilityChanged() {
+      if (document.hidden) stop();
+    }
+    window.addEventListener('blur', stop);
+    document.addEventListener('visibilitychange', visibilityChanged);
+    return () => {
+      window.removeEventListener('blur', stop);
+      document.removeEventListener('visibilitychange', visibilityChanged);
+      if (releaseTimer.current) clearTimeout(releaseTimer.current);
+      if (clickTimer.current) clearTimeout(clickTimer.current);
+      if (pressed.current) inputSetter.current(control, false, true);
+    };
+  }, [control]);
 
   function press() {
     if (pressed.current) return;
     pressed.current = true;
+    setHeld(true);
     setInput(control, true);
   }
 
   function release(cancelled = false) {
     if (!pressed.current) return;
     pressed.current = false;
+    setHeld(false);
     setInput(control, false, cancelled);
   }
 
@@ -52,10 +78,26 @@ function RideButton({
 
   function pointerDown(event: PointerEvent<HTMLButtonElement>) {
     event.preventDefault();
+    if (event.button !== 0 || pointer.current !== null) return;
+    if (releaseTimer.current) clearTimeout(releaseTimer.current);
     ignoreClick.current = true;
-    event.currentTarget.focus({ preventScroll: true });
+    // Keep touch focus on the scene so a second finger can pump or jump while
+    // the first keeps riding. Moving focus between buttons cancels a held key.
+    const focusTarget =
+      event.pointerType === 'touch'
+        ? event.currentTarget.closest<HTMLElement>('.journey-stage')
+        : event.currentTarget;
+    focusTarget?.focus({ preventScroll: true });
+    pointer.current = event.pointerId;
     event.currentTarget.setPointerCapture(event.pointerId);
     press();
+  }
+
+  function pointerUp(event: PointerEvent<HTMLButtonElement>, cancelled = false) {
+    if (pointer.current !== event.pointerId) return;
+    pointer.current = null;
+    if (!keyboardPressed.current) release(cancelled);
+    allowAssistiveClick();
   }
 
   function keyDown(event: KeyboardEvent<HTMLButtonElement>) {
@@ -63,6 +105,7 @@ function RideButton({
       event.preventDefault();
       if (!event.repeat) {
         ignoreClick.current = true;
+        keyboardPressed.current = true;
         press();
       }
     }
@@ -74,26 +117,33 @@ function RideButton({
       type="button"
       aria-label={label}
       data-control={control}
+      data-pressed={held}
       onPointerDown={pointerDown}
-      onPointerUp={() => {
-        release();
-        allowAssistiveClick();
-      }}
-      onPointerCancel={() => {
-        release(true);
-        allowAssistiveClick();
-      }}
-      onLostPointerCapture={() => release(true)}
+      onPointerUp={(event) => pointerUp(event)}
+      onPointerCancel={(event) => pointerUp(event, true)}
+      onLostPointerCapture={(event) => pointerUp(event, true)}
+      onContextMenu={(event) => event.preventDefault()}
       onKeyDown={keyDown}
       onKeyUp={(event) => {
         if (event.key === ' ' || event.key === 'Enter') {
           event.preventDefault();
-          release();
+          keyboardPressed.current = false;
+          if (pointer.current === null) release();
           allowAssistiveClick();
         }
       }}
-      onBlur={() => {
-        release(true);
+      onBlur={(event) => {
+        keyboardPressed.current = false;
+        const nextTarget = event.relatedTarget;
+        const scene = event.currentTarget.closest('.journey-stage');
+        if (
+          pointer.current === null ||
+          !(nextTarget instanceof Node) ||
+          !scene?.contains(nextTarget)
+        ) {
+          pointer.current = null;
+          release(true);
+        }
         ignoreClick.current = false;
       }}
       onClick={(event) => {
@@ -145,10 +195,10 @@ export default function JourneyControls({
             ? 'Cruise is automatic. Use the down and up arrow keys or the Pump and Jump buttons.'
             : 'Focus the scene to use arrow keys, or hold the buttons to ride.'}
         </span>
-        {!trial && <span>Hold ← → to ride</span>}
+        {!trial && <span>Hold ← / → to ride</span>}
         {!trial && <span>Tap → 3×: faster</span>}
         {!trial && <span>Tap ← 3×: slower</span>}
-        <span>↓ then ↑ to jump</span>
+        <span>Hold ↓, then ↑ to jump</span>
       </p>
       {atDestination && (
         <>

@@ -97,7 +97,7 @@
 .journey-time-trial {
   width: 100%;
   padding: 8px 3px;
-  font-size: 10px;
+  font-size: 12px;
 }
 .trial-chapter {
   display: flex;
@@ -169,10 +169,10 @@
 .journey-stage--trial .journey-controls {
   right: 18px;
   bottom: 180px;
-  width: 132px;
+  width: 190px;
 }
 .journey-controls--trial .journey-speed > span {
-  font-size: 8px;
+  font-size: 12px;
 }
 .trial-obstacle.is-hit {
   animation: trial-obstacle-bump 0.6s ease-out;
@@ -256,7 +256,7 @@
   .journey-stage--trial .journey-controls {
     right: 12px;
     bottom: 200px;
-    width: 116px;
+    width: 164px;
   }
   .journey:fullscreen .journey-stage.journey-stage--trial {
     flex-basis: 640px;

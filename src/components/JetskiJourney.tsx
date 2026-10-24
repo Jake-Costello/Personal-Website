@@ -133,7 +133,12 @@ function Scene({
   const waterline = height - 155;
   const progress = state.position / route.length;
   const dockScale = width < 560 ? 0.98 : width < 1000 ? 1.25 : 1.65;
-  const boatX = width * 0.28;
+  // Leave a separate riding lane beside the phone's touch controls. Trial
+  // controls sit above the water, so its obstacle projection stays unchanged.
+  const phoneStory = width < 560 && !racing;
+  const ridingWidth = width - 180;
+  const boatX = phoneStory ? ridingWidth / 2 : width * 0.28;
+  const boatScale = phoneStory ? Math.min(1.4, ridingWidth / 120) : width < 560 ? 1.65 : 2.3;
   const revisionStop = route.stops[experience.findIndex((chapter) => chapter.id === 'revision')];
   const driveBy = revisionStop
     ? (state.position - revisionStop.start) / (revisionStop.end - revisionStop.start)
@@ -222,14 +227,14 @@ function Scene({
         x={boatX}
         y={waterline + 86}
         reduced={reduced}
-        scale={width < 560 ? 1.65 : 2.3}
+        scale={boatScale}
         fullJumpHeight={racing}
       />
       <JetskiSplash
         state={state}
         x={boatX}
         y={waterline + 111}
-        scale={width < 560 ? 1.65 : 2.3}
+        scale={boatScale}
         reduced={reduced}
       />
     </svg>
@@ -606,7 +611,10 @@ export default function JetskiJourney() {
               }
             }}
             onPointerDown={(event) => {
-              if (!(event.target instanceof Element) || !event.target.closest('a, button'))
+              if (
+                !(event.target instanceof Element) ||
+                !event.target.closest('a, button, .journey-story')
+              )
                 event.currentTarget.focus({ preventScroll: true });
             }}
           >
