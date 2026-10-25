@@ -1,37 +1,58 @@
 import { expect, test } from '@playwright/test';
-import type { Locator, Page } from '@playwright/test';
+import type { CDPSession, Locator, Page } from '@playwright/test';
 import { installProteinApi } from './protein-fixtures';
 
-const cabinets = [
-  'Sketch-to-Ride',
-  'Warehouse Shift',
-  'Protein Playground',
-  'Shoreline Run',
-] as const;
-
-function choose(page: Page, title: string) {
-  return page.getByRole('button', { name: `Choose ${title}`, exact: true });
-}
+const machines = ['Shoreline Run', 'Sketch-to-Ride', 'Warehouse Shift'] as const;
+const gameIds = ['shoreline', 'sketch', 'warehouse'] as const;
+const choose = (page: Page, title: string) =>
+  page.getByRole('button', { name: `Choose ${title}`, exact: true });
+const controls = (page: Page) => page.locator('.arcade-player-controls');
+const numeric = async (game: Locator, name: string) => Number(await game.getAttribute(name));
 
 async function expectSelected(page: Page, title: string) {
-  for (const cabinet of cabinets) {
-    await expect(choose(page, cabinet)).toHaveAttribute('aria-pressed', String(cabinet === title));
-  }
+  for (const machine of machines)
+    await expect(choose(page, machine)).toHaveAttribute('aria-pressed', String(machine === title));
 }
 
-async function expectReachable(control: Locator, page: Page) {
-  await expect(control).toBeVisible();
-  await control.scrollIntoViewIfNeeded();
+async function play(page: Page, title: (typeof machines)[number]) {
+  await choose(page, title).click();
+  await page.getByRole('button', { name: 'Step up to play', exact: false }).click();
+  await expect(page.locator('.arcade-page')).toHaveAttribute(
+    'data-game',
+    gameIds[machines.indexOf(title)],
+  );
+  await expect(page.locator('.arcade-live-screen')).toBeVisible();
+  const roots = ['.shoreline-game', '[data-game="sketch-ride"]', '[data-game="warehouse-shift"]'];
+  await expect(page.locator(roots[machines.indexOf(title)])).toBeVisible();
+}
+
+async function holdKeyUntil(
+  page: Page,
+  key: string,
+  predicate: () => Promise<number>,
+  above: number,
+) {
+  await page.keyboard.down(key);
+  await expect.poll(predicate).toBeGreaterThan(above);
+}
+
+async function point(control: Locator, id = 1) {
   const bounds = await control.boundingBox();
-  const viewport = page.viewportSize()!;
   expect(bounds).not.toBeNull();
-  expect(bounds!.x).toBeGreaterThanOrEqual(-1);
-  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width + 1);
-  expect(bounds!.width).toBeGreaterThanOrEqual(23.99);
-  expect(bounds!.height).toBeGreaterThanOrEqual(23.99);
+  return { id, x: bounds!.x + bounds!.width / 2, y: bounds!.y + bounds!.height / 2 };
 }
 
-test('the arcade loads and reloads directly without loading portfolio data', async ({ page }) => {
+async function touch(
+  session: CDPSession,
+  type: 'touchStart' | 'touchEnd' | 'touchCancel',
+  touchPoints: { id: number; x: number; y: number }[],
+) {
+  await session.send('Input.dispatchTouchEvent', { type, touchPoints });
+}
+
+test('the arcade directly loads and reloads three actual 3D machines without API requests', async ({
+  page,
+}) => {
   const errors: string[] = [];
   const dataRequests: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -40,191 +61,270 @@ test('the arcade loads and reloads directly without loading portfolio data', asy
     if (
       url.pathname.startsWith('/api/') ||
       /string-db\.org|ensembl\.org|rcsb\.org|api\.openai\.com/.test(url.hostname)
-    ) {
+    )
       dataRequests.push(request.url());
-    }
   });
   for (const navigate of [() => page.goto('/arcade/'), () => page.reload()]) {
     const response = await navigate();
     expect(response?.status()).toBe(200);
     await expect(page).toHaveTitle('Project Arcade — Jake Costello');
-    await expect(page.getByRole('heading', { name: /^Project Arcade/ })).toBeVisible();
-    await expectSelected(page, 'Sketch-to-Ride');
-    await expect(page.locator('.protein-explorer, .journey, .golf-facts')).toHaveCount(0);
+    await expect(page.locator('.arcade-page')).toHaveAttribute('data-renderer', 'three', {
+      timeout: 15_000,
+    });
+    await expect(page.locator('.arcade-webgl canvas')).toBeVisible();
+    await expect(
+      page.getByRole('navigation', { name: 'Choose a machine' }).getByRole('button'),
+    ).toHaveCount(3);
+    await expectSelected(page, 'Shoreline Run');
+    await expect(
+      page.locator('.protein-explorer, .shoreline-game, .sr-game, [data-game="warehouse-shift"]'),
+    ).toHaveCount(0);
   }
   expect(dataRequests).toEqual([]);
   expect(errors).toEqual([]);
 });
 
-test('cabinet selection wraps and supports focused keyboard navigation', async ({ page }) => {
+test('three-machine selection wraps and Enter plays locally while Escape returns to the room', async ({
+  page,
+}) => {
   await page.goto('/arcade/');
-  const selector = page.getByRole('region', { name: 'Project cabinet selector', exact: true });
-  for (const title of [...cabinets.slice(1), cabinets[0]]) {
-    await page.getByRole('button', { name: 'Next cabinet', exact: true }).click();
+  for (const title of ['Sketch-to-Ride', 'Warehouse Shift', 'Shoreline Run']) {
+    await page.getByRole('button', { name: 'Next machine', exact: true }).click();
     await expectSelected(page, title);
   }
-  await page.getByRole('button', { name: 'Previous cabinet', exact: true }).click();
-  await expectSelected(page, 'Shoreline Run');
-  await selector.focus();
+  await page.getByRole('button', { name: 'Previous machine', exact: true }).click();
+  await expectSelected(page, 'Warehouse Shift');
+  const room = page.getByRole('main', { name: 'Project arcade', exact: true });
+  await room.focus();
   await page.keyboard.press('ArrowRight');
-  await expectSelected(page, 'Sketch-to-Ride');
+  await expectSelected(page, 'Shoreline Run');
   await page.keyboard.press('ArrowLeft');
-  await expectSelected(page, 'Shoreline Run');
-  await choose(page, 'Warehouse Shift').click();
   await expectSelected(page, 'Warehouse Shift');
-  // The selector must not hijack arrows while one of its ordinary controls has focus.
-  await choose(page, 'Warehouse Shift').focus();
-  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-game="warehouse-shift"]')).toBeVisible();
+  await expect(page).toHaveURL(/\/arcade\/$/);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.arcade-page')).toHaveAttribute('data-game', 'selection');
   await expectSelected(page, 'Warehouse Shift');
+  await expect(room).toBeFocused();
 });
 
-test('visible side cabinets can be selected and the joystick advances the carousel', async ({
+test('Shoreline really moves, pumps and jumps; pausing freezes it and blur clears held keys', async ({
   page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'desktop');
+}) => {
   await page.goto('/arcade/');
-  const warehouseSide = page.locator(
-    '.cabinet-select-overlay[aria-label="Select Warehouse Shift"]',
-  );
-  await expect(warehouseSide).toBeVisible();
-  await warehouseSide.click();
-  await expectSelected(page, 'Warehouse Shift');
-  await page.getByRole('button', { name: 'Joystick: next cabinet', exact: true }).click();
-  await expectSelected(page, 'Protein Playground');
-  const previousSide = page.locator('.cabinet-select-overlay[aria-label="Select Warehouse Shift"]');
-  await previousSide.click();
-  await expectSelected(page, 'Warehouse Shift');
+  await play(page, 'Shoreline Run');
+  const game = page.locator('.shoreline-game');
+  await expect(game).toBeVisible();
+  await holdKeyUntil(page, 'ArrowRight', () => numeric(game, 'data-position'), 35);
+  const right = controls(page).getByRole('button', { name: 'Move right', exact: true });
+  await expect(right).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.down('ArrowDown');
+  await page.waitForTimeout(400);
+  await page.keyboard.up('ArrowDown');
+  await page.keyboard.press('ArrowUp');
+  await expect(game).toHaveAttribute('data-jumps', '1');
+  await page.keyboard.up('ArrowRight');
+  await page.getByRole('button', { name: 'Pause game', exact: true }).click();
+  await expect(right).toBeDisabled();
+  const frozen = await numeric(game, 'data-position');
+  await page.waitForTimeout(300);
+  expect(await numeric(game, 'data-position')).toBe(frozen);
+  await page
+    .locator('.arcade-play-tools')
+    .getByRole('button', { name: 'Resume game', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Expand screen', exact: true }).click();
+  await expect(page.locator('.arcade-page')).toHaveClass(/is-expanded/);
+  await expect(game).toHaveAttribute('data-jumps', '1');
+  await page.getByRole('button', { name: 'Cabinet view', exact: true }).click();
+  await expect(page.locator('.arcade-page')).not.toHaveClass(/is-expanded/);
+  await holdKeyUntil(page, 'ArrowRight', () => numeric(game, 'data-position'), frozen + 30);
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  await expect(right).toHaveAttribute('aria-pressed', 'false');
+  await page.keyboard.up('ArrowRight');
+  await page.getByRole('button', { name: 'Pause game', exact: true }).click();
+  await expect(right).toBeDisabled();
+  await page.getByRole('button', { name: 'Restart game', exact: true }).click();
+  await expect(game).toHaveAttribute('data-position', '0');
+  await expect(game).toHaveAttribute('data-jumps', '0');
+  await expect(page.getByRole('button', { name: 'Pause game', exact: true })).toBeVisible();
+  await page.waitForTimeout(250);
+  await expect(game).toHaveAttribute('data-position', '0');
+  await page.keyboard.down('ArrowRight');
+  await page.keyboard.press('Escape');
+  await page.keyboard.up('ArrowRight');
+  await play(page, 'Shoreline Run');
+  await expect(game).toHaveAttribute('data-position', '0');
+  await expect(right).toHaveAttribute('aria-pressed', 'false');
+  await page.waitForTimeout(250);
+  await expect(game).toHaveAttribute('data-position', '0');
 });
 
-test('touch swipes rotate cabinets while vertical gestures preserve the selection', async ({
+test('mobile cabinet holds support simultaneous pumping and jumping and release on cancel or blur', async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile');
   await page.goto('/arcade/');
-  const stage = page.locator('.arcade-stage');
-  await stage.scrollIntoViewIfNeeded();
+  await play(page, 'Shoreline Run');
+  const game = page.locator('.shoreline-game');
+  await expect(game).toBeVisible();
+  const right = controls(page).getByRole('button', { name: 'Move right', exact: true });
+  const pump = controls(page).getByRole('button', { name: 'Pump', exact: true });
+  const jump = controls(page).getByRole('button', { name: 'Jump', exact: true });
+  await right.scrollIntoViewIfNeeded();
+  const riding = await point(right, 1);
+  const pumping = await point(pump, 2);
+  const jumping = await point(jump, 3);
   const session = await page.context().newCDPSession(page);
   try {
-    const bounds = (await stage.boundingBox())!;
-    const start = { id: 1, x: bounds.x + bounds.width * 0.73, y: bounds.y + bounds.height - 14 };
-    // Start below the cabinets, where a swipe cannot accidentally press a game button.
-    expect(
-      await page.evaluate(
-        ({ x, y }) => Boolean(document.elementFromPoint(x, y)?.closest('button, a')),
-        start,
-      ),
-    ).toBe(false);
-    await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [start] });
-    for (let step = 1; step <= 5; step += 1) {
-      await session.send('Input.dispatchTouchEvent', {
-        type: 'touchMove',
-        touchPoints: [{ ...start, x: start.x - (bounds.width * 0.46 * step) / 5 }],
-      });
-    }
-    await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    await expectSelected(page, 'Warehouse Shift');
-
-    await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [start] });
-    for (let step = 1; step <= 5; step += 1) {
-      await session.send('Input.dispatchTouchEvent', {
-        type: 'touchMove',
-        touchPoints: [{ ...start, x: start.x + step * 2, y: start.y - step * 22 }],
-      });
-    }
-    await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    await expectSelected(page, 'Warehouse Shift');
+    await touch(session, 'touchStart', [riding]);
+    await expect(right).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => numeric(game, 'data-position')).toBeGreaterThan(35);
+    await touch(session, 'touchStart', [riding, pumping]);
+    await expect(pump).toHaveAttribute('aria-pressed', 'true');
+    await page.waitForTimeout(400);
+    await touch(session, 'touchEnd', [pumping]);
+    await touch(session, 'touchStart', [riding, jumping]);
+    await expect(game).toHaveAttribute('data-jumps', '1');
+    await expect(right).toHaveAttribute('aria-pressed', 'true');
+    await touch(session, 'touchCancel', []);
+    await expect(right).toHaveAttribute('aria-pressed', 'false');
+    await expect(jump).toHaveAttribute('aria-pressed', 'false');
+    await touch(session, 'touchStart', [riding]);
+    await expect(right).toHaveAttribute('aria-pressed', 'true');
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+    await expect(right).toHaveAttribute('aria-pressed', 'false');
+    await touch(session, 'touchEnd', []);
   } finally {
     await session.detach();
   }
 });
 
-test('only the selected cabinet exposes enabled project actions', async ({ page }) => {
+test('a drawn downhill line becomes a playable Sketch ride and can be edited again', async ({
+  page,
+}) => {
   await page.goto('/arcade/');
-  for (const selected of ['Sketch-to-Ride', 'Warehouse Shift']) {
-    await choose(page, selected).click();
-    await expect(
-      page.getByRole('button', { name: `${selected}: preview`, exact: true }),
-    ).toBeEnabled();
-    await expect(
-      page.getByRole('button', { name: `${selected}: details`, exact: true }),
-    ).toBeEnabled();
-    for (const title of cabinets.filter((title) => title !== selected)) {
-      const actions = page.locator(
-        `[aria-label="${title}: details"], [aria-label="${title}: preview"], [aria-label="${title}: start"]`,
+  await play(page, 'Sketch-to-Ride');
+  const game = page.locator('[data-game="sketch-ride"]');
+  await expect(game).toHaveAttribute('data-phase', 'drawing');
+  const canvas = game.getByLabel(
+    'Draw a downhill trail by dragging across this canvas from left to right',
+  );
+  await canvas.scrollIntoViewIfNeeded();
+  const box = (await canvas.boundingBox())!;
+  await page.mouse.move(box.x + box.width * 0.1, box.y + box.height * 0.43);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.9, box.y + box.height * 0.67, { steps: 24 });
+  await page.mouse.up();
+  await expect(game.getByRole('status')).toContainText('Your line is ready');
+  await controls(page).getByRole('button', { name: 'Jump / ride', exact: true }).click();
+  await expect(game).toHaveAttribute('data-phase', 'riding');
+  await expect.poll(() => numeric(game, 'data-progress')).toBeGreaterThan(2);
+  await expect(page).toHaveURL(/\/arcade\/$/);
+  await page.getByRole('button', { name: 'Pause game', exact: true }).click();
+  const frozen = await numeric(game, 'data-progress');
+  await page.waitForTimeout(250);
+  expect(await numeric(game, 'data-progress')).toBe(frozen);
+  await page
+    .locator('.arcade-play-tools')
+    .getByRole('button', { name: 'Resume game', exact: true })
+    .click();
+  await controls(page).getByRole('button', { name: 'Draw', exact: true }).click();
+  await expect(game).toHaveAttribute('data-phase', 'drawing');
+  await expect(game).toHaveAttribute('data-progress', '0');
+});
+
+test('warehouse work earns cash and a purchased picking cart carries larger loads', async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.goto('/arcade/');
+  await play(page, 'Warehouse Shift');
+  const game = page.locator('[data-game="warehouse-shift"]');
+  await expect(game).toHaveAttribute('data-cash', '0');
+  await controls(page).getByRole('button', { name: 'Upgrades', exact: true }).click();
+  const upgrades = page.getByRole('dialog', { name: 'Warehouse upgrades', exact: true });
+  await expect(upgrades.getByRole('button', { name: '$40 · Buy', exact: true })).toBeDisabled();
+  await upgrades.getByRole('button', { name: 'Close upgrades' }).click();
+  for (let shipped = 1; shipped <= 2; shipped += 1) {
+    await game
+      .getByRole('button', { name: 'Walk to receiving and unload goods', exact: true })
+      .click();
+    await expect(game).toHaveAttribute('data-phase', 'put-away', { timeout: 10_000 });
+    await game
+      .getByRole('button', { name: 'Walk to racks and put away or pick goods', exact: true })
+      .click();
+    await expect(game).toHaveAttribute('data-phase', 'pick', { timeout: 10_000 });
+    await controls(page).getByRole('button', { name: 'Interact', exact: true }).click();
+    await expect(game).toHaveAttribute('data-phase', 'dispatch');
+    await game
+      .getByRole('button', { name: 'Walk to dispatch and ship order', exact: true })
+      .click();
+    await expect(game).toHaveAttribute('data-shipped', String(shipped), { timeout: 10_000 });
+    await expect(game).toHaveAttribute('data-cash', String(shipped * 20));
+  }
+  await controls(page).getByRole('button', { name: 'Upgrades', exact: true }).click();
+  await upgrades.getByRole('button', { name: '$40 · Buy', exact: true }).click();
+  await expect(game).toHaveAttribute('data-cart', 'true');
+  await expect(game).toHaveAttribute('data-cash', '0');
+  await upgrades.getByRole('button', { name: 'Close upgrades' }).click();
+  await game
+    .getByRole('button', { name: 'Walk to receiving and unload goods', exact: true })
+    .click();
+  await expect(game).toHaveAttribute('data-carrying', '3', { timeout: 10_000 });
+  await expect(page).toHaveURL(/\/arcade\/$/);
+  await page.getByRole('button', { name: 'Restart game', exact: true }).click();
+  await expect(game).toHaveAttribute('data-cash', '0');
+  await expect(game).toHaveAttribute('data-cart', 'false');
+  await expect(game).toHaveAttribute('data-shipped', '0');
+});
+
+test('all three games remain playable when WebGL is unavailable', async ({ page }) => {
+  await page.addInitScript(() => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (
+      this: HTMLCanvasElement,
+      type: string,
+      ...args: unknown[]
+    ) {
+      if (type === 'webgl2' || type === 'webgl' || type === 'experimental-webgl') return null;
+      return Reflect.apply(original, this, [type, ...args]);
+    } as typeof original;
+  });
+  await page.goto('/arcade/');
+  await expect(page.locator('.arcade-page')).toHaveAttribute('data-renderer', 'fallback');
+  for (const title of machines) {
+    await play(page, title);
+    if (title === 'Shoreline Run') {
+      await holdKeyUntil(
+        page,
+        'ArrowRight',
+        () => numeric(page.locator('.shoreline-game'), 'data-position'),
+        25,
       );
-      for (const action of await actions.all()) {
-        const unavailable = await action.evaluate((element) =>
-          Boolean(
-            element.closest('[inert]') ||
-            element.matches(':disabled') ||
-            (element.getAttribute('aria-disabled') === 'true' &&
-              element.getAttribute('tabindex') === '-1'),
-          ),
-        );
-        expect(unavailable, `${title} must not activate while another cabinet is selected`).toBe(
-          true,
-        );
-      }
+      await page.keyboard.up('ArrowRight');
+    } else if (title === 'Sketch-to-Ride') {
+      await controls(page).getByRole('button', { name: 'Jump / ride', exact: true }).click();
+      await expect
+        .poll(() => numeric(page.locator('[data-game="sketch-ride"]'), 'data-progress'))
+        .toBeGreaterThan(1);
+    } else {
+      await holdKeyUntil(
+        page,
+        'ArrowRight',
+        () => numeric(page.locator('[data-game="warehouse-shift"]'), 'data-x'),
+        220,
+      );
+      await page.keyboard.up('ArrowRight');
     }
+    await page.getByRole('button', { name: /Back to machines/ }).click();
+    await expect(page.locator('.arcade-page')).toHaveAttribute('data-game', 'selection');
   }
+  await expect(page).toHaveURL(/\/arcade\/$/);
 });
 
-test('project previews explain their status and return focus after closing', async ({ page }) => {
-  await page.goto('/arcade/');
-  const preview = page.getByRole('button', { name: 'Sketch-to-Ride: preview', exact: true });
-  await preview.click();
-  const dialog = page.getByRole('dialog', { name: 'Sketch-to-Ride', exact: true });
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText(/(?:not|isn.t) playable yet/i);
-  await page.keyboard.press('Escape');
-  await expect(dialog).not.toBeVisible();
-  await expect(preview).toBeFocused();
-
-  const selector = page.getByRole('region', { name: 'Project cabinet selector', exact: true });
-  await selector.focus();
-  await page.keyboard.press('a');
-  await expect(dialog).toBeVisible();
-  await page.getByRole('button', { name: 'Close project details', exact: true }).click();
-  await expect(dialog).not.toBeVisible();
-  await expect(selector).toBeFocused();
-  await page.keyboard.press('b');
-  await expect(dialog).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(dialog).not.toBeVisible();
-  await expect(selector).toBeFocused();
-});
-
-test('live cabinet start actions link to the existing experiences', async ({ page }) => {
-  await installProteinApi(page);
-  for (const [title, anchor] of [
-    ['Protein Playground', 'lab'],
-    ['Shoreline Run', 'experience'],
-  ]) {
-    await page.goto('/arcade/');
-    await choose(page, title).click();
-    const start = page.getByRole('button', { name: `${title}: start`, exact: true });
-    await start.click();
-    await expect(page).toHaveURL(new RegExp(`/#${anchor}$`));
-    await expect(page.locator(`#${anchor}`)).toBeVisible();
-  }
-});
-
-test('motion can be paused and reduced-motion starts stationary', async ({ page }) => {
-  await page.goto('/arcade/');
-  await expect(page.getByRole('button', { name: 'Pause motion', exact: true })).toBeDisabled();
-  await expect(page.locator('.arcade-page')).toHaveAttribute('data-motion', 'paused');
-  await expect(page.locator('.arcade-backdrop')).toHaveAttribute('data-renderer', 'static');
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await page.reload();
-  await page.getByRole('button', { name: 'Pause motion', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Resume motion', exact: true })).toBeVisible();
-  await expect(page.locator('.arcade-page')).toHaveAttribute('data-motion', 'paused');
-  await page.getByRole('button', { name: 'Resume motion', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Pause motion', exact: true })).toBeVisible();
-  await expect(page.locator('.arcade-page')).toHaveAttribute('data-motion', 'running');
-});
-
-test('the homepage links to the separate arcade and preserves its project cards', async ({
+test('the homepage links to the separate arcade and the arcade links back to the portfolio', async ({
   page,
 }) => {
   await installProteinApi(page);
@@ -234,7 +334,9 @@ test('the homepage links to the separate arcade and preserves its project cards'
   await expect(invitation).toHaveAttribute('href', '/arcade/');
   await invitation.click();
   await expect(page).toHaveURL(/\/arcade\/$/);
-  await page.goBack();
+  await page.getByRole('link', { name: 'Back to portfolio', exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { name: 'JAKE COSTELLO.' })).toBeVisible();
   const menu = page.getByRole('button', { name: 'Menu +', exact: true });
   if (await menu.isVisible()) await menu.click();
   await page
@@ -242,35 +344,4 @@ test('the homepage links to the separate arcade and preserves its project cards'
     .getByRole('link', { name: 'Project Arcade', exact: true })
     .click();
   await expect(page).toHaveURL(/\/arcade\/$/);
-});
-
-test('small screens keep cabinet controls reachable without horizontal page overflow', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile');
-  await page.setViewportSize({ width: 320, height: 740 });
-  await page.goto('/arcade/');
-  await page.evaluate(() => document.fonts.ready);
-  for (const title of cabinets) {
-    await choose(page, title).click();
-    await expectSelected(page, title);
-    await expectReachable(choose(page, title), page);
-    await expectReachable(
-      page.getByRole('button', { name: 'Previous cabinet', exact: true }),
-      page,
-    );
-    await expectReachable(page.getByRole('button', { name: 'Next cabinet', exact: true }), page);
-    await expectReachable(
-      page.getByRole('button', { name: `${title}: details`, exact: true }),
-      page,
-    );
-    const start = page.getByRole('button', { name: `${title}: start`, exact: true });
-    const primary = (await start.count())
-      ? start
-      : page.getByRole('button', { name: `${title}: preview`, exact: true });
-    await expectReachable(primary, page);
-    expect(
-      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-    ).toBe(true);
-  }
 });

@@ -1,333 +1,399 @@
-import { useEffect, useRef, useState } from 'react';
-import type { CSSProperties, KeyboardEvent, PointerEvent } from 'react';
+import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties, ReactNode, PointerEvent } from 'react';
 import ArcadeBackdrop from './ArcadeBackdrop';
-import ArcadeCabinet from './ArcadeCabinet';
 import { arcadeProjects } from './projects';
+import { createArcadeInput } from './input';
 
-const count = arcadeProjects.length;
-const wrap = (value: number) => ((value % count) + count) % count;
+const ArcadeScene = lazy(() => import('./ArcadeScene'));
+const ShorelineGame = lazy(() => import('./games/ShorelineGame'));
+const SketchRide = lazy(() => import('./games/SketchRide'));
+const WarehouseShift = lazy(() => import('./games/WarehouseShift'));
+const games = { shoreline: ShorelineGame, sketch: SketchRide, warehouse: WarehouseShift };
+
+class SceneBoundary extends Component<
+  { children: ReactNode; onFailure: () => void },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch() {
+    this.props.onFailure();
+  }
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
+function hasWebGL() {
+  try {
+    const c = document.createElement('canvas').getContext('webgl2');
+    if (!c) return false;
+    c.getExtension('WEBGL_lose_context')?.loseContext();
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export default function ArcadeHub() {
-  const [turn, setTurn] = useState(0);
-  const [paused, setPaused] = useState(false);
+  const [selected, setSelected] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [ambiencePaused, setAmbiencePaused] = useState(false);
+  const [gamePaused, setGamePaused] = useState(false);
+  const [restartCount, setRestartCount] = useState(0);
+  const [expanded, setExpanded] = useState(false);
   const [reduced, setReduced] = useState(
-    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    () => matchMedia('(prefers-reduced-motion: reduce)').matches,
   );
-  const [details, setDetails] = useState<number | null>(null);
-  const dialog = useRef<HTMLDialogElement>(null);
-  const swipe = useRef<{ x: number; y: number; id: number } | null>(null);
-  const selected = wrap(turn);
+  const [visible, setVisible] = useState(!document.hidden);
+  const [webgl, setWebgl] = useState(() => hasWebGL());
+  const [ready, setReady] = useState(false);
+  const [held, setHeld] = useState('');
+  const screen = useRef<HTMLDivElement>(null);
+  const room = useRef<HTMLElement>(null);
+  const input = useMemo(createArcadeInput, []);
   const project = arcadeProjects[selected];
-  const detailProject = details === null ? null : arcadeProjects[details];
+  const Game = games[project.id];
 
-  useEffect(() => {
-    const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const update = () => setReduced(preference.matches);
-    preference.addEventListener('change', update);
-    return () => preference.removeEventListener('change', update);
-  }, []);
-
-  useEffect(() => {
-    if (details === null || !dialog.current) return;
-    const element = dialog.current;
-    const previousOverflow = document.body.style.overflow;
-    element.showModal();
-    document.body.style.overflow = 'hidden';
-    return () => {
-      element.close();
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [details]);
-
+  const exit = () => {
+    input.clear();
+    setPlaying(false);
+    setExpanded(false);
+    setGamePaused(false);
+    room.current?.focus();
+  };
   const choose = (index: number) => {
-    setTurn((current) => {
-      let distance = wrap(index - wrap(current));
-      if (distance > count / 2) distance -= count;
-      return current + distance;
-    });
+    input.clear();
+    setSelected((index + arcadeProjects.length) % arcadeProjects.length);
+  };
+  const enter = (index: number) => {
+    choose(index);
+    setGamePaused(false);
+    setPlaying(true);
+    room.current?.focus();
   };
 
-  const start = () => {
-    if (project.href) window.location.assign(project.href);
-    else setDetails(selected);
-  };
+  useEffect(() => input.subscribe(() => setHeld([...input.pressed].join('|'))), [input]);
+  useEffect(() => {
+    const media = matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReduced(media.matches);
+    const visibility = () => {
+      setVisible(!document.hidden);
+      input.clear();
+    };
+    const blur = () => input.clear();
+    media.addEventListener('change', update);
+    document.addEventListener('visibilitychange', visibility);
+    window.addEventListener('blur', blur);
+    return () => {
+      media.removeEventListener('change', update);
+      document.removeEventListener('visibilitychange', visibility);
+      window.removeEventListener('blur', blur);
+      input.clear();
+    };
+  }, [input]);
+  useEffect(() => {
+    const mapping: Record<string, string> = {
+      ArrowLeft: 'left',
+      a: 'left',
+      ArrowRight: 'right',
+      d: 'right',
+      ArrowUp: 'up',
+      w: 'up',
+      ArrowDown: 'down',
+      s: 'down',
+      ' ': 'action',
+      e: 'action',
+      q: 'secondary',
+      r: 'reset',
+    };
+    const keyDown = (event: KeyboardEvent) => {
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.key === 'Escape' && playing) {
+        event.preventDefault();
+        exit();
+        return;
+      }
+      if ((event.target as Element)?.closest('input, select, textarea, [contenteditable="true"]'))
+        return;
+      if (event.key === ' ' && (event.target as Element)?.closest('button, a')) return;
+      if (!playing) {
+        if (!room.current?.contains(document.activeElement)) return;
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+          event.preventDefault();
+          if (!event.repeat) choose(selected + (event.key === 'ArrowRight' ? 1 : -1));
+        }
+        if (event.key === 'Enter' && event.target === room.current) {
+          event.preventDefault();
+          enter(selected);
+        }
+        return;
+      }
+      const action = mapping[event.key] ?? mapping[event.key.toLowerCase()];
+      if (action && !gamePaused) {
+        event.preventDefault();
+        input.set(action, true);
+      }
+    };
+    const keyUp = (event: KeyboardEvent) => {
+      const action = mapping[event.key] ?? mapping[event.key.toLowerCase()];
+      if (action) input.set(action, false);
+    };
+    window.addEventListener('keydown', keyDown);
+    window.addEventListener('keyup', keyUp);
+    return () => {
+      window.removeEventListener('keydown', keyDown);
+      window.removeEventListener('keyup', keyUp);
+      input.clear();
+    };
+  }, [selected, playing, gamePaused, input]);
 
-  const handleKeys = (event: KeyboardEvent<HTMLElement>) => {
-    if (
-      event.target !== event.currentTarget ||
-      event.altKey ||
-      event.ctrlKey ||
-      event.metaKey ||
-      details !== null
-    )
-      return;
-    if (event.key === 'ArrowRight') {
-      event.preventDefault();
-      setTurn((value) => value + 1);
-    }
-    if (event.key === 'ArrowLeft') {
-      event.preventDefault();
-      setTurn((value) => value - 1);
-    }
-    if (event.key.toLowerCase() === 'a' || event.key === 'Enter') {
-      event.preventDefault();
-      start();
-    }
-    if (event.key.toLowerCase() === 'b') {
-      event.preventDefault();
-      setDetails(selected);
-    }
-  };
+  // Restart after the resumed game's input subscriptions have been attached.
+  useEffect(() => {
+    if (restartCount > 0) input.pulse('reset');
+  }, [restartCount, input]);
 
-  const beginSwipe = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === 'mouse' || (event.target as Element).closest('button, a')) return;
-    swipe.current = { x: event.clientX, y: event.clientY, id: event.pointerId };
+  const hold = (action: string, event: PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
+    input.set(action, true);
   };
-
-  const endSwipe = (event: PointerEvent<HTMLDivElement>) => {
-    const from = swipe.current;
-    swipe.current = null;
-    if (!from || from.id !== event.pointerId) return;
-    const dx = event.clientX - from.x;
-    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(event.clientY - from.y) * 1.3) {
-      setTurn((value) => value + (dx < 0 ? 1 : -1));
-    }
-  };
+  const release = (action: string) => input.set(action, false);
+  const control = (action: string, label: string, text: string) => (
+    <button
+      key={action}
+      type="button"
+      aria-label={label}
+      aria-pressed={held.split('|').includes(action)}
+      onPointerDown={(event) => hold(action, event)}
+      onPointerUp={() => release(action)}
+      onPointerCancel={() => release(action)}
+      onLostPointerCapture={() => release(action)}
+      onClick={(event) => {
+        if (event.detail === 0) input.pulse(action);
+      }}
+      disabled={gamePaused}
+    >
+      {text}
+    </button>
+  );
 
   return (
     <div
-      className="arcade-page"
-      data-motion={paused || reduced || details !== null ? 'paused' : 'running'}
+      className={`arcade-page${playing ? ' is-playing' : ''}${expanded ? ' is-expanded' : ''}${!webgl ? ' is-fallback' : ''}`}
+      data-renderer={webgl ? (ready ? 'three' : 'loading') : 'fallback'}
+      data-game={playing ? project.id : 'selection'}
       style={{ '--active-accent': project.accent } as CSSProperties}
     >
-      <a className="arcade-skip" href="#cabinets">
-        Skip to the cabinets
-      </a>
-      <ArcadeBackdrop paused={paused || details !== null} reduced={reduced} />
-      <div className="arcade-memory" aria-hidden="true">
-        {Array.from({ length: 12 }, (_, i) => (
-          <i key={i} style={{ '--pillar': i } as CSSProperties} />
-        ))}
-      </div>
-
+      <ArcadeBackdrop paused={ambiencePaused || playing || !visible} reduced={reduced} />
       <header className="arcade-header">
-        <a className="arcade-home" href={import.meta.env.BASE_URL}>
+        <a className="arcade-home" href={import.meta.env.BASE_URL} aria-label="Back to portfolio">
           <b>
             JC<span>↗</span>
           </b>
-          <span>Back to the homepage</span>
+          <span>PORTFOLIO</span>
         </a>
-        <span className="arcade-header-label">JAKE COSTELLO / EXPERIMENTS & PLAY</span>
+        <span className="arcade-header-center">
+          PROJECT ARCADE<span> / </span>JAKE COSTELLO
+        </span>
         <button
-          className="arcade-motion"
-          onClick={() => setPaused((value) => !value)}
-          aria-pressed={paused}
+          className="arcade-ambience"
+          onClick={() => setAmbiencePaused((value) => !value)}
+          aria-pressed={ambiencePaused}
           disabled={reduced}
-          aria-label={paused ? 'Resume motion' : 'Pause motion'}
         >
-          <span aria-hidden="true">{paused || reduced ? '▷' : 'Ⅱ'}</span>
-          {reduced ? 'Reduced motion' : paused ? 'Resume motion' : 'Pause motion'}
+          {reduced ? 'Reduced motion' : ambiencePaused ? 'Resume ambience' : 'Pause ambience'}
         </button>
       </header>
-
-      <main>
-        <div className="arcade-intro">
-          <p className="arcade-eyebrow">
-            <span /> SOME IDEAS ARE BETTER PLAYED.
-          </p>
-          <h1>
-            Project <span>Arcade</span>
-            <sup>↗</sup>
-          </h1>
-          <p>Pick a cabinet. Find out what’s inside.</p>
-        </div>
-
-        <section
-          id="cabinets"
-          className="arcade-selector"
-          role="region"
-          aria-label="Project cabinet selector"
-          aria-describedby="arcade-instructions"
-          tabIndex={0}
-          onKeyDown={handleKeys}
-        >
-          <div
-            className="arcade-stage"
-            onPointerDown={beginSwipe}
-            onPointerUp={endSwipe}
-            onPointerCancel={() => {
-              swipe.current = null;
-            }}
-          >
-            <div className="arcade-floor" aria-hidden="true">
-              <div />
-              <div />
-              <div />
+      <main
+        ref={room}
+        className="arcade-room"
+        tabIndex={0}
+        aria-label="Project arcade"
+        data-playing={playing}
+      >
+        {!playing && (
+          <div className="arcade-room-intro">
+            <p>01—03 / ORIGINAL EXPERIMENTS</p>
+            <h1>
+              Step up.
+              <br />
+              <em>Play something.</em>
+            </h1>
+            <span>Choose a machine. Take the controls.</span>
+          </div>
+        )}
+        {playing && (
+          <div className="arcade-play-header">
+            <button onClick={exit} className="arcade-back">
+              ← Back to machines <kbd>Esc</kbd>
+            </button>
+            <div>
+              <span>{project.number} / NOW PLAYING</span>
+              <h1>{project.title}</h1>
             </div>
-            <div className="arcade-orbit-scale">
-              <div
-                className="arcade-orbit"
-                style={{
-                  transform: `translateZ(calc(-1 * var(--orbit-radius))) rotateY(${-turn * 90}deg)`,
+            <div className="arcade-play-tools">
+              <button
+                onClick={() => {
+                  input.clear();
+                  setGamePaused((v) => !v);
                 }}
               >
-                {arcadeProjects.map((item, index) => {
-                  const angle = ((index - turn) * Math.PI) / 2;
-                  const facing = (turn - index) * 90 - Math.sin(angle) * 22;
-                  return (
-                    <div
-                      className={`arcade-station${index === selected ? ' is-current' : ''}${wrap(index - selected) === 2 ? ' is-rear' : ''}`}
-                      key={item.id}
-                      style={{
-                        transform: `rotateY(${index * 90}deg) translateZ(var(--orbit-radius)) rotateY(${facing}deg)`,
-                      }}
-                    >
-                      <div className="arcade-cabinet-shadow" aria-hidden="true" />
-                      <ArcadeCabinet
-                        project={item}
-                        selected={index === selected}
-                        onSelect={() =>
-                          index === selected ? setTurn((value) => value + 1) : choose(index)
-                        }
-                        onStart={start}
-                        onInfo={() => setDetails(index)}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            <button
-              className="arcade-arrow arcade-arrow-prev"
-              aria-label="Previous cabinet"
-              onClick={() => setTurn((value) => value - 1)}
-            >
-              ←
-            </button>
-            <button
-              className="arcade-arrow arcade-arrow-next"
-              aria-label="Next cabinet"
-              onClick={() => setTurn((value) => value + 1)}
-            >
-              →
-            </button>
-          </div>
-
-          <div className="arcade-selection-copy" aria-live="polite" aria-atomic="true">
-            <div className="arcade-selection-meta">
-              <span>{project.number} / 04</span>
-              <span className={`arcade-status ${project.status}`}>
-                {project.status === 'live' ? 'READY TO PLAY' : 'IN DEVELOPMENT'}
-              </span>
-            </div>
-            <h2>{project.title}</h2>
-            <p>{project.tagline}</p>
-          </div>
-          <nav className="arcade-choices" aria-label="Choose a project">
-            {arcadeProjects.map((item, index) => (
-              <button
-                key={item.id}
-                onClick={() => choose(index)}
-                aria-label={`Choose ${item.title}`}
-                aria-pressed={index === selected}
-                style={{ '--choice-accent': item.accent } as CSSProperties}
-              >
-                <span>{item.number}</span>
-                <b>{item.title}</b>
-                <i aria-hidden="true" />
+                {gamePaused ? 'Resume game' : 'Pause game'}
               </button>
-            ))}
-          </nav>
-          <p id="arcade-instructions" className="arcade-instructions">
-            <span>
-              <kbd>←</kbd>
-              <kbd>→</kbd> Choose a cabinet
-            </span>
-            <span>
-              <kbd>A</kbd> {project.status === 'live' ? 'Start' : 'Preview'}
-            </span>
-            <span>
-              <kbd>B</kbd> The project
-            </span>
-            <span className="arcade-touch-hint">Swipe or tap to explore</span>
-          </p>
-        </section>
-      </main>
-
-      <footer className="arcade-footer">
-        <span>BUILT TO BE EXPLORED.</span>
-        <span>
-          NO COINS REQUIRED<span className="arcade-footer-star">✳</span>
-        </span>
-      </footer>
-
-      <dialog
-        ref={dialog}
-        className="arcade-dialog"
-        aria-labelledby="arcade-dialog-title"
-        onCancel={(event) => {
-          event.preventDefault();
-          setDetails(null);
-        }}
-        onClick={(event) => {
-          if (event.target === event.currentTarget) {
-            const bounds = event.currentTarget.getBoundingClientRect();
-            if (
-              event.clientX < bounds.left ||
-              event.clientX > bounds.right ||
-              event.clientY < bounds.top ||
-              event.clientY > bounds.bottom
-            )
-              setDetails(null);
-          }
-        }}
-      >
-        {detailProject && (
-          <>
-            <button
-              className="arcade-dialog-close"
-              aria-label="Close project details"
-              onClick={() => setDetails(null)}
-            >
-              ×
-            </button>
-            <p className="arcade-eyebrow">
-              CABINET {detailProject.number} /{' '}
-              {detailProject.status === 'live' ? 'LIVE PROJECT' : 'CONCEPT PREVIEW'}
-            </p>
-            <h2 id="arcade-dialog-title">{detailProject.title}</h2>
-            <p className="arcade-dialog-genre">{detailProject.genre}</p>
-            <p className="arcade-dialog-description">{detailProject.description}</p>
-            <ol>
-              {detailProject.steps.map((step, index) => (
-                <li key={step}>
-                  <span>0{index + 1}</span>
-                  {step}
-                </li>
-              ))}
-            </ol>
-            <p className="arcade-dialog-skills-label">
-              {detailProject.status === 'live' ? 'UNDER THE HOOD' : 'PLANNED UNDER THE HOOD'}
-            </p>
-            <div className="arcade-dialog-skills">
-              {detailProject.skills.map((skill) => (
-                <span key={skill}>{skill}</span>
-              ))}
+              <button onClick={() => setExpanded((v) => !v)}>
+                {expanded ? 'Cabinet view' : 'Expand screen'}
+              </button>
+              <button
+                onClick={() => {
+                  input.clear();
+                  setGamePaused(false);
+                  setRestartCount((count) => count + 1);
+                }}
+              >
+                Restart game
+              </button>
             </div>
-            {detailProject.href ? (
-              <a className="arcade-dialog-start" href={detailProject.href}>
-                Open the {detailProject.id === 'protein' ? 'lab' : 'jetski tour'} <span>↗</span>
-              </a>
-            ) : (
-              <p className="arcade-coming-note">
-                <span />
-                The cabinet is ready. The game is in development and isn’t playable yet.
-              </p>
+          </div>
+        )}
+        <div className="arcade-room-scene">
+          {webgl && (
+            <SceneBoundary
+              onFailure={() => {
+                input.clear();
+                setWebgl(false);
+                setReady(false);
+              }}
+            >
+              <Suspense
+                fallback={
+                  <div className="arcade-loading">
+                    POWERING UP THE MACHINES
+                    <span />
+                  </div>
+                }
+              >
+                <ArcadeScene
+                  selected={selected}
+                  playing={playing}
+                  reduced={reduced}
+                  input={input}
+                  screenRef={screen}
+                  onSelect={enter}
+                  onReady={() => setReady(true)}
+                  onFailure={() => {
+                    input.clear();
+                    setWebgl(false);
+                  }}
+                />
+              </Suspense>
+            </SceneBoundary>
+          )}
+          {!webgl && !playing && (
+            <div className="arcade-fallback-machines">
+              {arcadeProjects.map((item, i) => (
+                <button
+                  key={item.id}
+                  onClick={() => enter(i)}
+                  style={{ '--machine-accent': item.accent } as CSSProperties}
+                >
+                  <span>{item.number}</span>
+                  <b>{item.title}</b>
+                  <small>Play on this screen ↗</small>
+                </button>
+              ))}
+              <p>The 3D room is unavailable on this device. All three games still work here.</p>
+            </div>
+          )}
+          <div
+            className="arcade-live-screen"
+            ref={screen}
+            aria-label={`${project.title} game screen`}
+            inert={!playing}
+          >
+            {playing && (
+              <Suspense
+                fallback={<div className="arcade-game-loading">Loading {project.title}…</div>}
+              >
+                <Game key={project.id} input={input} active={visible && !gamePaused} />
+              </Suspense>
             )}
+            {gamePaused && playing && (
+              <div className="arcade-paused">
+                <span>PAUSED</span>
+                <button onClick={() => setGamePaused(false)}>Resume game</button>
+              </div>
+            )}
+          </div>
+        </div>
+        {!playing && (
+          <>
+            <div className="arcade-select-arrows">
+              <button aria-label="Previous machine" onClick={() => choose(selected - 1)}>
+                ←
+              </button>
+              <button aria-label="Next machine" onClick={() => choose(selected + 1)}>
+                →
+              </button>
+            </div>
+            <div className="arcade-lobby-info" aria-live="polite">
+              <span>
+                {project.number} / {project.genre}
+              </span>
+              <h2>{project.title}</h2>
+              <p>{project.tagline}</p>
+              <button className="arcade-enter" onClick={() => enter(selected)}>
+                Step up to play <span>↗</span>
+              </button>
+            </div>
+            <nav className="arcade-machine-list" aria-label="Choose a machine">
+              {arcadeProjects.map((item, i) => (
+                <button
+                  key={item.id}
+                  aria-label={`Choose ${item.title}`}
+                  aria-pressed={i === selected}
+                  onClick={() => choose(i)}
+                >
+                  <span>{item.number}</span>
+                  {item.title}
+                  <i style={{ background: item.accent }} />
+                </button>
+              ))}
+            </nav>
           </>
         )}
-      </dialog>
+        {playing && (
+          <div className="arcade-player-controls" aria-label={`${project.title} cabinet controls`}>
+            <div className={`arcade-dpad ${project.id === 'warehouse' ? 'four-way' : ''}`}>
+              {project.id === 'warehouse' && control('up', 'Move up', '↑')}
+              {control('left', 'Move left', '←')}
+              {project.id === 'warehouse' && control('down', 'Move down', '↓')}
+              {control('right', 'Move right', '→')}
+            </div>
+            <div className="arcade-game-actions">
+              {project.controls.map((item) => (
+                <div key={item.action}>
+                  {control(item.action, item.label, item.label)}
+                  <kbd>{item.key}</kbd>
+                </div>
+              ))}
+            </div>
+            <p>
+              {project.id === 'shoreline'
+                ? 'Hold Pump, then Jump.'
+                : project.id === 'sketch'
+                  ? 'Draw on the screen. Jump with Space.'
+                  : 'Arrows / WASD to move. E to interact.'}
+            </p>
+          </div>
+        )}
+      </main>
+      <footer className="arcade-footer">
+        <span>PLAY / MAKE / REPEAT</span>
+        <span>{playing ? 'YOUR GAME. YOUR CONTROLS.' : 'THREE MACHINES. NO COINS REQUIRED.'}</span>
+      </footer>
     </div>
   );
 }

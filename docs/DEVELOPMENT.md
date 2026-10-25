@@ -49,20 +49,22 @@ Python checks, from the repository root in PowerShell:
 
 ## Content and interaction configuration
 
-| Location                       | Purpose                                                                                                     |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| `src/data/experience.ts`       | Timeline chapters, dates, life stages, stories, skills, and links shared by the game and readable overview. |
-| `src/game/route.ts`            | Route spacing derived from story length, reading speed, hold duration, fades, and gaps.                     |
-| `src/game/trial.ts`            | Trial obstacles, collision penalties, and the target derived from route length.                             |
-| `src/lib/achievements.ts`      | Local progress and reward persistence, with session fallback if storage is blocked.                         |
-| `src/data/personal.ts`         | Golf story collections and club mappings.                                                                   |
-| `src/data/trivia.ts`           | Bioinformatics questions, choices, answers, explanations, and sources.                                      |
-| `src/data/proteins.ts`         | Curated protein and experimental-structure mappings, rechecked against RCSB when inspected.                 |
-| `src/App.tsx`                  | Page sections and project case-study copy.                                                                  |
-| `src/arcade/projects.ts`       | Cabinet titles, status, preview copy, planned skills, and live destinations.                                |
-| `src/arcade/ArcadeHub.tsx`     | Orbital cabinet selection, keyboard/touch input, and project dialogs.                                       |
-| `src/arcade/ArcadeCabinet.tsx` | Cabinet controls and original SVG screen artwork.                                                           |
-| `src/arcade/ArcadeShader.tsx`  | ShaderGradient colors, camera, and animation settings.                                                      |
+| Location                      | Purpose                                                                                                     |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `src/data/experience.ts`      | Timeline chapters, dates, life stages, stories, skills, and links shared by the game and readable overview. |
+| `src/game/route.ts`           | Route spacing derived from story length, reading speed, hold duration, fades, and gaps.                     |
+| `src/game/trial.ts`           | Trial obstacles, collision penalties, and the target derived from route length.                             |
+| `src/lib/achievements.ts`     | Local progress and reward persistence, with session fallback if storage is blocked.                         |
+| `src/data/personal.ts`        | Golf story collections and club mappings.                                                                   |
+| `src/data/trivia.ts`          | Bioinformatics questions, choices, answers, explanations, and sources.                                      |
+| `src/data/proteins.ts`        | Curated protein and experimental-structure mappings, rechecked against RCSB when inspected.                 |
+| `src/App.tsx`                 | Page sections and project case-study copy.                                                                  |
+| `src/arcade/projects.ts`      | Machine titles, colors, and game-specific control labels.                                                   |
+| `src/arcade/ArcadeHub.tsx`    | Machine selection, embedded game mounting, keyboard/touch input, pause and expanded screen modes.           |
+| `src/arcade/ArcadeScene.tsx`  | Original Three.js cabinet models, textures, materials, lights, camera movement and screen projection.       |
+| `src/arcade/games/`           | Embedded games and pure models for drawing/riding physics and warehouse inventory/economy.                  |
+| `src/arcade/input.ts`         | Shared held-button and discrete-action input contract for DOM, keyboard and 3D controls.                    |
+| `src/arcade/ArcadeShader.tsx` | ShaderGradient colors, camera, and animation settings.                                                      |
 
 Review route spacing and playability after adding timeline chapters. Progress uses the `personal-website:achievements:v1` local-storage key; there is no account system or public leaderboard. The site does not implement a public resume upload form or automatic resume parser.
 
@@ -70,11 +72,11 @@ See [golf content and achievement editing](GOLF-CONTENT.md) for the per-ball fie
 
 ## Project Arcade
 
-Use the arrows, project tabs, cabinet joystick, or a horizontal swipe to change cabinets. When the selector itself has keyboard focus, left/right arrows choose a cabinet, A/Enter opens it, and B opens its details. The physical A/B buttons also work with a mouse, touch, or keyboard. Dialogs close with Escape and return focus to the control that opened them.
+Use the lobby arrows or machine names to browse; select a 3D cabinet or **Step up to play** to move into position. All games run inside the cabinet screen and stay on `/arcade/`. Escape returns to the machines; **Expand screen** provides a larger view. On-screen controls support touch and keyboard activation. The modeled joystick can be dragged, and physical cabinet buttons share the same input store as the accessible controls.
 
-Protein Playground and Shoreline Run open the existing homepage experiences. Sketch-to-Ride and Warehouse Shift currently open concept previews; their gameplay and AI features are not implemented. The intended first game is a downhill, left-to-right ride generated from a reviewed sketch. The warehouse concept starts with manual inbound, putaway, and outbound work, then uses order earnings to purchase upgrades inspired by real software projects.
+Shoreline Run reuses the existing story, riding physics, trial course and achievement store. Sketch-to-Ride has a drawable trail, gravity, jumping, crashes and a finish; it currently uses local drawing geometry, not AI interpretation. Warehouse Shift starts at $0 and supports receiving, putaway, picking, dispatch, cart-capacity upgrades and routing automation. Its earnings are a game mechanic, not measured business results. The protein explorer stays on the main portfolio and is not an arcade cabinet.
 
-The shader uses one canvas, stops its frame loop when paused, and unmounts in hidden tabs. Reduced motion, WebGL failure, and context loss preserve the CSS backdrop and all cabinet interactions. Dependencies are pinned because ShaderGradient's renderer and React Three Fiber peer compatibility need to be checked together. Its unused Framer export is removed by the production build; Framer is not required for this integration.
+The cabinet scene renders on demand and uses procedural assets without external model or texture requests. The separate background canvas stops its loop during gameplay or when ambience is paused, and unmounts in hidden tabs. Hidden tabs pause gameplay and clear held input. Reduced motion keeps the 3D models but makes camera moves immediate; WebGL failures fall back to playable flat screens. Each game receives `input` and `active` props and does not install global keyboard listeners. Dependencies are pinned because ShaderGradient and React Three Fiber peer compatibility need to be checked together. The unused Framer export is removed by the production build; Framer is not required.
 
 ## Frontend deployment
 

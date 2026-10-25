@@ -1,0 +1,242 @@
+.sr-game {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 8 / 5;
+  overflow: hidden;
+  background: #e8eedf;
+  color: #21443a;
+  font-family: 'Space Grotesk Variable', sans-serif;
+  container-type: inline-size;
+  user-select: none;
+}
+.sr-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+.sr-game--drawing .sr-canvas {
+  cursor: crosshair;
+}
+.sr-topline {
+  position: absolute;
+  inset: 4.7% 4.6% auto;
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+  pointer-events: none;
+}
+.sr-eyebrow {
+  display: block;
+  font:
+    600 clamp(6px, 1.15cqw, 12px) 'IBM Plex Mono',
+    monospace;
+  letter-spacing: 0.16em;
+}
+.sr-title-group h2 {
+  margin: 1.1cqw 0 0;
+  color: #21443a;
+  font:
+    600 clamp(13px, 3.5cqw, 35px) / 1.1 'Space Grotesk Variable',
+    sans-serif;
+  letter-spacing: -0.05em;
+}
+.sr-readout {
+  display: flex;
+  min-width: 10cqw;
+  flex-direction: column;
+  align-items: end;
+  gap: 0.2cqw;
+  padding-top: 0.1cqw;
+}
+.sr-readout > span {
+  font:
+    500 clamp(5px, 0.93cqw, 9px) 'IBM Plex Mono',
+    monospace;
+  letter-spacing: 0.1em;
+}
+.sr-readout strong {
+  font:
+    500 clamp(16px, 3.9cqw, 38px) 'IBM Plex Mono',
+    monospace;
+  line-height: 1.1;
+}
+.sr-bottom {
+  position: absolute;
+  inset: auto 3.6% 3.2%;
+}
+.sr-message {
+  margin: 0 0 1.05cqw;
+  width: max-content;
+  max-width: 100%;
+  border-radius: 3px;
+  background: #e7eedbdc;
+  color: #204b3e;
+  padding: 0.4cqw 0.75cqw;
+  font-size: clamp(6px, 1.18cqw, 12px);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.sr-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sr-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.7cqw;
+}
+.sr-game button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5cqw;
+  min-width: 9.9cqw;
+  height: 4.5cqw;
+  min-height: 18px;
+  max-height: 46px;
+  border: 1px solid #31594b55;
+  border-radius: 0.65cqw;
+  padding: 0.6cqw 1.2cqw;
+  box-shadow: 0 2px 0 #234d3d26;
+  background: #e7eeda;
+  color: #21443a;
+  font:
+    600 clamp(7px, 1.4cqw, 14px) 'Space Grotesk Variable',
+    sans-serif;
+  cursor: pointer;
+  transition:
+    background 120ms,
+    transform 120ms;
+}
+.sr-game button:hover {
+  background: #f5f7e9;
+  transform: translateY(-1px);
+}
+.sr-game button:active {
+  transform: translateY(1px);
+}
+.sr-game button:focus-visible {
+  outline: 3px solid #e97850;
+  outline-offset: 3px;
+}
+.sr-game button.sr-selected {
+  box-shadow: inset 0 0 0 1px #21443a;
+}
+.sr-game button.sr-ride-button {
+  background: #eaf3ad;
+  border-color: #446546;
+  min-width: 11cqw;
+}
+.sr-instructions {
+  display: flex;
+  align-items: center;
+  gap: 0.6cqw;
+  color: #e9f0d9;
+  font:
+    500 clamp(5px, 1.05cqw, 11px) 'IBM Plex Mono',
+    monospace;
+  letter-spacing: 0.05em;
+}
+.sr-instructions kbd {
+  padding: 0.4cqw 0.5cqw;
+  border: 1px solid #dfebcb88;
+  border-radius: 3px;
+  font: inherit;
+}
+.sr-instructions i {
+  display: block;
+  width: 0.7cqw;
+  height: 0.7cqw;
+  border-radius: 50%;
+  background: #dfed9e;
+  margin: 0 0.3cqw;
+}
+.sr-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #99b49c55;
+}
+.sr-progress > span {
+  display: block;
+  height: 100%;
+  background: #e77f50;
+  transition: width 100ms linear;
+}
+.sr-result {
+  position: absolute;
+  top: 27%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 43%;
+  padding: 2.3cqw 2.5cqw;
+  border: 1px solid #34534660;
+  border-radius: 1.3cqw;
+  background: #f0f3e6ef;
+  box-shadow: 0 1.1cqw 3cqw #234b3a26;
+  text-align: center;
+}
+.sr-result > span {
+  display: block;
+  font:
+    500 clamp(6px, 1cqw, 10px) 'IBM Plex Mono',
+    monospace;
+  letter-spacing: 0.13em;
+}
+.sr-result > strong {
+  display: block;
+  margin-top: 0.9cqw;
+  font-size: clamp(12px, 2.9cqw, 28px);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+.sr-result p {
+  margin: 0.75cqw 0 1.7cqw;
+  font-size: clamp(7px, 1.25cqw, 12px);
+}
+.sr-result button {
+  width: 100%;
+  background: #254b3d;
+  color: #eff3d8;
+  justify-content: space-between;
+}
+.sr-result button:hover {
+  background: #356550;
+}
+@container (max-width: 420px) {
+  .sr-instructions {
+    display: none;
+  }
+  .sr-actions {
+    width: 100%;
+  }
+  .sr-game button {
+    min-height: 27px;
+    font-size: 10px;
+    flex: 1;
+  }
+  .sr-result {
+    width: 67%;
+    padding: 10px;
+  }
+  .sr-result p {
+    font-size: 10px;
+  }
+  .sr-result > strong {
+    font-size: 16px;
+  }
+  .sr-result > span {
+    font-size: 9px;
+  }
+  .sr-message {
+    font-size: 10px;
+  }
+}

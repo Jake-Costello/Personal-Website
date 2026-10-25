@@ -304,6 +304,9 @@ test('changing balls while holding a club uses the selected ball story at launch
   }, STORAGE_KEY);
   const golf = await openGolf(page);
   const club = golf.getByRole('button', { name: 'Driver — Building Revision Marine', exact: true });
+  // The lazy lab above this section can change the page height after openGolf scrolls.
+  await club.scrollIntoViewIfNeeded();
+  await expect(club).toBeInViewport();
   const origin = await club.boundingBox();
   const target = await golf.locator('.golf-drop-zone').boundingBox();
   await page.mouse.move(origin!.x + origin!.width / 2, origin!.y + origin!.height / 2);

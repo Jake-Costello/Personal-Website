@@ -1,0 +1,644 @@
+.shoreline-game {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  container-type: inline-size;
+  background: #dcece6;
+  color: #17251e;
+  font-family: 'Space Grotesk Variable', sans-serif;
+  text-align: left;
+  isolation: isolate;
+}
+
+.shoreline-game *,
+.shoreline-game *::before,
+.shoreline-game *::after {
+  box-sizing: border-box;
+}
+.shoreline-scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.shoreline-game button,
+.shoreline-game select {
+  font: inherit;
+  color: inherit;
+  border: 1px solid #49635655;
+  border-radius: 0.4cqw;
+  background: #f5f3ed;
+  cursor: pointer;
+}
+.shoreline-game button {
+  padding: 0.6cqw 1cqw;
+}
+.shoreline-game button:hover {
+  background: #e5f5bc;
+}
+.shoreline-game button:focus-visible,
+.shoreline-game select:focus-visible,
+.shoreline-game a:focus-visible {
+  outline: 0.3cqw solid #496356;
+  outline-offset: 0.25cqw;
+}
+.shoreline-game button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.shoreline-topbar {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 7.7%;
+  padding: 0 2.8%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #49635633;
+  background: #f5f3edef;
+  font:
+    500 1.15cqw 'IBM Plex Mono',
+    monospace;
+  letter-spacing: 0.05cqw;
+}
+.shoreline-topbar > div {
+  display: flex;
+  align-items: center;
+  gap: 0.75cqw;
+}
+.shoreline-status-light {
+  width: 0.65cqw;
+  height: 0.65cqw;
+  border-radius: 50%;
+  background: #5e886c;
+}
+.shoreline-topbar-sub {
+  color: #64786a;
+}
+.shoreline-top-actions {
+  gap: 0.7cqw;
+}
+.shoreline-progress {
+  position: absolute;
+  top: 8.7%;
+  left: 2.8%;
+  right: 2.8%;
+  display: flex;
+  gap: 0.4cqw;
+}
+.shoreline-progress button {
+  width: 100%;
+  height: 1.8cqw;
+  padding: 0.55cqw 0;
+  border: 0;
+  background: transparent;
+}
+.shoreline-progress button span {
+  display: block;
+  height: 0.45cqw;
+  background: #a3bcad;
+  border-radius: 2px;
+}
+.shoreline-progress button.is-passed span {
+  background: #5e886c;
+}
+.shoreline-progress button[aria-current] span {
+  background: #17251e;
+}
+.shoreline-progress button:disabled {
+  opacity: 1;
+}
+.shoreline-story {
+  position: absolute;
+  top: 14.5%;
+  left: 2.8%;
+  width: 64%;
+  max-height: 49%;
+  padding: 1.5cqw 1.75cqw;
+  background: #f5f3edf0;
+  border: 1px solid #49635633;
+  border-radius: 0.7cqw;
+  box-shadow: 0 0.5cqw 1.6cqw #4963560a;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.shoreline-game .shoreline-eyebrow {
+  display: block;
+  margin: 0;
+  font:
+    500 1.05cqw/1.5 'IBM Plex Mono',
+    monospace;
+  color: #496356;
+  letter-spacing: 0.055cqw;
+}
+.shoreline-game h2 {
+  margin: 0.6cqw 0;
+  font-size: 2.8cqw;
+  line-height: 1.1;
+  letter-spacing: -0.1cqw;
+  font-weight: 650;
+}
+.shoreline-story-place {
+  margin: 0.5cqw 0 1cqw;
+  font-size: 1.3cqw;
+  color: #496356;
+  font-weight: 600;
+}
+.shoreline-story-body {
+  margin: 0;
+  font-size: 1.55cqw;
+  line-height: 1.5;
+  letter-spacing: -0.012cqw;
+}
+.shoreline-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4cqw;
+  padding: 0;
+  margin: 1.2cqw 0 0;
+  list-style: none;
+}
+.shoreline-skills li {
+  padding: 0.35cqw 0.6cqw;
+  border: 1px solid #49635633;
+  border-radius: 0.3cqw;
+  font:
+    400 1.02cqw/1.2 'IBM Plex Mono',
+    monospace;
+}
+.shoreline-story-link {
+  display: inline-block;
+  margin-top: 1cqw;
+  color: #496356;
+  font-size: 1.2cqw;
+  font-weight: 600;
+}
+.shoreline-journey-nav {
+  position: absolute;
+  top: 15.5%;
+  right: 3%;
+  width: 26.5%;
+}
+.shoreline-year {
+  display: block;
+  margin: 0.4cqw 0 1.5cqw;
+  font-size: 3.8cqw;
+  line-height: 1.1;
+  letter-spacing: -0.2cqw;
+  font-weight: 650;
+}
+.shoreline-chapter-label {
+  display: block;
+  margin: 0 0 0.5cqw;
+  font:
+    500 1cqw 'IBM Plex Mono',
+    monospace;
+  color: #496356;
+}
+.shoreline-journey-nav select {
+  display: block;
+  width: 100%;
+  padding: 0.8cqw 0.5cqw;
+  font-size: 1.2cqw;
+  text-overflow: ellipsis;
+}
+.shoreline-chapter-buttons {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6cqw;
+  margin-top: 0.7cqw;
+  font-size: 1.1cqw;
+}
+.shoreline-chapter-buttons button {
+  flex: 1;
+  padding: 0.65cqw 0.4cqw;
+}
+.shoreline-riding-tip {
+  margin: 1.5cqw 0 0;
+  font:
+    400 1.15cqw/1.7 'IBM Plex Mono',
+    monospace;
+  color: #496356;
+}
+.shoreline-finish-message {
+  display: grid;
+  gap: 0.5cqw;
+  margin-top: 1.3cqw;
+  font-size: 1.3cqw;
+}
+.shoreline-finish-message button {
+  background: #dfff7f;
+  margin-top: 0.3cqw;
+  font-weight: 600;
+}
+.shoreline-scoreboard {
+  position: absolute;
+  top: 14%;
+  left: 3%;
+  right: 3%;
+  display: flex;
+  align-items: center;
+  gap: 2.8cqw;
+  padding: 1.3cqw 1.5cqw;
+  border: 1px solid #49635633;
+  border-radius: 0.6cqw;
+  background: #f5f3eef0;
+}
+.shoreline-clock strong {
+  display: block;
+  font:
+    500 4.3cqw/1.1 'IBM Plex Mono',
+    monospace;
+  letter-spacing: -0.25cqw;
+}
+.shoreline-scoreboard dl {
+  display: flex;
+  flex: 1;
+  justify-content: space-around;
+  gap: 1cqw;
+  margin: 0;
+  font-family: 'IBM Plex Mono', monospace;
+}
+.shoreline-scoreboard dt {
+  font-size: 1cqw;
+  color: #496356;
+}
+.shoreline-scoreboard dd {
+  margin: 0.5cqw 0 0;
+  font-size: 1.65cqw;
+}
+.shoreline-scoreboard > button {
+  font-size: 1.25cqw;
+}
+.shoreline-trial-card {
+  position: absolute;
+  top: 34%;
+  left: 3%;
+  width: 63%;
+  padding: 1.5cqw 1.8cqw;
+  border: 1px solid #49635633;
+  border-radius: 0.6cqw;
+  background: #f5f3edf5;
+}
+.shoreline-trial-card h2 {
+  font-size: 3cqw;
+}
+.shoreline-trial-card p {
+  margin: 1cqw 0;
+  font-size: 1.55cqw;
+  line-height: 1.45;
+}
+.shoreline-trial-actions {
+  display: flex;
+  gap: 0.75cqw;
+  margin-top: 1.3cqw;
+  font-size: 1.3cqw;
+}
+.shoreline-trial-actions button:first-child {
+  background: #dfff7f;
+  font-weight: 600;
+}
+.shoreline-trial-story {
+  position: absolute;
+  top: 35%;
+  left: 4.5%;
+  max-width: 60%;
+}
+.shoreline-trial-story h2 {
+  font-size: 2.7cqw;
+}
+.shoreline-trial-story p {
+  font-size: 1.3cqw;
+  margin: 0.5cqw 0 1.5cqw;
+  color: #496356;
+}
+.shoreline-next-obstacle {
+  font:
+    500 1.15cqw 'IBM Plex Mono',
+    monospace;
+  padding: 0.5cqw 0.7cqw;
+  border-radius: 0.3cqw;
+  background: #f5f3edcc;
+}
+.shoreline-water-hud {
+  position: absolute;
+  left: 2.8%;
+  right: 2.8%;
+  bottom: 1.7%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  font:
+    500 0.95cqw 'IBM Plex Mono',
+    monospace;
+  color: #496356;
+}
+.shoreline-pump {
+  display: flex;
+  align-items: center;
+  gap: 0.75cqw;
+}
+.shoreline-pump i {
+  display: block;
+  width: 8cqw;
+  height: 0.7cqw;
+  background: #49635630;
+  border-radius: 0.2cqw;
+  overflow: hidden;
+}
+.shoreline-pump b {
+  display: block;
+  height: 100%;
+  background: #496356;
+}
+.shoreline-game .trial-obstacle.is-hit {
+  opacity: 0.45;
+}
+
+.shoreline-compact-story {
+  display: none;
+}
+
+.shoreline-story.is-reading {
+  z-index: 5;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  padding: 0 14px 14px;
+  border: 0;
+  border-radius: 0;
+  background: #f5f3ed;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+.shoreline-reader-tools {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin: 0 -14px 12px;
+  padding: 6px 10px;
+  border-bottom: 1px solid #49635644;
+  background: #e2ebdd;
+  font:
+    500 10px 'IBM Plex Mono',
+    monospace;
+}
+.shoreline-reader-tools button {
+  min-height: 28px;
+  padding: 4px 8px;
+  font:
+    600 12px 'Space Grotesk Variable',
+    sans-serif;
+}
+.shoreline-game .shoreline-story.is-reading .shoreline-eyebrow {
+  margin-bottom: 5px;
+  font-size: 12px;
+}
+.shoreline-game .shoreline-story.is-reading h2 {
+  margin: 5px 0 7px;
+  font-size: 20px;
+  letter-spacing: -0.4px;
+}
+.shoreline-story.is-reading .shoreline-story-place {
+  margin: 0 0 10px;
+  font-size: 12px;
+}
+.shoreline-story.is-reading .shoreline-story-body {
+  font-size: 14px;
+  line-height: 1.55;
+}
+.shoreline-story.is-reading .shoreline-skills {
+  margin-top: 12px;
+  gap: 5px;
+}
+.shoreline-story.is-reading .shoreline-skills li {
+  padding: 4px 6px;
+  font-size: 12px;
+}
+.shoreline-story.is-reading .shoreline-story-link {
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+@container (max-width: 500px) {
+  .shoreline-topbar {
+    height: 29px;
+    padding: 0 9px;
+    font-size: 9px;
+    letter-spacing: 0;
+  }
+  .shoreline-topbar-sub,
+  .shoreline-progress,
+  .shoreline-story:not(.is-reading) {
+    display: none;
+  }
+  .shoreline-status-light {
+    width: 4px;
+    height: 4px;
+  }
+  .shoreline-top-actions {
+    gap: 4px;
+  }
+  .shoreline-top-actions button {
+    min-height: 22px;
+    padding: 2px 6px;
+    font-size: 10px;
+    border-radius: 3px;
+  }
+  .shoreline-compact-story {
+    position: absolute;
+    top: 35px;
+    left: 9px;
+    right: 9px;
+    display: block;
+    padding: 6px 8px;
+    border: 1px solid #49635633;
+    border-radius: 4px;
+    background: #f5f3ede8;
+  }
+  .shoreline-compact-story > div {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .shoreline-compact-story strong {
+    font-size: 12px;
+  }
+  .shoreline-compact-story > div > span {
+    font:
+      400 9px 'IBM Plex Mono',
+      monospace;
+    color: #496356;
+  }
+  .shoreline-compact-story button {
+    min-height: 23px;
+    margin-left: auto;
+    padding: 3px 7px;
+    border-radius: 3px;
+    background: #dfff7f;
+    font-size: 12px;
+  }
+  .shoreline-game .shoreline-compact-story h2 {
+    margin: 5px 0 1px;
+    font-size: 15px;
+    line-height: 1.15;
+    letter-spacing: -0.25px;
+  }
+  .shoreline-journey-nav {
+    top: 115px;
+    left: 9px;
+    right: 9px;
+    display: flex;
+    width: auto;
+    gap: 5px;
+  }
+  .shoreline-journey-nav > .shoreline-eyebrow,
+  .shoreline-year,
+  .shoreline-chapter-label,
+  .shoreline-riding-tip,
+  .shoreline-finish-message {
+    display: none;
+  }
+  .shoreline-journey-nav select {
+    flex: 1;
+    min-width: 0;
+    min-height: 23px;
+    padding: 2px 3px;
+    font-size: 11px;
+    border-radius: 3px;
+    background: #f5f3ede8;
+  }
+  .shoreline-chapter-buttons {
+    gap: 4px;
+    margin: 0;
+  }
+  .shoreline-chapter-buttons button {
+    min-width: 25px;
+    min-height: 23px;
+    padding: 1px 4px;
+    font-size: 0;
+    border-radius: 3px;
+  }
+  .shoreline-chapter-buttons button::after {
+    content: '→';
+    font-size: 16px;
+  }
+  .shoreline-chapter-buttons button:first-child::after {
+    content: '←';
+  }
+  .shoreline-water-hud {
+    bottom: 5px;
+    left: auto;
+    right: 9px;
+    font-size: 9px;
+    color: #17251e;
+  }
+  .shoreline-water-hud > span {
+    display: none;
+  }
+  .shoreline-game[data-mode='trial']:not([data-phase='running']) .shoreline-water-hud {
+    display: none;
+  }
+  .shoreline-pump {
+    gap: 5px;
+  }
+  .shoreline-pump i {
+    width: 35px;
+    height: 4px;
+  }
+  .shoreline-scoreboard {
+    top: 35px;
+    left: 9px;
+    right: 9px;
+    gap: 8px;
+    padding: 6px;
+    border-radius: 4px;
+  }
+  .shoreline-game .shoreline-scoreboard .shoreline-eyebrow {
+    font-size: 8px;
+    letter-spacing: 0;
+  }
+  .shoreline-clock strong {
+    font-size: 22px;
+    letter-spacing: -1px;
+  }
+  .shoreline-scoreboard dl {
+    gap: 8px;
+  }
+  .shoreline-scoreboard dl > div:last-child {
+    display: none;
+  }
+  .shoreline-scoreboard dt {
+    font-size: 8px;
+  }
+  .shoreline-scoreboard dd {
+    margin-top: 3px;
+    font-size: 11px;
+  }
+  .shoreline-scoreboard > button {
+    min-height: 24px;
+    padding: 3px 5px;
+    font-size: 10px;
+  }
+  .shoreline-trial-story {
+    top: 91px;
+    left: 12px;
+    right: 12px;
+    max-width: none;
+  }
+  .shoreline-trial-story .shoreline-eyebrow,
+  .shoreline-trial-story p {
+    display: none;
+  }
+  .shoreline-game .shoreline-trial-story h2 {
+    display: none;
+  }
+  .shoreline-next-obstacle {
+    padding: 3px 5px;
+    font-size: 11px;
+  }
+  .shoreline-trial-card {
+    top: 87px;
+    left: 9px;
+    right: 9px;
+    bottom: 5px;
+    width: auto;
+    padding: 7px 9px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: 4px;
+  }
+  .shoreline-trial-card > .shoreline-eyebrow {
+    display: none;
+  }
+  .shoreline-game .shoreline-trial-card h2 {
+    margin: 0 0 4px;
+    font-size: 17px;
+    letter-spacing: -0.4px;
+  }
+  .shoreline-trial-card p {
+    margin: 0 0 7px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .shoreline-trial-actions {
+    position: sticky;
+    bottom: -7px;
+    gap: 5px;
+    margin: 7px -9px -7px;
+    padding: 6px 9px;
+    background: #f5f3ed;
+    font-size: 12px;
+  }
+  .shoreline-trial-actions button {
+    min-height: 25px;
+    padding: 3px 7px;
+    border-radius: 3px;
+  }
+}
