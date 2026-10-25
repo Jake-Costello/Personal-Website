@@ -441,6 +441,7 @@ test('Revision Marine is a drive-by before the finish and restart restores the f
   await page.goto('/#experience');
   const progress = page.getByRole('progressbar', { name: 'Shoreline progress' });
   await chapterButton(page, 'revision').click();
+  await expect(page.locator('.journey-story')).toHaveAttribute('data-story-id', 'revision');
   await expect(
     page.locator('.journey-stage').getByRole('link', { name: /Visit Revision Marine/ }),
   ).toHaveAttribute('href', 'https://revision-marine.com/');
@@ -450,11 +451,11 @@ test('Revision Marine is a drive-by before the finish and restart restores the f
     .locator('.revision-outpost')
     .evaluate((element) => element.getBoundingClientRect().x);
   await chapterButton(page, finalChapter.id).click();
-  expect(
-    await page
-      .locator('.revision-outpost')
-      .evaluate((element) => element.getBoundingClientRect().x),
-  ).toBeLessThan(outpostX);
+  await expect
+    .poll(() =>
+      page.locator('.revision-outpost').evaluate((element) => element.getBoundingClientRect().x),
+    )
+    .toBeLessThan(outpostX);
   const finishBox = await page.locator('.journey-finish-line').boundingBox();
   const stageBox = await page.locator('.journey-stage').boundingBox();
   expect(finishBox!.x + finishBox!.width).toBeGreaterThan(stageBox!.x);
