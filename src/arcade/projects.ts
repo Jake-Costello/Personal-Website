@@ -7,10 +7,11 @@ export type ArcadeProject = {
   cabinetColor: string;
   genre: string;
   tagline: string;
+  hidden?: boolean;
   controls: { action: string; label: string; key: string }[];
 };
 
-export const arcadeProjects: ArcadeProject[] = [
+const arcadeCatalog: ArcadeProject[] = [
   {
     id: 'shoreline',
     title: 'Resume Run',
@@ -29,6 +30,7 @@ export const arcadeProjects: ArcadeProject[] = [
   },
   {
     id: 'sketch',
+    hidden: true,
     title: 'Sketch-to-Ride',
     shortTitle: 'SKETCH / RIDE',
     number: '02',
@@ -56,3 +58,6 @@ export const arcadeProjects: ArcadeProject[] = [
     ],
   },
 ];
+
+// Keep unfinished machines available in source without exposing them in either lobby.
+export const arcadeProjects = arcadeCatalog.filter((project) => !project.hidden);

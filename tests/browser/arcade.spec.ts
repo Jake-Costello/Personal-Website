@@ -1,9 +1,12 @@
 import { expect, test } from '@playwright/test';
 import type { CDPSession, Locator, Page } from '@playwright/test';
 import { installProteinApi } from './protein-fixtures';
+import { arcadeProjects } from '../../src/arcade/projects';
 
 const machines = ['Resume Run', 'Sketch-to-Ride', 'Warehouse Shift'] as const;
 const gameIds = ['shoreline', 'sketch', 'warehouse'] as const;
+const visibleMachines = ['Resume Run', 'Warehouse Shift'] as const;
+const sketchHidden = !arcadeProjects.some((project) => project.id === 'sketch');
 const machine = (page: Page, title: string) =>
   page.getByRole('button', { name: `Play ${title}`, exact: true });
 const controls = (page: Page) => page.locator('.arcade-player-controls');
@@ -73,7 +76,7 @@ async function touch(
   await session.send('Input.dispatchTouchEvent', { type, touchPoints });
 }
 
-test('the arcade directly loads and reloads three actual 3D machines without API requests', async ({
+test('the arcade loads and reloads two 3D machines with Sketch hidden and no API requests', async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -97,8 +100,9 @@ test('the arcade directly loads and reloads three actual 3D machines without API
     await expect(page.locator('.arcade-webgl canvas')).toBeVisible();
     await expect(
       page.getByRole('group', { name: 'Arcade machines', exact: true }).getByRole('button'),
-    ).toHaveCount(3);
-    for (const title of machines) await expect(machine(page, title)).toBeAttached();
+    ).toHaveCount(2);
+    for (const title of visibleMachines) await expect(machine(page, title)).toBeAttached();
+    await expect(machine(page, 'Sketch-to-Ride')).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Step up to play|^Choose / })).toHaveCount(0);
     await expect(
       page.locator('.arcade-room-intro, .arcade-lobby-info, .arcade-machine-list'),
@@ -112,12 +116,12 @@ test('the arcade directly loads and reloads three actual 3D machines without API
   expect(errors).toEqual([]);
 });
 
-test('three-machine selection wraps and Enter plays locally while Escape returns to the room', async ({
+test('two-machine selection wraps and Enter plays locally while Escape returns to the room', async ({
   page,
 }) => {
   await page.goto('/arcade/');
   await expectRoomReady(page);
-  for (const title of ['Sketch-to-Ride', 'Warehouse Shift', 'Resume Run'] as const) {
+  for (const title of ['Warehouse Shift', 'Resume Run'] as const) {
     await page.getByRole('button', { name: 'Next machine', exact: true }).click();
     await expectSelected(page, title);
   }
@@ -249,6 +253,7 @@ test('mobile cabinet holds support simultaneous pumping and jumping and release 
 test('a drawn downhill line becomes a playable Sketch ride and can be edited again', async ({
   page,
 }) => {
+  test.skip(sketchHidden, 'Sketch-to-Ride is temporarily hidden while it is refined.');
   await page.goto('/arcade/');
   await play(page, 'Sketch-to-Ride');
   const game = page.locator('[data-game="sketch-ride"]');
@@ -294,6 +299,7 @@ test('a drawn downhill line becomes a playable Sketch ride and can be edited aga
 test('Sketch cabinet pedals and brakes change speed, and an actual rider collision can be retried', async ({
   page,
 }, testInfo) => {
+  test.skip(sketchHidden, 'Sketch-to-Ride is temporarily hidden while it is refined.');
   test.setTimeout(60_000);
   await page.goto('/arcade/');
   await play(page, 'Sketch-to-Ride');
@@ -349,6 +355,7 @@ test('Sketch cabinet pedals and brakes change speed, and an actual rider collisi
 test('Sketch ramps launch naturally and scrolling levels advance after completion', async ({
   page,
 }, testInfo) => {
+  test.skip(sketchHidden, 'Sketch-to-Ride is temporarily hidden while it is refined.');
   test.setTimeout(60_000);
   await page.goto('/arcade/');
   await play(page, 'Sketch-to-Ride');
@@ -536,7 +543,9 @@ test('warehouse shares stock locations, completes orders, restocks overnight and
   await expect(game).toHaveAttribute('data-best-day', '1');
 });
 
-test('all three games remain playable when WebGL is unavailable', async ({ page }) => {
+test('both visible games remain playable and Sketch stays hidden without WebGL', async ({
+  page,
+}) => {
   await page.addInitScript(() => {
     const original = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = function (
@@ -550,7 +559,9 @@ test('all three games remain playable when WebGL is unavailable', async ({ page 
   });
   await page.goto('/arcade/');
   await expect(page.locator('.arcade-page')).toHaveAttribute('data-renderer', 'fallback');
-  for (const title of machines) {
+  await expect(machine(page, 'Sketch-to-Ride')).toHaveCount(0);
+  await expect(page.locator('.arcade-fallback-machines > button')).toHaveCount(2);
+  for (const title of visibleMachines) {
     await play(page, title);
     if (title === 'Resume Run') {
       await holdKeyUntil(
@@ -560,11 +571,6 @@ test('all three games remain playable when WebGL is unavailable', async ({ page 
         25,
       );
       await page.keyboard.up('ArrowRight');
-    } else if (title === 'Sketch-to-Ride') {
-      await controls(page).getByRole('button', { name: 'Pedal', exact: true }).click();
-      await expect
-        .poll(() => numeric(page.locator('[data-game="sketch-ride"]'), 'data-progress'))
-        .toBeGreaterThan(1);
     } else {
       await holdKeyUntil(
         page,

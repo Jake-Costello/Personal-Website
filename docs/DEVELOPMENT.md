@@ -74,6 +74,8 @@ See [golf content and achievement editing](GOLF-CONTENT.md) for the per-ball fie
 
 ## Project Arcade
 
+Resume Run and Warehouse Shift are currently visible. Sketch-to-Ride is temporarily hidden; its game, assets and model tests remain in source. Remove `hidden: true` from its entry in `src/arcade/projects.ts` to restore the cabinet in both the 3D and fallback lobbies. Its game-specific browser tests resume automatically; update the lobby visibility assertions when restoring it.
+
 Use the lobby arrows to browse; click a 3D cabinet or press Enter with the room focused to play. The selected cabinet sits forward under an overhead spotlight. All games run inside the cabinet screen and stay on `/arcade/`. Escape returns to the machines; **Expand screen** provides a larger view. Accessible cabinet targets follow the projected models, and the game screen uses the tilted monitor's full world transform to stay aligned with it. The larger monitor and smaller sloped control deck prioritize readable game content. On-screen controls support touch and keyboard activation.
 
 Resume Run has four physical arrow keys in an inverted T: left/right steer, down pumps, and up jumps. Warehouse has a four-way joystick, Pick (E/Space), and Put away (Q); its upgrades menu is on the monitor. Sketch has a Custom/Levels rocker, four-way joystick, and held Pedal (Space/E) and Brake (Q) buttons. The joystick edits the custom trail while drawing, then left/right tilt the bike while riding. C selects Custom and L selects Levels. Physical and accessible controls share the same input store, including pause, cancellation and lost-focus handling.

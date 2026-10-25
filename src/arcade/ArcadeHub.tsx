@@ -301,7 +301,7 @@ export default function ArcadeHub() {
                   <small>Play on this screen ↗</small>
                 </button>
               ))}
-              <p>The 3D room is unavailable on this device. All three games still work here.</p>
+              <p>The 3D room is unavailable on this device. You can still play the games here.</p>
             </div>
           )}
           <div
@@ -402,7 +402,9 @@ export default function ArcadeHub() {
       </main>
       <footer className="arcade-footer">
         <span>PLAY / MAKE / REPEAT</span>
-        <span>{playing ? 'YOUR GAME. YOUR CONTROLS.' : 'THREE MACHINES. NO COINS REQUIRED.'}</span>
+        <span>
+          {playing ? 'YOUR GAME. YOUR CONTROLS.' : 'CHOOSE A MACHINE. NO COINS REQUIRED.'}
+        </span>
       </footer>
     </div>
   );

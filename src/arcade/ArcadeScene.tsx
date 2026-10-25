@@ -495,10 +495,22 @@ function Cabinet({
     },
     [resources],
   );
-  const order = ((index - selected + 4) % 3) - 1;
-  const targetX = order * (playing ? 3.9 : 2.24);
+  const count = arcadeProjects.length;
+  const half = Math.floor(count / 2);
+  const order = count === 2 ? index - selected : ((index - selected + count + half) % count) - half;
+  const pairedLobby = count === 2 && size.width / size.height >= 0.8;
+  // Balance a desktop pair, but keep the selected cabinet fully visible on narrow screens.
+  // Playing always brings its selected screen to x=0 for the projected game surface.
+  const targetX = playing ? order * 3.9 : pairedLobby ? (index - 0.5) * 2.1 : order * 2.24;
   const targetZ = active ? (playing ? 0.35 : 0.72) : playing ? -1.4 : -0.62;
-  const targetR = active ? (playing ? 0 : -0.055) : -order * 0.3;
+  const targetR =
+    !playing && pairedLobby
+      ? (index === 0 ? 1 : -1) * (active ? 0.055 : 0.18)
+      : active
+        ? playing
+          ? 0
+          : -0.055
+        : -order * 0.3;
   const initialPosition = useRef<[number, number, number]>([targetX, 0, targetZ]);
   const initialRotation = useRef<[number, number, number]>([0, targetR, 0]);
   const boxes = useMemo(() => new Map<string, THREE.BufferGeometry>(), []);
@@ -926,6 +938,11 @@ function Room({ selected, playing, reduced, screenRef, onReady, ...props }: Scen
       playing ? closeTargetZ : 0.1,
     );
     const factor = reduced ? 1 : 1 - Math.exp(-Math.min(dt, 0.06) * 6);
+    heroTarget.position.x = THREE.MathUtils.lerp(
+      heroTarget.position.x,
+      !playing && arcadeProjects.length === 2 && aspect >= 0.8 ? (selected - 0.5) * 2.1 : 0,
+      factor,
+    );
     camera.position.lerp(desired, factor);
     target.current.lerp(desiredTarget, factor);
     camera.lookAt(target.current);
