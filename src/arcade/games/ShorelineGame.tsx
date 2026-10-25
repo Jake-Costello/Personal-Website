@@ -324,7 +324,7 @@ export default function ShorelineGame({ input, active }: { input: ArcadeInput; a
       data-jumps={ride.jumps}
       data-elapsed={trial.elapsed}
       data-reading={reading}
-      aria-label="Shoreline Run jetski game"
+      aria-label="Resume Run jetski game"
     >
       <ShorelineScene
         ride={ride}
@@ -334,7 +334,7 @@ export default function ShorelineGame({ input, active }: { input: ArcadeInput; a
       />
       <header className="shoreline-topbar" inert={reading}>
         <div>
-          <span className="shoreline-status-light" /> SHORELINE RUN{' '}
+          <span className="shoreline-status-light" /> RESUME RUN{' '}
           <span className="shoreline-topbar-sub">
             / {mode === 'story' ? 'THE STORY SO FAR' : 'TIME TRIAL'}
           </span>

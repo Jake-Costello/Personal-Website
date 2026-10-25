@@ -561,14 +561,20 @@ button:disabled {
     font-size: 6px;
   }
   .arcade-play-header {
-    left: 18px;
-    right: 18px;
-    top: 16px;
-    flex-wrap: wrap;
+    left: 12px;
+    right: 12px;
+    top: 10px;
+    flex-wrap: nowrap;
     align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
+    border: 1px solid #6e82994d;
+    border-radius: 7px;
+    background: #0b1623ed;
   }
   .arcade-back {
     font-size: 10px;
+    white-space: nowrap;
   }
   .arcade-back kbd {
     display: none;
@@ -580,17 +586,25 @@ button:disabled {
     font-size: 6px;
   }
   .arcade-play-header > div:nth-child(2) {
-    text-align: right;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
   .arcade-play-tools {
-    width: 100%;
+    width: auto;
     max-width: none;
-    justify-content: center;
-    margin-top: 5px;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 4px;
+    margin: 0;
   }
   .arcade-play-tools button {
-    font-size: 9px;
-    padding: 9px;
+    font-size: 8px;
+    padding: 6px;
+    min-height: 34px;
   }
   .arcade-player-controls {
     bottom: 22px;

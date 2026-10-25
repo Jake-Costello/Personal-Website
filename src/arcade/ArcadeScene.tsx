@@ -12,6 +12,7 @@ import type { ArcadeInput } from './input';
 type SceneProps = {
   selected: number;
   playing: boolean;
+  controlsEnabled?: boolean;
   reduced: boolean;
   input: ArcadeInput;
   screenRef: RefObject<HTMLDivElement | null>;
@@ -21,7 +22,30 @@ type SceneProps = {
   onFailure: () => void;
 };
 
-const SCREEN = { width: 1.15, height: 1.15 / 1.6, y: 2.03, z: 0.455 };
+const SCREEN = {
+  width: 1.32,
+  height: 1.32 / 1.6,
+  y: 2.12,
+  z: 0.47,
+  tilt: THREE.MathUtils.degToRad(-8),
+};
+const DECK = { y: 1.43, z: 0.62, tilt: THREE.MathUtils.degToRad(8) };
+
+function switchTexture(label: string) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 160;
+  const c = canvas.getContext('2d')!;
+  c.fillStyle = '#10252c';
+  c.font = 'bold 82px Arial';
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.fillText(label, 256, 85, 460);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  return texture;
+}
 
 function controlTexture(label: string, key: string, arrows: boolean) {
   const canvas = document.createElement('canvas');
@@ -318,6 +342,7 @@ function Cabinet({
   index,
   selected,
   playing,
+  controlsEnabled = true,
   reduced,
   input,
   onSelect,
@@ -342,7 +367,16 @@ function Cabinet({
     [],
   );
   const [held, setHeld] = useState('');
-  useEffect(() => input.subscribe(() => setHeld([...input.pressed].join('|'))), [input]);
+  const [sketchMode, setSketchMode] = useState<'custom' | 'levels'>('levels');
+  useEffect(
+    () =>
+      input.subscribe(() => {
+        setHeld([...input.pressed].join('|'));
+        if (input.pressed.has('mode-custom')) setSketchMode('custom');
+        if (input.pressed.has('mode-levels')) setSketchMode('levels');
+      }),
+    [input],
+  );
   useEffect(() => {
     // R3F consumes cancellation events without forwarding them to captured meshes.
     // Release only the affected control so a second held touch remains usable.
@@ -354,10 +388,8 @@ function Cabinet({
         grip.current = null;
         input.set('left', false);
         input.set('right', false);
-        if (project.id === 'warehouse') {
-          input.set('up', false);
-          input.set('down', false);
-        }
+        input.set('up', false);
+        input.set('down', false);
       } else input.set(action, false);
     };
     const forgetCaptures = () => {
@@ -375,6 +407,9 @@ function Cabinet({
     };
   }, [canvas, input, project.id]);
   const active = index === selected;
+  useEffect(() => {
+    if (active && playing && project.id === 'sketch') setSketchMode('levels');
+  }, [active, playing, project.id]);
   const resources = useMemo(() => {
     const shape = new THREE.Shape();
     // Side silhouette of a full-height upright cabinet, extruded across its width.
@@ -383,9 +418,9 @@ function Cabinet({
     shape.lineTo(0.53, 1.05);
     shape.lineTo(0.82, 1.24);
     shape.lineTo(0.81, 1.43);
-    shape.lineTo(0.48, 1.51);
-    shape.lineTo(0.38, 2.51);
-    shape.lineTo(0.58, 2.62);
+    shape.lineTo(0.53, 1.61);
+    shape.lineTo(0.38, 2.62);
+    shape.lineTo(0.58, 2.67);
     shape.lineTo(0.58, 3.05);
     shape.lineTo(-0.6, 3.05);
     shape.closePath();
@@ -437,7 +472,9 @@ function Cabinet({
       screen: attractTexture(project),
       sideArt: sideTexture(project),
       badge: labelTexture('JC', 'ORIGINAL EXPERIMENTS', '#c9d2c7', true),
-      keyCap: rounded(0.265, 0.1, 0.195, 0.022),
+      keyCap: rounded(0.205, 0.07, 0.15, 0.017),
+      rockerCap: rounded(0.232, 0.055, 0.15, 0.014),
+      modeMaps: ['CUSTOM', 'LEVELS'].map(switchTexture),
       controlMaps: project.controls.map((control) =>
         controlTexture(
           project.id === 'shoreline'
@@ -517,6 +554,7 @@ function Cabinet({
       onSelect(index);
       return;
     }
+    if (!controlsEnabled) return;
     (event.target as unknown as { setPointerCapture: (id: number) => void }).setPointerCapture(
       event.pointerId,
     );
@@ -534,10 +572,8 @@ function Cabinet({
     grip.current = null;
     input.set('left', false);
     input.set('right', false);
-    if (project.id === 'warehouse') {
-      input.set('up', false);
-      input.set('down', false);
-    }
+    input.set('up', false);
+    input.set('down', false);
   };
   const box = (
     key: string,
@@ -583,7 +619,7 @@ function Cabinet({
       {[-0.735, 0.735].map((x) => (
         <group key={x}>
           {box(`edge-${x}`, [x, 0.62, 0.51], [0.018, 1.1, 0.025], resources.edge, 0.005)}
-          {box(`topedge-${x}`, [x, 2.83, 0.595], [0.022, 0.45, 0.025], resources.edge, 0.006)}
+          {box(`topedge-${x}`, [x, 2.85, 0.595], [0.022, 0.33, 0.025], resources.edge, 0.006)}
           <mesh
             position={[x * 1.075, 1.83, -0.17]}
             rotation={[0, x < 0 ? -Math.PI / 2 : Math.PI / 2, 0]}
@@ -597,9 +633,9 @@ function Cabinet({
       {box('base', [0, 0.08, -0.04], [1.5, 0.16, 1.15], resources.black)}
       {box('front', [0, 0.62, 0.48], [1.4, 1.04, 0.11])}
       {box('top', [0, 3.04, -0.01], [1.5, 0.09, 1.17])}
-      {box('marquee-frame', [0, 2.825, 0.5], [1.43, 0.49, 0.23], resources.black)}
-      <mesh position={[0, 2.825, 0.625]}>
-        <planeGeometry args={[1.31, 0.33]} />
+      {box('marquee-frame', [0, 2.85, 0.5], [1.43, 0.36, 0.23], resources.black)}
+      <mesh position={[0, 2.85, 0.625]}>
+        <planeGeometry args={[1.32, 0.265]} />
         <meshStandardMaterial
           map={resources.marquee}
           emissiveMap={resources.marquee}
@@ -609,151 +645,183 @@ function Cabinet({
           metalness={0.1}
         />
       </mesh>
-      {box('monitor-recess', [0, 2.04, 0.28], [1.4, 1.04, 0.25], resources.black, 0.06)}
-      {box('crt-surround', [0, SCREEN.y, 0.402], [1.25, 0.82, 0.1], resources.black, 0.06)}
-      <mesh position={[0, SCREEN.y, SCREEN.z]}>
-        <planeGeometry args={[SCREEN.width, SCREEN.height, 14, 10]} />
-        <meshBasicMaterial
-          map={resources.screen}
-          color={active ? '#ffffff' : '#718394'}
-          toneMapped={false}
-        />
-      </mesh>
-      {box('deck', [0, 1.31, 0.56], [1.53, 0.16, 0.59], resources.black, 0.045)}
-      {box('deck-face', [0, 1.21, 0.842], [1.5, 0.14, 0.07], resources.body)}
-      {box('deck-trim', [0, 1.24, 0.885], [1.49, 0.025, 0.025], resources.edge, 0.008)}
-      <mesh position={[0, 1.399, 0.59]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[1.39, 0.43]} />
-        <meshStandardMaterial color={project.cabinetColor} metalness={0.45} roughness={0.28} />
-      </mesh>
-      {[-0.67, 0.67].flatMap((x) =>
-        [0.43, 0.77].map((z) => (
-          <mesh key={`${x}-${z}`} position={[x, 1.405, z]}>
-            <cylinderGeometry args={[0.016, 0.016, 0.01, 12]} />
-            <primitive object={resources.metal} attach="material" />
-          </mesh>
-        )),
-      )}
-      {project.id !== 'shoreline' && (
-        <group
-          position={[-0.4, 1.41, 0.57]}
-          rotation={[
-            active && project.id === 'warehouse'
-              ? held.includes('down')
-                ? 0.16
-                : held.includes('up')
-                  ? -0.16
-                  : 0
-              : 0,
-            0,
-            active ? (held.includes('left') ? 0.18 : held.includes('right') ? -0.18 : 0) : 0,
-          ]}
-        >
-          <mesh>
-            <cylinderGeometry args={[0.13, 0.14, 0.026, 32]} />
-            <primitive object={resources.black} attach="material" />
-          </mesh>
-          <mesh position={[0, 0.08, 0]}>
-            <cylinderGeometry args={[0.026, 0.026, 0.16, 20]} />
-            <primitive object={resources.metal} attach="material" />
-          </mesh>
-          <mesh
-            position={[0, 0.18, 0]}
-            castShadow
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              if (!active || !playing) {
-                onSelect(index);
-                return;
-              }
-              grip.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
-              capturedControls.current.set(e.pointerId, 'stick');
-              (
-                e.target as unknown as { setPointerCapture: (id: number) => void }
-              ).setPointerCapture(e.pointerId);
-            }}
-            onPointerMove={(e) => {
-              if (!grip.current || grip.current.pointerId !== e.pointerId) return;
-              e.stopPropagation();
-              const dx = e.clientX - grip.current.x;
-              const dy = e.clientY - grip.current.y;
-              input.set('left', dx < -8);
-              input.set('right', dx > 8);
-              if (project.id === 'warehouse') {
-                input.set('up', dy < -8);
-                input.set('down', dy > 8);
-              }
-            }}
-            onPointerUp={releaseStick}
+      <group position={[0, SCREEN.y, SCREEN.z]} rotation={[SCREEN.tilt, 0, 0]}>
+        {box('monitor-recess', [0, 0, -0.16], [1.43, 1.01, 0.24], resources.black, 0.045)}
+        {box('crt-surround', [0, 0, -0.055], [1.405, 0.915, 0.1], resources.black, 0.035)}
+        <mesh>
+          <planeGeometry args={[SCREEN.width, SCREEN.height, 14, 10]} />
+          <meshBasicMaterial
+            map={resources.screen}
+            color={active ? '#ffffff' : '#718394'}
+            toneMapped={false}
+          />
+        </mesh>
+      </group>
+      <group position={[0, DECK.y, DECK.z]} rotation={[DECK.tilt, 0, 0]}>
+        {box('deck', [0, -0.085, 0], [1.53, 0.16, 0.59], resources.black, 0.045)}
+        {box('deck-face', [0, -0.17, 0.29], [1.5, 0.14, 0.07], resources.body)}
+        {box('deck-trim', [0, -0.14, 0.325], [1.49, 0.025, 0.025], resources.edge, 0.008)}
+        <mesh position={[0, 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[1.39, 0.47]} />
+          <meshStandardMaterial color={project.cabinetColor} metalness={0.45} roughness={0.28} />
+        </mesh>
+        {[-0.67, 0.67].flatMap((x) =>
+          [-0.2, 0.2].map((z) => (
+            <mesh key={`${x}-${z}`} position={[x, 0.012, z]}>
+              <cylinderGeometry args={[0.016, 0.016, 0.01, 12]} />
+              <primitive object={resources.metal} attach="material" />
+            </mesh>
+          )),
+        )}
+        {project.id !== 'shoreline' && (
+          <group
+            position={[-0.44, 0.017, 0.055]}
+            rotation={[
+              active ? (held.includes('down') ? 0.16 : held.includes('up') ? -0.16 : 0) : 0,
+              0,
+              active ? (held.includes('left') ? 0.18 : held.includes('right') ? -0.18 : 0) : 0,
+            ]}
           >
-            <sphereGeometry args={[0.075, 32, 24]} />
-            <meshPhysicalMaterial
-              color={project.accent}
-              roughness={0.24}
-              clearcoat={1}
-              clearcoatRoughness={0.16}
-            />
-          </mesh>
-        </group>
-      )}
-      {project.controls.map((control, j) => {
-        const arrows = project.id === 'shoreline';
-        const x = arrows
-          ? control.action === 'left'
-            ? -0.31
-            : control.action === 'right'
-              ? 0.31
-              : 0
-          : project.id === 'warehouse'
-            ? 0.29
-            : 0.15 + j * 0.33;
-        const z = arrows ? (control.action === 'up' ? 0.455 : 0.71) : 0.62 - j * 0.075;
-        const depressed = active && held.includes(control.action);
-        return (
-          <group key={control.action} position={[x, 1.41, z]}>
             <mesh>
-              {arrows ? (
-                <boxGeometry args={[0.285, 0.027, 0.215]} />
-              ) : (
-                <cylinderGeometry args={[0.149, 0.157, 0.025, 40]} />
-              )}
+              <cylinderGeometry args={[0.105, 0.112, 0.024, 32]} />
+              <primitive object={resources.black} attach="material" />
+            </mesh>
+            <mesh position={[0, 0.065, 0]}>
+              <cylinderGeometry args={[0.022, 0.022, 0.13, 20]} />
               <primitive object={resources.metal} attach="material" />
             </mesh>
             <mesh
-              position={[0, depressed ? 0.033 : 0.061, 0]}
+              position={[0, 0.15, 0]}
               castShadow
-              onPointerDown={(e) => press(control.action, e)}
-              onPointerUp={(e) => release(control.action, e)}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                if (!active || !playing) {
+                  onSelect(index);
+                  return;
+                }
+                if (!controlsEnabled) return;
+                grip.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
+                capturedControls.current.set(e.pointerId, 'stick');
+                (
+                  e.target as unknown as { setPointerCapture: (id: number) => void }
+                ).setPointerCapture(e.pointerId);
+              }}
+              onPointerMove={(e) => {
+                if (!controlsEnabled || !grip.current || grip.current.pointerId !== e.pointerId)
+                  return;
+                e.stopPropagation();
+                const dx = e.clientX - grip.current.x;
+                const dy = e.clientY - grip.current.y;
+                input.set('left', dx < -8);
+                input.set('right', dx > 8);
+                input.set('up', dy < -8);
+                input.set('down', dy > 8);
+              }}
+              onPointerUp={releaseStick}
             >
-              {arrows ? (
-                <primitive object={resources.keyCap} attach="geometry" />
-              ) : (
-                <cylinderGeometry args={[0.13, 0.139, 0.072, 40]} />
-              )}
+              <sphereGeometry args={[0.062, 32, 24]} />
               <meshPhysicalMaterial
-                color={arrows || j === 0 ? project.accent : '#edf0e7'}
-                clearcoat={1}
+                color={project.accent}
                 roughness={0.24}
-                metalness={0.05}
+                clearcoat={1}
+                clearcoatRoughness={0.16}
               />
+            </mesh>
+          </group>
+        )}
+        {project.controls.map((control, j) => {
+          const arrows = project.id === 'shoreline';
+          const x = arrows
+            ? control.action === 'left'
+              ? -0.245
+              : control.action === 'right'
+                ? 0.245
+                : 0
+            : 0.27 + j * 0.25;
+          const z = arrows ? (control.action === 'up' ? -0.11 : 0.085) : 0.06 - j * 0.055;
+          const depressed = active && held.includes(control.action);
+          return (
+            <group key={control.action} position={[x, 0.017, z]}>
+              <mesh>
+                {arrows ? (
+                  <boxGeometry args={[0.222, 0.022, 0.166]} />
+                ) : (
+                  <cylinderGeometry args={[0.11, 0.116, 0.022, 40]} />
+                )}
+                <primitive object={resources.metal} attach="material" />
+              </mesh>
               <mesh
-                position={[0, arrows ? 0.051 : 0.037, 0]}
-                rotation={[-Math.PI / 2, 0, 0]}
+                position={[0, depressed ? 0.022 : 0.042, 0]}
+                castShadow
                 onPointerDown={(e) => press(control.action, e)}
                 onPointerUp={(e) => release(control.action, e)}
               >
-                <planeGeometry args={arrows ? [0.23, 0.18] : [0.235, 0.235]} />
-                <meshBasicMaterial
-                  map={resources.controlMaps[j]}
-                  transparent
-                  toneMapped={false}
-                  depthWrite={false}
+                {arrows ? (
+                  <primitive object={resources.keyCap} attach="geometry" />
+                ) : (
+                  <cylinderGeometry args={[0.097, 0.104, 0.05, 40]} />
+                )}
+                <meshPhysicalMaterial
+                  color={arrows || j === 0 ? project.accent : '#edf0e7'}
+                  clearcoat={1}
+                  roughness={0.24}
+                  metalness={0.05}
                 />
+                <mesh
+                  position={[0, arrows ? 0.036 : 0.026, 0]}
+                  rotation={[-Math.PI / 2, 0, 0]}
+                  onPointerDown={(e) => press(control.action, e)}
+                  onPointerUp={(e) => release(control.action, e)}
+                >
+                  <planeGeometry args={arrows ? [0.185, 0.142] : [0.18, 0.18]} />
+                  <meshBasicMaterial
+                    map={resources.controlMaps[j]}
+                    transparent
+                    toneMapped={false}
+                    depthWrite={false}
+                  />
+                </mesh>
               </mesh>
-            </mesh>
+            </group>
+          );
+        })}
+        {project.id === 'sketch' && (
+          <group position={[-0.08, 0.017, -0.12]}>
+            {box('mode-switch-base', [0, 0.008, 0], [0.5, 0.05, 0.183], resources.black, 0.016)}
+            {(['custom', 'levels'] as const).map((mode, modeIndex) => {
+              const chosen = sketchMode === mode;
+              return (
+                <group key={mode} position={[(modeIndex - 0.5) * 0.24, chosen ? 0.036 : 0.051, 0]}>
+                  <mesh
+                    geometry={resources.rockerCap}
+                    castShadow
+                    onPointerDown={(event) => {
+                      event.stopPropagation();
+                      if (!active || !playing) onSelect(index);
+                      else if (controlsEnabled) input.pulse(`mode-${mode}`);
+                    }}
+                  >
+                    <meshPhysicalMaterial
+                      color={chosen ? project.accent : '#bdc8c0'}
+                      clearcoat={0.75}
+                      roughness={0.3}
+                    />
+                  </mesh>
+                  <mesh position={[0, 0.028, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                    <planeGeometry args={[0.215, 0.1]} />
+                    <meshBasicMaterial
+                      map={resources.modeMaps[modeIndex]}
+                      transparent
+                      toneMapped={false}
+                      depthWrite={false}
+                    />
+                  </mesh>
+                </group>
+              );
+            })}
           </group>
-        );
-      })}
+        )}
+      </group>
       {box('coin-door', [-0.27, 0.69, 0.553], [0.42, 0.49, 0.035], resources.black, 0.015)}
       {box('slot-metal', [-0.27, 0.84, 0.58], [0.21, 0.075, 0.02], resources.metal, 0.007)}
       {box('slot', [-0.27, 0.84, 0.594], [0.15, 0.015, 0.012], resources.black, 0.002)}
@@ -783,7 +851,7 @@ function Cabinet({
         <planeGeometry args={[0.38, 0.095]} />
         <meshStandardMaterial map={resources.badge} roughness={0.6} />
       </mesh>
-      <mesh position={[0.57, 2.5, 0.44]}>
+      <mesh position={[0.65, 2.62, 0.43]}>
         <sphereGeometry args={[0.012, 12, 8]} />
         <meshBasicMaterial color={project.accent} />
       </mesh>
@@ -842,12 +910,13 @@ function Room({ selected, playing, reduced, screenRef, onReady, ...props }: Scen
     }
     const aspect = size.width / size.height;
     const closeZ =
-      0.805 +
+      SCREEN.z +
+      0.35 +
       SCREEN.width /
-        (2 * Math.tan(THREE.MathUtils.degToRad(34 / 2)) * Math.min(aspect * 0.92, 0.8));
-    const closeTargetY = 1.88;
-    const closeTargetZ = 0.75;
-    const closeY = closeTargetY + (closeZ - closeTargetZ) * Math.tan(THREE.MathUtils.degToRad(22));
+        (2 * Math.tan(THREE.MathUtils.degToRad(34 / 2)) * Math.min(aspect * 0.96, 1.02));
+    const closeTargetY = 1.98;
+    const closeTargetZ = 0.88;
+    const closeY = closeTargetY + (closeZ - closeTargetZ) * Math.tan(THREE.MathUtils.degToRad(18));
     const desired = playing
       ? new THREE.Vector3(0, closeY, closeZ)
       : new THREE.Vector3(0, 2.7, aspect < 0.8 ? 7.9 : 7.45);
@@ -870,19 +939,23 @@ function Room({ selected, playing, reduced, screenRef, onReady, ...props }: Scen
       projection.point.set(SCREEN.width / 2, SCREEN.y, SCREEN.z + 0.35).project(camera);
       const width = Math.max(1, projection.point.x * size.width);
       const height = width / 1.6;
+      const cosine = Math.cos(SCREEN.tilt);
+      const sine = Math.sin(SCREEN.tilt);
+      // DOM pixels -> local display plane -> the backward-tilted monitor in world space.
+      // Keep its four corners on the physical glass, including the perspective taper.
       projection.world.set(
         SCREEN.width / width,
         0,
         0,
         -SCREEN.width / 2,
         0,
-        -SCREEN.height / height,
+        (-SCREEN.height / height) * cosine,
+        -sine,
+        SCREEN.y + (SCREEN.height / 2) * cosine,
         0,
-        SCREEN.y + SCREEN.height / 2,
-        0,
-        0,
-        1,
-        SCREEN.z + 0.35,
+        (-SCREEN.height / height) * sine,
+        cosine,
+        SCREEN.z + 0.35 + (SCREEN.height / 2) * sine,
         0,
         0,
         0,

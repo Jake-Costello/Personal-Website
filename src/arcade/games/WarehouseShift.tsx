@@ -5,6 +5,13 @@ import {
   RACKS,
   STATIONS,
   UPGRADE_COST,
+  WAREHOUSE_PROGRESS_KEY,
+  advanceWarehouseTime,
+  nextDay,
+  endDay,
+  isRack,
+  parseWarehouseProgress,
+  warehouseProgress,
   buyUpgrade,
   canStand,
   capacity,
@@ -12,17 +19,28 @@ import {
   nextStation,
   routeTo,
   stationNear,
-  workAt,
+  pickAt,
+  putAwayAt,
 } from './warehouse-model';
-import type { Point, WarehouseState, WarehouseStation, WarehouseUpgrade } from './warehouse-model';
+import type {
+  Point,
+  RackId,
+  OrderLine,
+  WarehouseState,
+  WarehouseStation,
+  WarehouseUpgrade,
+} from './warehouse-model';
 import './warehouse-shift.css';
 
 const START = { x: 202, y: 438 };
-const LABELS: Record<WarehouseStation, string> = {
-  receiving: 'RECEIVE',
-  racks: 'STOCK / PICK',
-  dispatch: 'DISPATCH',
-};
+
+function loadProgress() {
+  try {
+    return parseWarehouseProgress(localStorage.getItem(WAREHOUSE_PROGRESS_KEY));
+  } catch {
+    return parseWarehouseProgress(null);
+  }
+}
 
 function Crate({ x, y, small = false }: { x: number; y: number; small?: boolean }) {
   const size = small ? 18 : 25;
@@ -36,7 +54,15 @@ function Crate({ x, y, small = false }: { x: number; y: number; small?: boolean 
   );
 }
 
-function Truck({ outbound = false, count }: { outbound?: boolean; count: number }) {
+function Truck({
+  outbound = false,
+  incoming,
+  order,
+}: {
+  outbound?: boolean;
+  incoming?: RackId;
+  order: OrderLine[];
+}) {
   const x = outbound ? 817 : 34;
   return (
     <g transform={`translate(${x} 230)`}>
@@ -67,9 +93,40 @@ function Truck({ outbound = false, count }: { outbound?: boolean; count: number 
         strokeWidth="2"
       />
       <path d="M13 49h79M13 142h79" stroke="#c6cdc0" strokeWidth="3" />
-      {Array.from({ length: outbound ? Math.min(count, 6) : 6 }, (_, index) => (
-        <Crate key={index} x={16 + (index % 3) * 26} y={58 + Math.floor(index / 3) * 40} small />
-      ))}
+      {outbound ? (
+        order.map((line, index) => (
+          <g key={line.location}>
+            <rect
+              x="14"
+              y={50 + index * 30}
+              width="77"
+              height="25"
+              rx="3"
+              fill={line.delivered ? '#c5e1a5' : '#e4e9dc'}
+              stroke="#718d72"
+              strokeDasharray={line.delivered ? undefined : '4 3'}
+            />
+            <text x="52" y={67 + index * 30} textAnchor="middle" className="wh-order-truck-label">
+              {line.location} {line.delivered}/{line.required}
+            </text>
+          </g>
+        ))
+      ) : (
+        <>
+          {[0, 1, 2, 3].map((index) => (
+            <Crate
+              key={index}
+              x={18 + (index % 2) * 41}
+              y={53 + Math.floor(index / 2) * 30}
+              small
+            />
+          ))}
+          <rect x="15" y="115" width="76" height="25" rx="3" fill="#f4cf7e" stroke="#a17a39" />
+          <text x="53" y="132" textAnchor="middle" className="wh-order-truck-label">
+            {incoming}
+          </text>
+        </>
+      )}
       <rect
         x={outbound ? -8 : 100}
         y="69"
@@ -84,7 +141,7 @@ function Truck({ outbound = false, count }: { outbound?: boolean; count: number 
 }
 
 export default function WarehouseShift({ input, active }: { input: ArcadeInput; active: boolean }) {
-  const [state, setState] = useState(newWarehouse);
+  const [state, setState] = useState(() => newWarehouse(loadProgress()));
   const [pose, setPose] = useState({ ...START, facing: 0 });
   const [showUpgrades, setShowUpgrades] = useState(false);
   const stateRef = useRef(state);
@@ -99,26 +156,42 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
     setState(next);
   }, []);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        WAREHOUSE_PROGRESS_KEY,
+        JSON.stringify(warehouseProgress(stateRef.current)),
+      );
+    } catch {
+      /* Storage is optional; the current attempt remains playable. */
+    }
+  }, [state.cart, state.automation, state.bestDay]);
+
   const toggleUpgrades = useCallback(() => {
-    if (!activeRef.current) return;
+    if (!activeRef.current || stateRef.current.status === 'failed') return;
     route.current = null;
     menuRef.current = !menuRef.current;
     setShowUpgrades(menuRef.current);
   }, []);
 
-  const interact = useCallback(() => {
-    if (!activeRef.current || menuRef.current) return;
-    route.current = null;
-    const station = stationNear(position.current);
-    publish(
-      station
-        ? workAt(stateRef.current, station)
-        : {
-            ...stateRef.current,
-            message: 'Walk to a glowing work zone, then interact. Or tap a zone to work.',
-          },
-    );
-  }, [publish]);
+  const work = useCallback(
+    (action: 'pick' | 'putaway') => {
+      if (!activeRef.current || menuRef.current || stateRef.current.status !== 'working') return;
+      route.current = null;
+      const station = stationNear(position.current);
+      publish(
+        station
+          ? action === 'pick'
+            ? pickAt(stateRef.current, station)
+            : putAwayAt(stateRef.current, station)
+          : {
+              ...stateRef.current,
+              message: 'Walk to a rack address or a truck, then choose Pick or Put away.',
+            },
+      );
+    },
+    [publish],
+  );
 
   const reset = useCallback(() => {
     if (!activeRef.current) return;
@@ -127,7 +200,13 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
     setPose(position.current);
     menuRef.current = false;
     setShowUpgrades(false);
-    publish(newWarehouse());
+    publish(newWarehouse(warehouseProgress(stateRef.current)));
+  }, [publish]);
+
+  const continueDay = useCallback(() => {
+    if (!activeRef.current) return;
+    route.current = null;
+    publish(nextDay(stateRef.current));
   }, [publish]);
 
   useEffect(() => {
@@ -143,10 +222,14 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
       const restart = fresh('reset');
       previous = new Set(input.pressed);
       if (restart) reset();
-      else if (secondary) toggleUpgrades();
-      else if (action) interact();
+      else if (secondary) work('putaway');
+      else if (action) {
+        if (stateRef.current.status === 'failed') reset();
+        else if (stateRef.current.status === 'day-complete' && !menuRef.current) continueDay();
+        else work('pick');
+      }
     });
-  }, [active, input, interact, reset, toggleUpgrades]);
+  }, [active, input, work, reset, continueDay]);
 
   useEffect(() => {
     if (!active) return;
@@ -155,9 +238,23 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
     let lastPaint = 0;
     let lastRendered = { ...position.current };
     const tick = (now: number) => {
-      const dt = Math.min((now - (last || now)) / 1000, 0.04);
+      const elapsed = (now - (last || now)) / 1000;
+      const dt = Math.min(elapsed, 0.04);
       last = now;
-      if (!menuRef.current) {
+      if (!menuRef.current && !document.hidden && stateRef.current.status === 'working') {
+        const before = stateRef.current;
+        const timed = advanceWarehouseTime(before, elapsed);
+        stateRef.current = timed;
+        if (
+          Math.ceil(before.remaining) !== Math.ceil(timed.remaining) ||
+          timed.status !== before.status
+        )
+          setState(timed);
+        if (timed.status !== 'working') {
+          route.current = null;
+          frame = requestAnimationFrame(tick);
+          return;
+        }
         let dx = Number(input.pressed.has('right')) - Number(input.pressed.has('left'));
         let dy = Number(input.pressed.has('down')) - Number(input.pressed.has('up'));
         const manual = dx !== 0 || dy !== 0;
@@ -179,10 +276,7 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
             dy = target.y - position.current.y;
             travel = Math.min(travel, Math.hypot(dx, dy));
           } else {
-            const station = route.current.station;
             route.current = null;
-            if (station && stationNear(position.current) === station)
-              publish(workAt(stateRef.current, station));
           }
         }
         const magnitude = Math.hypot(dx, dy);
@@ -202,12 +296,24 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
         if (stateRef.current.automation && stateRef.current.carrying) {
           const station = stationNear(position.current);
           if (
-            (station === 'racks' && stateRef.current.cargo === 'inbound') ||
-            (station === 'dispatch' && stateRef.current.cargo === 'order')
-          ) {
-            if (route.current?.station === station) route.current.station = undefined;
-            publish(workAt(stateRef.current, station));
-          }
+            station &&
+            isRack(station) &&
+            stateRef.current.carried.some(
+              (item) => item.kind === 'inbound' && item.location === station,
+            )
+          )
+            publish(putAwayAt(stateRef.current, station, true));
+          else if (
+            station === 'dispatch' &&
+            stateRef.current.carried.some(
+              (item) =>
+                item.kind === 'picked' &&
+                stateRef.current.order.some(
+                  (line) => line.location === item.location && line.delivered < line.required,
+                ),
+            )
+          )
+            publish(pickAt(stateRef.current, station));
         }
         if (
           now - lastPaint > 32 &&
@@ -222,22 +328,30 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
       }
       frame = requestAnimationFrame(tick);
     };
+    const resetClock = () => {
+      last = 0;
+    };
+    document.addEventListener('visibilitychange', resetClock);
     frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener('visibilitychange', resetClock);
+    };
   }, [active, input, publish]);
 
   const goTo = (station: WarehouseStation) => {
-    if (!active || showUpgrades) return;
-    if (stationNear(position.current) === station) {
-      route.current = null;
-      publish(workAt(stateRef.current, station));
-      return;
-    }
+    if (!active || showUpgrades || stateRef.current.status !== 'working') return;
     route.current = { points: routeTo(position.current, STATIONS[station]), station };
   };
 
   const moveToFloor = (event: PointerEvent<SVGSVGElement>) => {
-    if (!active || showUpgrades || (event.target as Element).closest('[data-station]')) return;
+    if (
+      !active ||
+      showUpgrades ||
+      stateRef.current.status !== 'working' ||
+      (event.target as Element).closest('[data-station]')
+    )
+      return;
     const matrix = event.currentTarget.getScreenCTM();
     if (!matrix) return;
     const target = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
@@ -249,32 +363,29 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
     if (active) publish(buyUpgrade(stateRef.current, upgrade));
   };
   const goal = nextStation(state);
-  const phase =
-    state.cargo === 'inbound'
-      ? 'put-away'
-      : state.cargo === 'order'
-        ? 'dispatch'
-        : state.stock
-          ? 'pick'
-          : 'receive';
-  const step = phase === 'receive' ? 0 : phase === 'put-away' ? 1 : phase === 'pick' ? 2 : 3;
+  const timeLabel = `${Math.floor(Math.ceil(state.remaining) / 60)}:${String(Math.ceil(state.remaining) % 60).padStart(2, '0')}`;
   const near = stationNear(pose);
-  const actionLabel =
-    near === 'receiving'
-      ? 'Unload truck'
-      : near === 'dispatch'
-        ? 'Ship order'
-        : near === 'racks'
-          ? state.cargo === 'inbound'
-            ? 'Put away'
-            : 'Pick order'
-          : 'Interact';
+  const carriedLabel = state.carried.map((item) => `${item.location} x${item.quantity}`).join(', ');
+  const destination = state.quotaMet
+    ? 'Quota met: restock for tomorrow or End day'
+    : state.carrying
+      ? `Carrying ${carriedLabel}`
+      : `Incoming: ${state.inboundLocation} / Pick: ${state.order
+          .filter((line) => line.delivered < line.required)
+          .map((line) => line.location)
+          .join(' + ')}`;
+  const finishDay = () => {
+    if (active) {
+      route.current = null;
+      publish(endDay(stateRef.current));
+    }
+  };
 
   return (
     <div
       className="wh-game"
       data-game="warehouse-shift"
-      data-phase={phase}
+      data-phase={state.quotaMet ? 'restock' : state.carrying ? 'carrying' : 'working'}
       data-cash={state.cash}
       data-stock={state.stock}
       data-carrying={state.carrying}
@@ -284,12 +395,24 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
       data-cart={state.cart}
       data-automation={state.automation}
       data-active={active}
+      data-day={state.day}
+      data-quota={state.quota}
+      data-day-shipped={state.dayShipped}
+      data-remaining={Math.ceil(state.remaining)}
+      data-status={state.status}
+      data-near={near ?? ''}
+      data-inbound-location={state.inboundLocation}
+      data-order={JSON.stringify(state.order)}
+      data-carried={JSON.stringify(state.carried)}
+      data-inventory={JSON.stringify(state.inventory)}
+      data-quota-met={state.quotaMet}
+      data-best-day={state.bestDay}
     >
       <svg
         className="wh-scene"
         viewBox="0 0 960 600"
         onPointerDown={moveToFloor}
-        aria-label="Warehouse floor. Receive goods on the left, stock and pick in the middle, dispatch on the right."
+        aria-label="Warehouse floor. Unload labeled boxes at inbound. Every rack address supports picking and putaway. Fill all outbound order slots to ship an order."
       >
         <defs>
           <pattern id="wh-floor-grid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -309,7 +432,7 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
         <rect width="960" height="600" fill="#dce1d6" />
         <rect width="960" height="92" fill="#162c2b" />
         <text x="28" y="28" className="wh-eyebrow">
-          OPERATIONS / SHIFT 01
+          OPERATIONS / DAY {state.day} / BEST {state.bestDay}
         </text>
         <text x="27" y="65" className="wh-title">
           Warehouse Shift
@@ -321,10 +444,10 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
           CASH
         </text>
         <text x="470" y="48" className="wh-stat">
-          {state.stock}
+          {state.dayShipped}/{state.quota}
         </text>
         <text x="470" y="71" className="wh-stat-label">
-          IN STOCK
+          ORDERS TODAY
         </text>
         <text x="584" y="48" className="wh-stat">
           {state.carrying}
@@ -333,31 +456,46 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
         <text x="584" y="71" className="wh-stat-label">
           CARRYING
         </text>
-        <text x="704" y="48" className="wh-stat">
-          {state.shipped}
+        <text
+          x="900"
+          y="48"
+          textAnchor="end"
+          className={`wh-stat${state.remaining < 15 ? ' wh-time-low' : ''}`}
+        >
+          {timeLabel}
         </text>
-        <text x="704" y="71" className="wh-stat-label">
-          SHIPPED
+        <text x="900" y="71" textAnchor="end" className="wh-stat-label">
+          TIME LEFT
         </text>
         <rect y="92" width="960" height="51" fill="#eff0e7" />
-        {['RECEIVE', 'PUT AWAY', 'PICK ORDER', 'DISPATCH +$20'].map((label, index) => (
-          <g
-            key={label}
-            transform={`translate(${28 + index * 237} 103)`}
-            opacity={index === step ? 1 : 0.44}
-          >
-            <rect width="27" height="27" rx="7" fill={index === step ? '#426b50' : '#bcc5b5'} />
-            <text x="13.5" y="18" textAnchor="middle" className="wh-step-number">
-              {index + 1}
+        <text x="28" y="113" className="wh-assignment-label">
+          NEXT INBOUND BOX
+        </text>
+        <text x="28" y="134" className="wh-assignment-value">
+          {state.inboundLocation} / PUT AWAY
+        </text>
+        <text x="285" y="119" className="wh-step-label">
+          {state.quotaMet ? 'QUOTA MET' : 'OUTBOUND ORDER'}
+        </text>
+        {state.order.map((line, index) => (
+          <g key={line.location} transform={`translate(${460 + index * 156} 101)`}>
+            <rect
+              width="144"
+              height="33"
+              rx="5"
+              fill={line.delivered === line.required ? '#d4e9b4' : '#e5e9dc'}
+              stroke="#9faf93"
+            />
+            <text x="72" y="23" textAnchor="middle" className="wh-order-slot">
+              {line.location} / {line.delivered}/{line.required}
             </text>
-            <text x="37" y="19" className="wh-step-label">
-              {label}
-            </text>
-            {index < 3 && (
-              <path d="M199 13h14m-5-4 5 4-5 4" stroke="#798b77" strokeWidth="2" fill="none" />
-            )}
           </g>
         ))}
+        {state.quotaMet && (
+          <text x="460" y="123" className="wh-step-label">
+            RESTOCK NOW. YOUR INVENTORY STAYS.
+          </text>
+        )}
         <rect y="143" width="960" height="388" fill="url(#wh-floor-grid)" />
         <path
           d="M266 164v348M694 164v348"
@@ -396,74 +534,75 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
         <text x="872" y="184" className="wh-area-label" textAnchor="middle">
           OUTBOUND
         </text>
-        <Truck count={0} />
-        <Truck outbound count={state.shipped} />
+        <Truck incoming={state.inboundLocation} order={[]} />
+        <Truck outbound order={state.order} />
         <rect x="151" y="242" width="7" height="141" fill="url(#wh-hazard)" />
         <rect x="802" y="242" width="7" height="141" fill="url(#wh-hazard)" />
-        {RACKS.map((rack, index) => (
-          <g key={`${rack.x}-${rack.y}`}>
+        {RACKS.map((rack) => (
+          <g key={rack.id} className="wh-rack">
             <rect
-              x={rack.x + 5}
-              y={rack.y + 7}
+              x={rack.x + 4}
+              y={rack.y + 5}
               width={rack.w}
               height={rack.h}
-              rx="3"
+              rx="4"
               fill="#213d33"
-              opacity=".13"
+              opacity=".15"
             />
             <rect
               x={rack.x}
               y={rack.y}
               width={rack.w}
               height={rack.h}
-              rx="3"
+              rx="4"
               fill="#758777"
               stroke="#476354"
               strokeWidth="3"
             />
-            {[0, 1].map((row) => (
-              <g key={row}>
-                <rect
-                  x={rack.x + 5}
-                  y={rack.y + 6 + row * 48}
-                  width="82"
-                  height="38"
-                  fill="#b7bd9e"
-                />
-                {[0, 1, 2].map((column) => (
-                  <Crate
-                    key={column}
-                    x={rack.x + 11 + column * 25}
-                    y={rack.y + 12 + row * 48}
-                    small
-                  />
-                ))}
+            {[0, 1, 2, 3].map((bay) => (
+              <g key={bay}>
+                {[0, 1].map((side) => {
+                  const address = `${rack.id}${bay + side * 4 + 1}` as RackId;
+                  return (
+                    <g key={side}>
+                      <rect
+                        x={rack.x + bay * 88 + 4}
+                        y={rack.y + side * 30 + 4}
+                        width="76"
+                        height="24"
+                        fill="#b7bd9e"
+                      />
+                      {Array.from({ length: Math.min(3, state.inventory[address]) }, (_, box) => (
+                        <Crate
+                          key={box}
+                          x={rack.x + bay * 88 + 8 + box * 23}
+                          y={rack.y + side * 30 + 6}
+                          small
+                        />
+                      ))}
+                    </g>
+                  );
+                })}
               </g>
             ))}
-            <path
-              d={`M${rack.x} ${rack.y + 47}h92M${rack.x} ${rack.y + 96}h92`}
-              stroke="#3f6255"
-              strokeWidth="6"
-            />
-            <rect x={rack.x + 31} y={rack.y + 92} width="30" height="13" rx="2" fill="#f2e9bb" />
-            <text x={rack.x + 46} y={rack.y + 102} className="wh-rack-label" textAnchor="middle">
-              A{index + 1}
-            </text>
+            <path d={`M${rack.x} ${rack.y + 31}h${rack.w}`} stroke="#3f6255" strokeWidth="4" />
           </g>
         ))}
-        {(Object.entries(STATIONS) as [WarehouseStation, Point][]).map(
-          ([station, point], index) => (
+        {(Object.entries(STATIONS) as [WarehouseStation, Point][]).map(([station, point]) => {
+          const rack = isRack(station);
+          return (
             <g
               key={station}
               data-station={station}
+              data-stock={rack ? state.inventory[station as RackId] : undefined}
               role="button"
-              tabIndex={active && !showUpgrades ? 0 : -1}
+              tabIndex={active && !showUpgrades && state.status === 'working' ? 0 : -1}
               aria-label={
                 station === 'receiving'
-                  ? 'Walk to receiving and unload goods'
-                  : station === 'racks'
-                    ? 'Walk to racks and put away or pick goods'
-                    : 'Walk to dispatch and ship order'
+                  ? 'Walk to receiving'
+                  : station === 'dispatch'
+                    ? 'Walk to dispatch'
+                    : `Walk to rack ${station}`
               }
               onPointerDown={(event) => {
                 event.stopPropagation();
@@ -476,39 +615,42 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
                   goTo(station);
                 }
               }}
-              className={`wh-station${goal === station ? ' wh-station--goal' : ''}`}
+              className={`wh-station${rack ? ' wh-station--rack' : ''}${goal === station ? ' wh-station--goal' : ''}`}
             >
               <rect
-                x={point.x - 48}
-                y={point.y - 47}
-                width="96"
-                height="99"
-                rx="12"
+                x={point.x - (rack ? 36 : 48)}
+                y={point.y - (rack ? 18 : 47)}
+                width={rack ? 72 : 96}
+                height={rack ? 36 : 99}
+                rx={rack ? 7 : 12}
                 className="wh-zone"
               />
-              <circle cx={point.x} cy={point.y - 5} r="24" className="wh-zone-circle" />
-              <text x={point.x} y={point.y + 2} className="wh-zone-number" textAnchor="middle">
-                {index + 1}
+              {!rack && <circle cx={point.x} cy={point.y - 5} r="24" className="wh-zone-circle" />}
+              <text
+                x={point.x}
+                y={point.y + (rack ? 6 : 2)}
+                className="wh-zone-number"
+                textAnchor="middle"
+              >
+                {rack
+                  ? `${station} : ${state.inventory[station as RackId]}`
+                  : station === 'receiving'
+                    ? 'IN'
+                    : 'OUT'}
               </text>
-              <text x={point.x} y={point.y + 37} textAnchor="middle" className="wh-zone-label">
-                {LABELS[station]}
-              </text>
-              {goal === station && (
-                <path
-                  d={`M${point.x - 5} ${point.y - 61}l5 6 5-6`}
-                  stroke="#376344"
-                  fill="none"
-                  strokeWidth="3"
-                />
+              {!rack && (
+                <text x={point.x} y={point.y + 37} textAnchor="middle" className="wh-zone-label">
+                  {station === 'receiving' ? 'PUT AWAY' : 'PICK'}
+                </text>
               )}
             </g>
-          ),
-        )}
+          );
+        })}
         <text x="87" y="424" className="wh-floor-note" textAnchor="middle">
           SUPPLY READY
         </text>
         <text x="870" y="424" className="wh-floor-note" textAnchor="middle">
-          $20 / BOX
+          $20 / ORDER
         </text>
         {state.automation && (
           <g>
@@ -574,65 +716,107 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
         </text>
         <rect y="531" width="960" height="69" fill="#162c2b" />
         <text x="26" y="556" className="wh-goal">
-          {phase === 'receive'
-            ? 'NEXT: UNLOAD THE INBOUND TRUCK'
-            : phase === 'put-away'
-              ? 'NEXT: PUT YOUR LOAD INTO STORAGE'
-              : phase === 'pick'
-                ? 'NEXT: PICK AN ORDER FROM THE RACKS'
-                : 'NEXT: SHIP YOUR ORDER FOR CASH'}
+          NEXT: {destination.toUpperCase()}
         </text>
         <text x="26" y="581" className="wh-help">
-          Tap a work zone to walk &amp; work. Or use the stick + Interact.
+          Tap to walk. Pick [E] / Put away [Q]. Every address does both.
         </text>
       </svg>
       <div className="wh-compact-hud" aria-hidden="true">
         <span>
-          <strong>${state.cash}</strong> cash
+          <b>Day {state.day}</b> / ${state.cash}
         </span>
         <span>
-          Carry{' '}
-          <b>
-            {state.carrying}/{capacity(state)}
-          </b>
+          {state.dayShipped}/{state.quota} orders
         </span>
-        <span>
-          Stock <b>{state.stock}</b>
-        </span>
-        <span>
-          Sent <b>{state.shipped}</b>
-        </span>
+        <strong className={state.remaining < 15 ? 'wh-time-low' : ''}>{timeLabel}</strong>
       </div>
       <div className="wh-compact-zones" aria-hidden="true">
-        <span data-current={goal === 'receiving'}>1 Receive</span>
-        <span data-current={goal === 'racks'}>2 Stock / pick</span>
-        <span data-current={goal === 'dispatch'}>3 Ship</span>
+        <span>
+          In: <b>{state.inboundLocation}</b>
+        </span>
+        <span>
+          {state.quotaMet
+            ? 'Quota met / Restock for tomorrow'
+            : state.order
+                .map((line) => `${line.location} ${line.delivered}/${line.required}`)
+                .join(' / ')}
+        </span>
       </div>
       <div className="wh-compact-next" aria-hidden="true">
-        {phase === 'receive'
-          ? 'Next: Left truck · unload a box'
-          : phase === 'put-away'
-            ? 'Next: Middle racks · put your load away'
-            : phase === 'pick'
-              ? 'Next: Middle racks · interact again to pick'
-              : `Next: Right truck · ship for $${state.carrying * 20}`}
+        {destination}
       </div>
       <button
         className={`wh-upgrade-toggle${state.cash >= 40 && !state.cart ? ' wh-upgrade-toggle--ready' : ''}`}
         onClick={toggleUpgrades}
-        disabled={!active}
+        disabled={!active || state.status === 'failed'}
         aria-expanded={showUpgrades}
       >
         Upgrades <span>↗</span>
       </button>
-      <button className="wh-interact" onClick={interact} disabled={!active || showUpgrades}>
-        {actionLabel}
-        <span> E</span>
+      {state.quotaMet && state.status === 'working' && (
+        <button className="wh-end-day" onClick={finishDay} disabled={!active || showUpgrades}>
+          End day
+        </button>
+      )}
+      <button
+        className="wh-interact"
+        onClick={() => work('pick')}
+        disabled={!active || showUpgrades || state.status !== 'working'}
+      >
+        Pick <span>E</span>
+      </button>
+      <button
+        className="wh-putaway"
+        onClick={() => work('putaway')}
+        disabled={!active || showUpgrades || state.status !== 'working'}
+      >
+        Put away <span>Q</span>
       </button>
       <p className="wh-sr-only" role="status" aria-live="polite">
-        {state.message} Cash: ${state.cash}. Stock: {state.stock}. Carrying: {state.carrying} of{' '}
-        {capacity(state)}. Shipped: {state.shipped}.
+        {state.message} Incoming box: {state.inboundLocation}. Carried: {carriedLabel || 'none'}.
+        Cash: ${state.cash}. Stock: {state.stock}. Carrying: {state.carrying} of {capacity(state)}.
+        Day {state.day}: {state.dayShipped} of {state.quota} orders. Best completed day:{' '}
+        {state.bestDay}.
       </p>
+      {state.status !== 'working' && !showUpgrades && (
+        <div
+          className="wh-menu wh-day-result"
+          role="dialog"
+          aria-label={state.status === 'failed' ? 'Shift over' : `Day ${state.day} complete`}
+        >
+          <div className="wh-menu-card">
+            <span className="wh-result-eyebrow">
+              {state.status === 'failed' ? 'TIME IS UP' : 'QUOTA COMPLETE'}
+            </span>
+            <h3>{state.status === 'failed' ? 'Shift over' : `Day ${state.day} complete`}</h3>
+            <p>
+              {state.status === 'failed'
+                ? `You completed ${state.day - 1} days. Try again and beat your record.`
+                : `${state.dayShipped} orders shipped. Next: ${state.quota + 1} orders. Keep the shift moving.`}
+            </p>
+            <div className="wh-result-stats">
+              <span>
+                Best <strong>Day {state.bestDay}</strong>
+              </span>
+              <span>
+                Earnings <strong>${state.cash}</strong>
+              </span>
+            </div>
+            <p className="wh-result-note">Purchased upgrades stay installed across attempts.</p>
+            <div className="wh-result-actions">
+              {state.status === 'day-complete' && (
+                <button onClick={toggleUpgrades} disabled={!active}>
+                  Shop upgrades
+                </button>
+              )}
+              <button onClick={state.status === 'failed' ? reset : continueDay} disabled={!active}>
+                {state.status === 'failed' ? 'Try again · Day 1' : `Start day ${state.day + 1}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showUpgrades && (
         <div
           className="wh-menu"
@@ -643,7 +827,7 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
           <div className="wh-menu-card">
             <div className="wh-menu-heading">
               <div>
-                <span>REINVEST YOUR SHIFT</span>
+                <span>CLOCK PAUSED / UPGRADES SAVED</span>
                 <h3>Better tools. Bigger loads.</h3>
               </div>
               <button onClick={toggleUpgrades} aria-label="Close upgrades">
@@ -659,7 +843,7 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
               </span>
               <div>
                 <h4>Picking carts</h4>
-                <p>Carry 3 boxes on every trip.</p>
+                <p>Carry 3 labeled boxes, including mixed orders. Keep it on every attempt.</p>
               </div>
               <button
                 onClick={() => buy('cart')}
@@ -674,7 +858,7 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
               </span>
               <div>
                 <h4>Routing automation</h4>
-                <p>Auto stow &amp; dispatch. Move 25% faster.</p>
+                <p>Auto stow inbound boxes and deliver picked items. Move 25% faster.</p>
               </div>
               <button
                 onClick={() => buy('automation')}
@@ -684,7 +868,7 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
               </button>
             </div>
             <div className="wh-menu-footer">
-              <span>Earn $20 for every box you ship.</span>
+              <span>Earn $20 per order. Purchases are permanent.</span>
               <button onClick={toggleUpgrades}>Back to shift →</button>
             </div>
           </div>

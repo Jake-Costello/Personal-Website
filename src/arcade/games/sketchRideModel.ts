@@ -1,5 +1,6 @@
 export type TrailPoint = { x: number; y: number };
 export type Trail = TrailPoint[];
+export type TrailObstacle = { x: number; y: number; radius: number; kind?: 'rock' | 'branch' };
 export type RideControls = {
   left: boolean;
   right: boolean;
@@ -20,6 +21,7 @@ export type SketchRideState = {
   jumps: number;
   pedalCycle: number;
   crashPart: RiderBodyPart | null;
+  crashReason: 'body' | 'obstacle' | 'fall' | null;
   status: 'riding' | 'crashed' | 'finished';
 };
 
@@ -97,6 +99,7 @@ export function beginRide(trail: Trail): SketchRideState {
     jumps: 0,
     pedalCycle: 0,
     crashPart: null,
+    crashReason: null,
     status: 'riding',
   };
 }
@@ -147,7 +150,7 @@ function segmentsDistanceSquared(a: TrailPoint, b: TrailPoint, c: TrailPoint, d:
 }
 
 /** Capsules cover every limb and torso; a circle covers the head and helmet. */
-export function riderTerrainContact(state: SketchRideState, trail: Trail): RiderBodyPart | null {
+function riderBodyCapsules(state: SketchRideState) {
   const pose = riderPose(state);
   const world = (point: TrailPoint): TrailPoint => ({
     x: state.x + point.x * Math.cos(state.angle) - point.y * Math.sin(state.angle),
@@ -161,19 +164,49 @@ export function riderTerrainContact(state: SketchRideState, trail: Trail): Rider
     { part: 'leg', a: pose.hip, b: pose.knee, radius: 3 },
     { part: 'leg', a: pose.knee, b: pose.foot, radius: 3 },
   ];
+  return capsules.map((capsule) => ({ ...capsule, a: world(capsule.a), b: world(capsule.b) }));
+}
+
+export function riderTerrainContact(state: SketchRideState, trail: Trail): RiderBodyPart | null {
+  const capsules = riderBodyCapsules(state);
   for (const capsule of capsules) {
-    const a = world(capsule.a);
-    const b = world(capsule.b);
+    const { a, b } = capsule;
     if (a.y >= trailHeight(trail, a.x) || b.y >= trailHeight(trail, b.x)) return capsule.part;
     const minX = Math.min(a.x, b.x) - capsule.radius;
     const maxX = Math.max(a.x, b.x) + capsule.radius;
-    for (let index = 1; index < trail.length; index += 1) {
+    let low = 0;
+    let high = trail.length - 1;
+    while (high - low > 1) {
+      const middle = (low + high) >>> 1;
+      if (trail[middle].x < minX) low = middle;
+      else high = middle;
+    }
+    for (let index = Math.max(1, low); index < trail.length; index += 1) {
       const c = trail[index - 1];
       const d = trail[index];
       if (d.x < minX) continue;
       if (c.x > maxX) break;
       if (segmentsDistanceSquared(a, b, c, d) <= capsule.radius ** 2) return capsule.part;
     }
+  }
+  return null;
+}
+
+function riderObstacleContact(
+  state: SketchRideState,
+  obstacles: TrailObstacle[],
+): RiderBodyPart | null {
+  const nearby = obstacles.filter((obstacle) => Math.abs(obstacle.x - state.x) < 100);
+  if (!nearby.length) return null;
+  for (const capsule of riderBodyCapsules(state)) {
+    if (
+      nearby.some(
+        (obstacle) =>
+          distanceToSegmentSquared(obstacle, capsule.a, capsule.b) <=
+          (capsule.radius + obstacle.radius) ** 2,
+      )
+    )
+      return capsule.part;
   }
   return null;
 }
@@ -192,10 +225,13 @@ function stepRide(
   trail: Trail,
   controls: RideControls,
   dt: number,
+  finishX: number,
+  obstacles: TrailObstacle[],
 ): SketchRideState {
   const state = { ...previous, time: previous.time + dt };
   const existingContact = riderTerrainContact(state, trail);
-  if (existingContact) return { ...state, status: 'crashed', crashPart: existingContact };
+  if (existingContact)
+    return { ...state, status: 'crashed', crashPart: existingContact, crashReason: 'body' };
   const slope = trailSlope(trail, state.x);
   if (controls.jump && state.grounded) {
     state.vy = Math.min(state.vy, 20) - 224;
@@ -224,12 +260,35 @@ function stepRide(
     state.grounded = true;
   } else if (floor - state.y > 2.5 || !state.grounded) state.grounded = false;
   const contact = riderTerrainContact(state, trail);
+  const obstacleContact = riderObstacleContact(state, obstacles);
   if (contact) {
     state.status = 'crashed';
     state.crashPart = contact;
-  } else if (state.y > 650) state.status = 'crashed';
-  else if (state.x >= TRAIL_FINISH) {
-    state.x = TRAIL_FINISH;
+    state.crashReason = 'body';
+  } else if (
+    obstacleContact ||
+    obstacles.some((obstacle) => {
+      if (Math.abs(obstacle.x - state.x) > 60) return false;
+      for (const side of [-1, 1]) {
+        const wheelX = state.x + Math.cos(state.angle) * 22 * side;
+        const wheelY = state.y + Math.sin(state.angle) * 22 * side;
+        if (
+          (wheelX - obstacle.x) ** 2 + (wheelY - obstacle.y) ** 2 <=
+          (WHEEL_RADIUS + obstacle.radius) ** 2
+        )
+          return true;
+      }
+      return false;
+    })
+  ) {
+    state.status = 'crashed';
+    state.crashReason = 'obstacle';
+    state.crashPart = obstacleContact;
+  } else if (state.y > trailHeight(trail, state.x) + 350) {
+    state.status = 'crashed';
+    state.crashReason = 'fall';
+  } else if (state.x >= finishX) {
+    state.x = finishX;
     state.status = 'finished';
   }
   return state;
@@ -240,13 +299,22 @@ export function advanceSketchRide(
   trail: Trail,
   controls: RideControls,
   seconds: number,
+  finishX = TRAIL_FINISH,
+  obstacles: TrailObstacle[] = [],
 ): SketchRideState {
   if (previous.status !== 'riding' || seconds <= 0 || !Number.isFinite(seconds)) return previous;
   const dt = Math.min(seconds, 1 / 30);
   const steps = Math.max(1, Math.ceil(dt * 240));
   let state = previous;
   for (let step = 0; step < steps && state.status === 'riding'; step += 1) {
-    state = stepRide(state, trail, { ...controls, jump: controls.jump && step === 0 }, dt / steps);
+    state = stepRide(
+      state,
+      trail,
+      { ...controls, jump: controls.jump && step === 0 },
+      dt / steps,
+      finishX,
+      obstacles,
+    );
   }
   return state;
 }

@@ -52,6 +52,46 @@
   gap: 0.2cqw;
   padding-top: 0.1cqw;
 }
+.sr-mode-rocker {
+  display: flex;
+  padding: 0.35cqw;
+  gap: 0;
+  border: 1px solid #264b3c;
+  border-radius: 0.6cqw;
+  background: #2e4b3c;
+  box-shadow:
+    inset 0 2px 4px #12261f66,
+    0 2px 0 #fbfce9;
+  pointer-events: auto;
+}
+.sr-game .sr-mode-rocker button {
+  min-width: 7.5cqw;
+  min-height: 22px;
+  height: 3.4cqw;
+  border: 0;
+  border-radius: 0.25cqw;
+  box-shadow: none;
+  background: #56735d;
+  color: #e8edda;
+  font-size: clamp(9px, 1.05cqw, 12px);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transform: none;
+}
+.sr-game .sr-mode-rocker button[aria-pressed='true'] {
+  color: #244635;
+  background: #e8edae;
+  box-shadow:
+    inset 0 -2px 0 #bdc77c,
+    0 1px 3px #10231877;
+}
+.sr-game .sr-mode-rocker button:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+.sr-timer {
+  padding-top: 0.5cqw;
+}
 .sr-readout > span {
   font:
     500 clamp(5px, 0.93cqw, 9px) 'IBM Plex Mono',
@@ -83,7 +123,9 @@
   pointer-events: none;
 }
 .sr-game--crashed .sr-message,
-.sr-game--finished .sr-message {
+.sr-game--finished .sr-message,
+.sr-game--ready .sr-message,
+.sr-game--won .sr-message {
   /* The result card repeats this status; keep the live announcement off the controls. */
   position: absolute;
   width: 1px;
@@ -186,7 +228,8 @@
   background: #e77f50;
   transition: width 100ms linear;
 }
-.sr-result {
+.sr-result,
+.sr-level-intro {
   position: absolute;
   z-index: 2;
   top: 27%;
@@ -200,32 +243,52 @@
   box-shadow: 0 1.1cqw 3cqw #234b3a26;
   text-align: center;
 }
-.sr-result > span {
+.sr-result > span,
+.sr-level-intro > span {
   display: block;
   font:
     500 clamp(6px, 1cqw, 10px) 'IBM Plex Mono',
     monospace;
   letter-spacing: 0.13em;
 }
-.sr-result > strong {
+.sr-result > strong,
+.sr-level-intro > strong {
   display: block;
   margin-top: 0.9cqw;
   font-size: clamp(12px, 2.9cqw, 28px);
   font-weight: 600;
   letter-spacing: -0.04em;
 }
-.sr-result p {
+.sr-result p,
+.sr-level-intro p {
   margin: 0.75cqw 0 1.7cqw;
   font-size: clamp(7px, 1.25cqw, 12px);
 }
-.sr-result button {
+.sr-result button,
+.sr-level-intro button {
   width: 100%;
   background: #254b3d;
   color: #eff3d8;
   justify-content: space-between;
 }
-.sr-result button:hover {
+.sr-result button:hover,
+.sr-level-intro button:hover {
   background: #356550;
+}
+.sr-level-intro {
+  width: 48%;
+}
+.sr-level-intro strong {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.3cqw;
+}
+.sr-level-intro i {
+  width: 0.6cqw;
+  height: 0.6cqw;
+  border-radius: 50%;
+  background: #e18b58;
 }
 .sr-game--crashed .sr-result {
   border-color: #c46f4d;
@@ -245,37 +308,55 @@
     font-size: 10px;
     flex: 1;
   }
-  .sr-result {
+  .sr-result,
+  .sr-level-intro {
     top: 24%;
     width: 67%;
     padding: 8px;
     line-height: 1.2;
   }
-  .sr-result p {
+  .sr-result p,
+  .sr-level-intro p {
     margin: 4px 0 7px;
     font-size: 10px;
     line-height: 1.25;
   }
-  .sr-result > strong {
+  .sr-result > strong,
+  .sr-level-intro > strong {
     font-size: 16px;
   }
-  .sr-result > span {
+  .sr-result > span,
+  .sr-level-intro > span {
     font-size: 9px;
   }
   .sr-message {
-    font-size: 10px;
+    font-size: 9px;
+    max-width: 96%;
+  }
+  .sr-title-group {
+    max-width: 56%;
+  }
+  .sr-game .sr-mode-rocker button {
+    min-width: 49px;
+    min-height: 25px;
+    padding: 3px 5px;
+    font-size: 9px;
   }
 }
 @container (max-width: 340px) {
-  .sr-result {
+  .sr-result,
+  .sr-level-intro {
     width: 76%;
     padding: 6px;
   }
   .sr-result > span,
-  .sr-result p {
+  .sr-result p,
+  .sr-level-intro > span,
+  .sr-level-intro p {
     display: none;
   }
-  .sr-result > strong {
+  .sr-result > strong,
+  .sr-level-intro > strong {
     margin: 0 0 6px;
   }
 }

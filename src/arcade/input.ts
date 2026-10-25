@@ -1,4 +1,13 @@
-export type ArcadeAction = 'left' | 'right' | 'up' | 'down' | 'action' | 'secondary' | 'reset';
+export type ArcadeAction =
+  | 'left'
+  | 'right'
+  | 'up'
+  | 'down'
+  | 'action'
+  | 'secondary'
+  | 'reset'
+  | 'mode-custom'
+  | 'mode-levels';
 
 export type ArcadeInput = {
   pressed: Set<string>;

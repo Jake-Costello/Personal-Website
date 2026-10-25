@@ -154,7 +154,9 @@
   font-weight: 600;
 }
 .wh-upgrade-toggle,
-.wh-interact {
+.wh-interact,
+.wh-putaway,
+.wh-end-day {
   position: absolute;
   border: 1px solid #728d6f;
   border-radius: 7px;
@@ -169,10 +171,10 @@
   gap: 0.8cqw;
 }
 .wh-upgrade-toggle {
-  right: 2.5%;
-  top: 4%;
+  right: 31%;
+  bottom: 3%;
   width: 13.1%;
-  height: 7.1%;
+  height: 6.3%;
 }
 .wh-upgrade-toggle--ready {
   background: #d4ed97;
@@ -182,13 +184,14 @@
 .wh-interact {
   bottom: 3%;
   right: 2.5%;
-  width: 19%;
+  width: 12.5%;
   height: 6.3%;
   background: #d5e7b1;
   color: #254532;
   border-color: #d5e7b1;
 }
-.wh-interact span {
+.wh-interact span,
+.wh-putaway span {
   border: 1px solid #799764;
   border-radius: 3px;
   padding: 0.1cqw 0.5cqw;
@@ -348,7 +351,8 @@
   .wh-feedback,
   .wh-goal,
   .wh-help,
-  .wh-interact {
+  .wh-interact,
+  .wh-putaway {
     display: none;
   }
   .wh-compact-hud {
@@ -497,5 +501,177 @@
     padding: 8px 10px;
     font-size: 11px;
     line-height: 14px;
+  }
+}
+
+.wh-rack--goal > rect:nth-child(2) {
+  stroke: #749b36;
+  stroke-width: 5px;
+}
+.wh-station--rack .wh-zone-number {
+  font-size: 20px;
+}
+.wh-station--rack.wh-station--goal .wh-zone-number {
+  fill: #254b2e;
+}
+.wh-time-low {
+  fill: #ffae8b;
+  color: #ffae8b !important;
+}
+.wh-day-result {
+  text-align: center;
+}
+.wh-day-result .wh-menu-card {
+  width: 76%;
+}
+.wh-result-eyebrow {
+  color: #b6ce8c;
+  letter-spacing: 0.18em;
+  font-size: max(10px, 1.2cqw);
+}
+.wh-day-result h3 {
+  font-size: 4cqw;
+  line-height: 1.1;
+  margin: 1.5cqw 0;
+}
+.wh-day-result p {
+  font-size: max(11px, 1.6cqw);
+  line-height: 1.5;
+  margin: 1.5cqw 0;
+  color: #c2d0b4;
+}
+.wh-result-stats {
+  display: flex;
+  justify-content: center;
+  gap: 5cqw;
+  margin: 2.5cqw 0;
+  font-size: max(11px, 1.3cqw);
+  color: #afc49a;
+}
+.wh-result-stats strong {
+  display: block;
+  font-size: 2.8cqw;
+  color: #e0efb8;
+}
+.wh-day-result .wh-result-note {
+  font-size: max(10px, 1.2cqw);
+  color: #a6bf93;
+}
+.wh-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5cqw;
+  margin-top: 2cqw;
+}
+.wh-result-actions button {
+  border: 1px solid #91a96c;
+  border-radius: 6px;
+  background: transparent;
+  color: #e2eacb;
+  font-size: max(11px, 1.5cqw);
+  padding: 1.3cqw 2cqw;
+}
+.wh-result-actions button:last-child {
+  background: #d5ee98;
+  border-color: #d5ee98;
+  color: #263d2c;
+  font-weight: 700;
+}
+@container (max-width: 500px) {
+  .wh-station--rack .wh-zone-number {
+    font-size: 26px;
+  }
+  .wh-day-result .wh-menu-card {
+    width: 100%;
+  }
+  .wh-day-result h3 {
+    font-size: 20px;
+    margin: 7px 0;
+  }
+  .wh-day-result p {
+    margin: 6px 0;
+  }
+  .wh-result-stats {
+    margin: 8px 0;
+    gap: 28px;
+  }
+  .wh-result-stats strong {
+    font-size: 16px;
+  }
+  .wh-result-actions {
+    margin-top: 8px;
+    gap: 8px;
+  }
+  .wh-result-actions button {
+    padding: 8px 12px;
+  }
+}
+
+.wh-putaway {
+  bottom: 3%;
+  right: 16.5%;
+  width: 13%;
+  height: 6.3%;
+  background: #ead09d;
+  color: #463b27;
+  border-color: #ead09d;
+}
+.wh-end-day {
+  right: 17%;
+  top: 4%;
+  width: 13%;
+  height: 7%;
+  background: #d5ee98;
+  color: #263d2c;
+  border-color: #d5ee98;
+}
+.wh-order-truck-label {
+  font-size: 14px;
+  fill: #38513e;
+  font-weight: 700;
+}
+.wh-assignment-label {
+  font-size: 10px;
+  fill: #63775c;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.wh-assignment-value {
+  font-size: 17px;
+  fill: #2e4c37;
+  font-weight: 700;
+}
+.wh-order-slot {
+  font-size: 18px;
+  fill: #2d4c36;
+  font-weight: 700;
+}
+.wh-station--rack .wh-zone-number {
+  font-size: 18px;
+}
+@container (max-width: 500px) {
+  .wh-assignment-label,
+  .wh-assignment-value,
+  .wh-order-slot {
+    display: none;
+  }
+  .wh-station--rack .wh-zone-number {
+    font-size: 21px;
+  }
+  .wh-order-truck-label {
+    font-size: 17px;
+  }
+  .wh-end-day {
+    top: auto;
+    bottom: 4px;
+    right: 94px;
+    height: 28px;
+    width: 67px;
+    font-size: 11px;
+    line-height: 14px;
+  }
+  .wh-game[data-quota-met='true'] .wh-compact-next {
+    padding-right: 172px;
   }
 }

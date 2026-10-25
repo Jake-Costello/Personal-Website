@@ -109,6 +109,7 @@ export default function ArcadeHub() {
       e: 'action',
       q: 'secondary',
       r: 'reset',
+      ...(project.id === 'sketch' ? { c: 'mode-custom', l: 'mode-levels' } : {}),
     };
     const keyDown = (event: KeyboardEvent) => {
       if (event.altKey || event.ctrlKey || event.metaKey) return;
@@ -271,6 +272,7 @@ export default function ArcadeHub() {
                 <ArcadeScene
                   selected={selected}
                   playing={playing}
+                  controlsEnabled={visible && !gamePaused}
                   reduced={reduced}
                   input={input}
                   screenRef={screen}
@@ -356,12 +358,26 @@ export default function ArcadeHub() {
         )}
         {playing && (
           <div className="arcade-player-controls" aria-label={`${project.title} cabinet controls`}>
-            <div className={`arcade-dpad ${project.id !== 'sketch' ? 'four-way' : ''}`}>
-              {project.id !== 'sketch' &&
-                control('up', project.id === 'shoreline' ? 'Jump' : 'Move up', '↑')}
+            <div className="arcade-dpad four-way">
+              {control(
+                'up',
+                project.id === 'shoreline'
+                  ? 'Jump'
+                  : project.id === 'sketch'
+                    ? 'Draw up'
+                    : 'Move up',
+                '↑',
+              )}
               {control('left', project.id === 'sketch' ? 'Tilt back' : 'Move left', '←')}
-              {project.id !== 'sketch' &&
-                control('down', project.id === 'shoreline' ? 'Pump' : 'Move down', '↓')}
+              {control(
+                'down',
+                project.id === 'shoreline'
+                  ? 'Pump'
+                  : project.id === 'sketch'
+                    ? 'Draw down'
+                    : 'Move down',
+                '↓',
+              )}
               {control('right', project.id === 'sketch' ? 'Tilt forward' : 'Move right', '→')}
             </div>
             {project.id !== 'shoreline' && (
@@ -378,8 +394,8 @@ export default function ArcadeHub() {
               {project.id === 'shoreline'
                 ? 'Hold Pump, then Jump.'
                 : project.id === 'sketch'
-                  ? '← → tilt · Space / E pedal · Q brake'
-                  : 'Arrows / WASD to move. E to interact.'}
+                  ? 'Joystick draws / tilts · Space / E pedal · Q brake'
+                  : 'Arrows / WASD move · E pick · Q put away'}
             </p>
           </div>
         )}

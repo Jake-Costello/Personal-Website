@@ -13,8 +13,8 @@ export type ArcadeProject = {
 export const arcadeProjects: ArcadeProject[] = [
   {
     id: 'shoreline',
-    title: 'Shoreline Run',
-    shortTitle: 'SHORELINE',
+    title: 'Resume Run',
+    shortTitle: 'RESUME RUN',
     number: '01',
     accent: '#80dff2',
     cabinetColor: '#132732',
@@ -35,7 +35,7 @@ export const arcadeProjects: ArcadeProject[] = [
     accent: '#dcf68d',
     cabinetColor: '#25312a',
     genre: 'DRAW IT. DROP IN.',
-    tagline: 'Draw a downhill trail, then take it for a ride.',
+    tagline: 'Draw your own trail, or ride through ten downhill challenges.',
     controls: [
       { action: 'action', label: 'Pedal', key: 'Space / E' },
       { action: 'secondary', label: 'Brake', key: 'Q' },
@@ -49,7 +49,10 @@ export const arcadeProjects: ArcadeProject[] = [
     accent: '#f7b478',
     cabinetColor: '#3d2c22',
     genre: 'ONE BOX AT A TIME',
-    tagline: 'Work the floor. Earn your upgrades. Build a better flow.',
-    controls: [{ action: 'action', label: 'Interact', key: 'E' }],
+    tagline: 'Beat the clock. Upgrade your warehouse. See how many days you last.',
+    controls: [
+      { action: 'action', label: 'Pick', key: 'E' },
+      { action: 'secondary', label: 'Put away', key: 'Q' },
+    ],
   },
 ];
