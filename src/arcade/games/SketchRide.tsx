@@ -6,6 +6,7 @@ import {
   beginRide,
   buildTrail,
   defaultTrail,
+  riderPose,
   TRAIL_FINISH,
   TRAIL_START,
   trailHeight,
@@ -27,15 +28,10 @@ function line(ctx: CanvasRenderingContext2D, points: number[][], color: string, 
   ctx.stroke();
 }
 
-function drawRider(
-  ctx: CanvasRenderingContext2D,
-  ride: SketchRideState,
-  clock: number,
-  crashed: boolean,
-) {
+function drawRider(ctx: CanvasRenderingContext2D, ride: SketchRideState) {
   ctx.save();
   ctx.translate(ride.x, ride.y);
-  ctx.rotate(ride.angle + (crashed ? -0.7 : 0));
+  ctx.rotate(ride.angle);
   const ink = '#173c37';
   const coral = '#e77750';
   for (const x of [-22, 22]) {
@@ -90,51 +86,24 @@ function drawRider(
     ink,
     4,
   );
-  const bob = ride.grounded ? Math.sin(clock * 8) * 1.5 : -3;
-  const pedal = ride.grounded ? Math.sin(clock * 12) * 6 : 2;
-  line(
-    ctx,
-    [
-      [-5, -43 + bob],
-      [-12, -27],
-      [3, -17 + pedal],
-      [3, -1],
-    ],
-    ink,
-    6,
-  );
-  line(
-    ctx,
-    [
-      [-6, -43 + bob],
-      [8, -31],
-      [19, -28],
-    ],
-    ink,
-    5,
-  );
-  line(
-    ctx,
-    [
-      [-7, -42 + bob],
-      [-12, -30],
-    ],
-    coral,
-    9,
-  );
+  const pose = riderPose(ride);
+  const point = ({ x, y }: { x: number; y: number }) => [x, y];
+  line(ctx, [point(pose.hip), point(pose.knee), point(pose.foot)], ink, 6);
+  line(ctx, [point(pose.shoulder), point(pose.elbow), point(pose.hand)], ink, 5);
+  line(ctx, [point(pose.shoulder), point(pose.hip)], coral, 9);
   ctx.beginPath();
-  ctx.arc(-1, -51 + bob, 7.5, 0, Math.PI * 2);
+  ctx.arc(pose.head.x, pose.head.y, 7.5, 0, Math.PI * 2);
   ctx.fillStyle = ink;
   ctx.fill();
   ctx.beginPath();
-  ctx.arc(-2, -52 + bob, 9, Math.PI, Math.PI * 2);
+  ctx.arc(pose.head.x, pose.head.y, 9, Math.PI, Math.PI * 2);
   ctx.fillStyle = coral;
   ctx.fill();
   line(
     ctx,
     [
-      [-11, -52 + bob],
-      [9, -52 + bob],
+      [pose.head.x - 9, pose.head.y],
+      [pose.head.x + 9, pose.head.y],
     ],
     coral,
     3,
@@ -318,7 +287,7 @@ function renderScene(
     ctx.lineWidth = 2;
     ctx.stroke();
   }
-  drawRider(ctx, ride, phase === 'riding' ? clock : 0, phase === 'crashed');
+  drawRider(ctx, ride);
   if (phase === 'riding' && ride.grounded) {
     ctx.globalAlpha = 0.45;
     for (let i = 0; i < 4; i += 1) {
@@ -352,7 +321,14 @@ export default function SketchRide({ input, active }: { input: ArcadeInput; acti
   const jumpRef = useRef(false);
   const [phase, setPhase] = useState<Phase>('drawing');
   const [message, setMessage] = useState('Draw a downhill trail, or ride this one.');
-  const [stats, setStats] = useState({ progress: 0, time: 0, jumps: 0 });
+  const [stats, setStats] = useState({
+    progress: 0,
+    time: 0,
+    jumps: 0,
+    speed: 0,
+    angle: 0,
+    crashPart: '',
+  });
 
   const changePhase = useCallback((next: Phase) => {
     phaseRef.current = next;
@@ -364,9 +340,16 @@ export default function SketchRide({ input, active }: { input: ArcadeInput; acti
     drawingRef.current = false;
     jumpRef.current = false;
     rideRef.current = beginRide(trailRef.current);
-    setStats({ progress: 0, time: 0, jumps: 0 });
+    setStats({
+      progress: 0,
+      time: 0,
+      jumps: 0,
+      speed: rideRef.current.vx,
+      angle: rideRef.current.angle,
+      crashPart: '',
+    });
     changePhase('riding');
-    setMessage('Find your flow. Jump the dips; balance in the air.');
+    setMessage('Hold Pedal to build speed. Brake to slow down. Tilt to stay balanced.');
   }, [changePhase]);
 
   const editTrail = useCallback(() => {
@@ -374,7 +357,7 @@ export default function SketchRide({ input, active }: { input: ArcadeInput; acti
     rideRef.current = beginRide(trailRef.current);
     jumpRef.current = false;
     setMessage('Drag from left to right. Smooth slopes make a great ride.');
-    setStats({ progress: 0, time: 0, jumps: 0 });
+    setStats({ progress: 0, time: 0, jumps: 0, speed: 0, angle: 0, crashPart: '' });
   }, [changePhase]);
 
   const resetTrail = useCallback(() => {
@@ -393,14 +376,11 @@ export default function SketchRide({ input, active }: { input: ArcadeInput; acti
       if (justPressed('reset')) {
         if (phaseRef.current === 'drawing') resetTrail();
         else startRide();
-      } else if (justPressed('secondary')) editTrail();
-      else if (justPressed('action') || justPressed('up')) {
-        if (phaseRef.current === 'riding') jumpRef.current = true;
-        else startRide();
-      }
+      } else if (justPressed('action') && phaseRef.current !== 'riding') startRide();
+      else if (justPressed('up') && phaseRef.current === 'riding') jumpRef.current = true;
       previous = new Set(input.pressed);
     });
-  }, [active, editTrail, input, resetTrail, startRide]);
+  }, [active, input, resetTrail, startRide]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -419,8 +399,10 @@ export default function SketchRide({ input, active }: { input: ArcadeInput; acti
             rideRef.current,
             trailRef.current,
             {
-              left: input.pressed.has('left') || input.pressed.has('down'),
+              left: input.pressed.has('left'),
               right: input.pressed.has('right'),
+              pedal: input.pressed.has('action'),
+              brake: input.pressed.has('secondary'),
               jump: jumpRef.current,
             },
             dt / steps,
@@ -433,7 +415,7 @@ export default function SketchRide({ input, active }: { input: ArcadeInput; acti
           setMessage(
             ride.status === 'finished'
               ? 'Trail complete. That line is yours.'
-              : 'Took a tumble. Try a smoother line or balance your landing.',
+              : 'You crashed. Keep your rider clear of the trail and land on your wheels.',
           );
         }
         if (now - hud > 90 || ride.status !== 'riding') {
@@ -444,6 +426,9 @@ export default function SketchRide({ input, active }: { input: ArcadeInput; acti
             ),
             time: ride.time,
             jumps: ride.jumps,
+            speed: ride.vx,
+            angle: ride.angle,
+            crashPart: ride.crashPart ?? '',
           });
           hud = now;
         }
@@ -463,13 +448,14 @@ export default function SketchRide({ input, active }: { input: ArcadeInput; acti
   }, [active, changePhase, input]);
 
   const pointerPosition = (event: PointerEvent<HTMLCanvasElement>) => {
-    const bounds = event.currentTarget.getBoundingClientRect();
+    // offsetX/Y are canvas-local even when the cabinet monitor has a perspective transform.
+    const canvas = event.currentTarget;
     return {
       x: Math.max(
         TRAIL_START,
-        Math.min(TRAIL_FINISH, ((event.clientX - bounds.left) / bounds.width) * WIDTH),
+        Math.min(TRAIL_FINISH, (event.nativeEvent.offsetX / canvas.clientWidth) * WIDTH),
       ),
-      y: Math.max(165, Math.min(490, ((event.clientY - bounds.top) / bounds.height) * HEIGHT)),
+      y: Math.max(165, Math.min(490, (event.nativeEvent.offsetY / canvas.clientHeight) * HEIGHT)),
     };
   };
 
@@ -508,6 +494,9 @@ export default function SketchRide({ input, active }: { input: ArcadeInput; acti
       data-game-phase={phase}
       data-game-status={phase}
       data-progress={stats.progress}
+      data-speed={stats.speed.toFixed(1)}
+      data-angle={stats.angle.toFixed(3)}
+      data-crash-part={stats.crashPart}
       aria-label="Sketch to Ride game"
     >
       <canvas
@@ -530,7 +519,7 @@ export default function SketchRide({ input, active }: { input: ArcadeInput; acti
               : phase === 'finished'
                 ? 'A very good line.'
                 : phase === 'crashed'
-                  ? 'Dust yourself off.'
+                  ? 'Back on the bike.'
                   : 'Just follow your line.'}
           </h2>
         </div>
@@ -540,17 +529,19 @@ export default function SketchRide({ input, active }: { input: ArcadeInput; acti
         </div>
       </div>
       {(phase === 'finished' || phase === 'crashed') && (
-        <div className="sr-result">
-          <span>{phase === 'finished' ? 'FINISH LINE' : 'BACK ON THE BIKE'}</span>
+        <div
+          className="sr-result"
+          role="region"
+          aria-label={phase === 'crashed' ? 'Crash result' : 'Ride result'}
+        >
+          <span>{phase === 'finished' ? 'FINISH LINE' : 'RIDER DOWN'}</span>
           <strong>
-            {phase === 'finished'
-              ? `${stats.time.toFixed(1)} sec. Pure downhill.`
-              : 'One more run?'}
+            {phase === 'finished' ? `${stats.time.toFixed(1)} sec. Pure downhill.` : 'You crashed'}
           </strong>
           <p>
             {phase === 'finished'
               ? `${stats.jumps} ${stats.jumps === 1 ? 'jump' : 'jumps'} · your next line is waiting.`
-              : 'Lean with ← →. Land with the trail.'}
+              : 'Keep your body off the trail. Land on your wheels.'}
           </p>
           <button type="button" onClick={startRide}>
             {phase === 'finished' ? 'Ride again' : 'Try again'} <span>↗</span>
@@ -571,18 +562,8 @@ export default function SketchRide({ input, active }: { input: ArcadeInput; acti
             >
               ✎ Draw
             </button>
-            <button
-              type="button"
-              className="sr-ride-button"
-              onClick={
-                phase === 'riding'
-                  ? () => {
-                      jumpRef.current = true;
-                    }
-                  : startRide
-              }
-            >
-              {phase === 'riding' ? '↑ Jump' : '↗ Ride'}
+            <button type="button" className="sr-ride-button" onClick={startRide}>
+              {phase === 'riding' ? '↺ Retry' : '↗ Ride'}
             </button>
             <button type="button" onClick={resetTrail} aria-label="Reset to the starter trail">
               ↺ Reset
@@ -593,9 +574,11 @@ export default function SketchRide({ input, active }: { input: ArcadeInput; acti
               <>
                 <kbd>←</kbd>
                 <kbd>→</kbd>
-                <span>balance</span>
-                <kbd>SPACE</kbd>
-                <span>jump</span>
+                <span>tilt</span>
+                <kbd>SPACE / E</kbd>
+                <span>Pedal</span>
+                <kbd>Q</kbd>
+                <span>Brake</span>
               </>
             ) : (
               <>

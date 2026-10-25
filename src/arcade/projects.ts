@@ -21,8 +21,10 @@ export const arcadeProjects: ArcadeProject[] = [
     genre: 'A LIFE ON THE LAKE',
     tagline: 'A stand-up jetski. A Cleveland shoreline. My story.',
     controls: [
-      { action: 'down', label: 'Pump', key: '↓' },
       { action: 'up', label: 'Jump', key: '↑' },
+      { action: 'left', label: 'Left', key: '←' },
+      { action: 'down', label: 'Pump', key: '↓' },
+      { action: 'right', label: 'Right', key: '→' },
     ],
   },
   {
@@ -35,8 +37,8 @@ export const arcadeProjects: ArcadeProject[] = [
     genre: 'DRAW IT. DROP IN.',
     tagline: 'Draw a downhill trail, then take it for a ride.',
     controls: [
-      { action: 'action', label: 'Jump / ride', key: 'Space' },
-      { action: 'secondary', label: 'Draw', key: 'Q' },
+      { action: 'action', label: 'Pedal', key: 'Space / E' },
+      { action: 'secondary', label: 'Brake', key: 'Q' },
     ],
   },
   {
@@ -48,9 +50,6 @@ export const arcadeProjects: ArcadeProject[] = [
     cabinetColor: '#3d2c22',
     genre: 'ONE BOX AT A TIME',
     tagline: 'Work the floor. Earn your upgrades. Build a better flow.',
-    controls: [
-      { action: 'action', label: 'Interact', key: 'E' },
-      { action: 'secondary', label: 'Upgrades', key: 'Q' },
-    ],
+    controls: [{ action: 'action', label: 'Interact', key: 'E' }],
   },
 ];

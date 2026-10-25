@@ -4,14 +4,16 @@ import { installProteinApi } from './protein-fixtures';
 
 const machines = ['Shoreline Run', 'Sketch-to-Ride', 'Warehouse Shift'] as const;
 const gameIds = ['shoreline', 'sketch', 'warehouse'] as const;
-const choose = (page: Page, title: string) =>
-  page.getByRole('button', { name: `Choose ${title}`, exact: true });
+const machine = (page: Page, title: string) =>
+  page.getByRole('button', { name: `Play ${title}`, exact: true });
 const controls = (page: Page) => page.locator('.arcade-player-controls');
 const numeric = async (game: Locator, name: string) => Number(await game.getAttribute(name));
 
-async function expectSelected(page: Page, title: string) {
-  for (const machine of machines)
-    await expect(choose(page, machine)).toHaveAttribute('aria-pressed', String(machine === title));
+async function expectSelected(page: Page, title: (typeof machines)[number]) {
+  await expect(page.locator('.arcade-page')).toHaveAttribute(
+    'data-selected',
+    gameIds[machines.indexOf(title)],
+  );
 }
 
 async function expectRoomReady(page: Page) {
@@ -43,8 +45,7 @@ async function expectGameReady(page: Page, title: (typeof machines)[number]) {
 
 async function play(page: Page, title: (typeof machines)[number]) {
   await expectRoomReady(page);
-  await choose(page, title).click();
-  await page.getByRole('button', { name: 'Step up to play', exact: false }).click();
+  await machine(page, title).click();
   await expectGameReady(page, title);
 }
 
@@ -95,8 +96,13 @@ test('the arcade directly loads and reloads three actual 3D machines without API
     });
     await expect(page.locator('.arcade-webgl canvas')).toBeVisible();
     await expect(
-      page.getByRole('navigation', { name: 'Choose a machine' }).getByRole('button'),
+      page.getByRole('group', { name: 'Arcade machines', exact: true }).getByRole('button'),
     ).toHaveCount(3);
+    for (const title of machines) await expect(machine(page, title)).toBeAttached();
+    await expect(page.getByRole('button', { name: /Step up to play|^Choose / })).toHaveCount(0);
+    await expect(
+      page.locator('.arcade-room-intro, .arcade-lobby-info, .arcade-machine-list'),
+    ).toHaveCount(0);
     await expectSelected(page, 'Shoreline Run');
     await expect(
       page.locator('.protein-explorer, .shoreline-game, .sr-game, [data-game="warehouse-shift"]'),
@@ -111,7 +117,7 @@ test('three-machine selection wraps and Enter plays locally while Escape returns
 }) => {
   await page.goto('/arcade/');
   await expectRoomReady(page);
-  for (const title of ['Sketch-to-Ride', 'Warehouse Shift', 'Shoreline Run']) {
+  for (const title of ['Sketch-to-Ride', 'Warehouse Shift', 'Shoreline Run'] as const) {
     await page.getByRole('button', { name: 'Next machine', exact: true }).click();
     await expectSelected(page, title);
   }
@@ -142,6 +148,19 @@ test('Shoreline really moves, pumps and jumps; pausing freezes it and blur clear
   await play(page, 'Shoreline Run');
   const game = page.locator('.shoreline-game');
   await expect(game).toBeVisible();
+  const pad = controls(page).locator('.arcade-dpad.four-way');
+  await expect(pad.getByRole('button')).toHaveCount(4);
+  await expect(controls(page).getByRole('button')).toHaveCount(4);
+  const up = await point(pad.getByRole('button', { name: 'Jump', exact: true }));
+  const down = await point(pad.getByRole('button', { name: 'Pump', exact: true }));
+  const left = await point(pad.getByRole('button', { name: 'Move left', exact: true }));
+  const rightPoint = await point(pad.getByRole('button', { name: 'Move right', exact: true }));
+  expect(Math.abs(up.x - down.x)).toBeLessThan(1);
+  expect(up.y).toBeLessThan(down.y);
+  expect(left.x).toBeLessThan(down.x);
+  expect(rightPoint.x).toBeGreaterThan(down.x);
+  expect(Math.abs(left.y - down.y)).toBeLessThan(1);
+  expect(Math.abs(rightPoint.y - down.y)).toBeLessThan(1);
   await holdKeyUntil(page, 'ArrowRight', () => numeric(game, 'data-position'), 35);
   const right = controls(page).getByRole('button', { name: 'Move right', exact: true });
   await expect(right).toHaveAttribute('aria-pressed', 'true');
@@ -244,7 +263,7 @@ test('a drawn downhill line becomes a playable Sketch ride and can be edited aga
   await page.mouse.move(box.x + box.width * 0.9, box.y + box.height * 0.67, { steps: 24 });
   await page.mouse.up();
   await expect(game.getByRole('status')).toContainText('Your line is ready');
-  await controls(page).getByRole('button', { name: 'Jump / ride', exact: true }).click();
+  await controls(page).getByRole('button', { name: 'Pedal', exact: true }).click();
   await expect(game).toHaveAttribute('data-phase', 'riding');
   await expect.poll(() => numeric(game, 'data-progress')).toBeGreaterThan(2);
   await expect(page).toHaveURL(/\/arcade\/$/);
@@ -256,20 +275,84 @@ test('a drawn downhill line becomes a playable Sketch ride and can be edited aga
     .locator('.arcade-play-tools')
     .getByRole('button', { name: 'Resume game', exact: true })
     .click();
-  await controls(page).getByRole('button', { name: 'Draw', exact: true }).click();
+  await game.getByRole('button', { name: '✎ Draw', exact: true }).click();
   await expect(game).toHaveAttribute('data-phase', 'drawing');
   await expect(game).toHaveAttribute('data-progress', '0');
 });
 
+test('Sketch cabinet pedals and brakes change speed, and an actual rider collision can be retried', async ({
+  page,
+}, testInfo) => {
+  await page.goto('/arcade/');
+  await play(page, 'Sketch-to-Ride');
+  const game = page.locator('[data-game="sketch-ride"]');
+  const panel = controls(page);
+  await expect(panel.locator('.arcade-dpad').getByRole('button')).toHaveCount(2);
+  await expect(panel.locator('.arcade-game-actions').getByRole('button')).toHaveCount(2);
+  for (const label of ['Tilt back', 'Tilt forward', 'Pedal', 'Brake'])
+    await expect(panel.getByRole('button', { name: label, exact: true })).toBeVisible();
+  await expect(panel.getByRole('button', { name: /Jump|Draw|Move/ })).toHaveCount(0);
+
+  const pedal = panel.getByRole('button', { name: 'Pedal', exact: true });
+  const brake = panel.getByRole('button', { name: 'Brake', exact: true });
+  const pedalPoint = await point(pedal);
+  await page.mouse.move(pedalPoint.x, pedalPoint.y);
+  await page.mouse.down();
+  await expect(pedal).toHaveAttribute('aria-pressed', 'true');
+  await expect(game).toHaveAttribute('data-phase', 'riding');
+  await expect.poll(() => numeric(game, 'data-speed')).toBeGreaterThan(100);
+  await page.mouse.up();
+  await expect(pedal).toHaveAttribute('aria-pressed', 'false');
+  const brakePoint = await point(brake);
+  await page.mouse.move(brakePoint.x, brakePoint.y);
+  await page.mouse.down();
+  await expect(brake).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(() => numeric(game, 'data-speed')).toBe(0);
+  await expect(game).toHaveAttribute('data-phase', 'riding');
+  await page.mouse.up();
+  await expect(brake).toHaveAttribute('aria-pressed', 'false');
+
+  await page.getByRole('button', { name: 'Restart game', exact: true }).click();
+  await page.keyboard.down('e');
+  await page.keyboard.down('ArrowRight');
+  await expect(panel.getByRole('button', { name: 'Tilt forward', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(game).toHaveAttribute('data-phase', 'crashed');
+  await page.keyboard.up('ArrowRight');
+  await page.keyboard.up('e');
+  await expect(game).toHaveAttribute('data-crash-part', /^(head|torso|arm|leg)$/);
+  await expect(game.getByRole('region', { name: 'Crash result', exact: true })).toContainText(
+    'You crashed',
+  );
+  if (testInfo.project.name === 'mobile')
+    await page.screenshot({ path: testInfo.outputPath('sketch-mobile-crash.png') });
+  await game.getByRole('button', { name: /Try again/ }).click();
+  await expect(game).toHaveAttribute('data-phase', 'riding');
+  await expect(game).toHaveAttribute('data-crash-part', '');
+  await expect(page).toHaveURL(/\/arcade\/$/);
+});
+
 test('warehouse work earns cash and a purchased picking cart carries larger loads', async ({
   page,
-}) => {
+}, testInfo) => {
   test.setTimeout(60_000);
   await page.goto('/arcade/');
   await play(page, 'Warehouse Shift');
   const game = page.locator('[data-game="warehouse-shift"]');
   await expect(game).toHaveAttribute('data-cash', '0');
-  await controls(page).getByRole('button', { name: 'Upgrades', exact: true }).click();
+  const panel = controls(page);
+  await expect(panel.locator('.arcade-dpad.four-way').getByRole('button')).toHaveCount(4);
+  for (const direction of ['up', 'left', 'down', 'right'])
+    await expect(
+      panel.getByRole('button', { name: `Move ${direction}`, exact: true }),
+    ).toBeVisible();
+  await expect(panel.locator('.arcade-game-actions').getByRole('button')).toHaveCount(1);
+  await expect(panel.getByRole('button', { name: 'Upgrades', exact: true })).toHaveCount(0);
+  if (testInfo.project.name === 'mobile')
+    await page.screenshot({ path: testInfo.outputPath('warehouse-mobile-upgrades.png') });
+  await game.getByRole('button', { name: 'Upgrades ↗', exact: true }).click();
   const upgrades = page.getByRole('dialog', { name: 'Warehouse upgrades', exact: true });
   await expect(upgrades.getByRole('button', { name: '$40 · Buy', exact: true })).toBeDisabled();
   await upgrades.getByRole('button', { name: 'Close upgrades' }).click();
@@ -290,7 +373,7 @@ test('warehouse work earns cash and a purchased picking cart carries larger load
     await expect(game).toHaveAttribute('data-shipped', String(shipped), { timeout: 10_000 });
     await expect(game).toHaveAttribute('data-cash', String(shipped * 20));
   }
-  await controls(page).getByRole('button', { name: 'Upgrades', exact: true }).click();
+  await page.keyboard.press('q');
   await upgrades.getByRole('button', { name: '$40 · Buy', exact: true }).click();
   await expect(game).toHaveAttribute('data-cart', 'true');
   await expect(game).toHaveAttribute('data-cash', '0');
@@ -331,7 +414,7 @@ test('all three games remain playable when WebGL is unavailable', async ({ page 
       );
       await page.keyboard.up('ArrowRight');
     } else if (title === 'Sketch-to-Ride') {
-      await controls(page).getByRole('button', { name: 'Jump / ride', exact: true }).click();
+      await controls(page).getByRole('button', { name: 'Pedal', exact: true }).click();
       await expect
         .poll(() => numeric(page.locator('[data-game="sketch-ride"]'), 'data-progress'))
         .toBeGreaterThan(1);

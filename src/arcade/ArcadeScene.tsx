@@ -15,12 +15,36 @@ type SceneProps = {
   reduced: boolean;
   input: ArcadeInput;
   screenRef: RefObject<HTMLDivElement | null>;
+  machineRefs: RefObject<(HTMLButtonElement | null)[]>;
   onSelect: (index: number) => void;
   onReady: () => void;
   onFailure: () => void;
 };
 
 const SCREEN = { width: 1.15, height: 1.15 / 1.6, y: 2.03, z: 0.455 };
+
+function controlTexture(label: string, key: string, arrows: boolean) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 256;
+  const c = canvas.getContext('2d')!;
+  c.fillStyle = '#10252c';
+  c.textAlign = 'center';
+  if (arrows) {
+    c.font = 'bold 138px Arial';
+    c.fillText(key, 128, 151);
+    c.font = 'bold 34px Arial';
+    c.fillText(label.toUpperCase(), 128, 219, 225);
+  } else {
+    c.font = 'bold 43px Arial';
+    c.fillText(label.toUpperCase(), 128, 133, 222);
+    c.font = '25px monospace';
+    c.fillText(key.toUpperCase(), 128, 176, 206);
+  }
+  const t = new THREE.CanvasTexture(canvas);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
 
 function rounded(width: number, height: number, depth: number, radius = 0.025) {
   return new RoundedBoxGeometry(width, height, depth, 3, radius);
@@ -297,6 +321,7 @@ function Cabinet({
   reduced,
   input,
   onSelect,
+  machineRefs,
 }: Omit<SceneProps, 'screenRef' | 'onReady' | 'onFailure'> & {
   project: ArcadeProject;
   index: number;
@@ -306,6 +331,16 @@ function Cabinet({
   const capturedControls = useRef(new Map<number, string>());
   const invalidate = useThree((s) => s.invalidate);
   const canvas = useThree((s) => s.gl.domElement);
+  const camera = useThree((s) => s.camera);
+  const size = useThree((s) => s.size);
+  const hotspotPoint = useMemo(() => new THREE.Vector3(), []);
+  const hotspotCorners = useMemo(
+    () =>
+      [-0.8, 0.8].flatMap((x) =>
+        [0, 3.12].flatMap((y) => [-0.65, 0.85].map((z) => new THREE.Vector3(x, y, z))),
+      ),
+    [],
+  );
   const [held, setHeld] = useState('');
   useEffect(() => input.subscribe(() => setHeld([...input.pressed].join('|'))), [input]);
   useEffect(() => {
@@ -402,34 +437,42 @@ function Cabinet({
       screen: attractTexture(project),
       sideArt: sideTexture(project),
       badge: labelTexture('JC', 'ORIGINAL EXPERIMENTS', '#c9d2c7', true),
-      controlA: labelTexture(
-        project.controls[0].label.toUpperCase(),
-        project.controls[0].key,
-        project.accent,
-        true,
-      ),
-      controlB: labelTexture(
-        project.controls[1].label.toUpperCase(),
-        project.controls[1].key,
-        '#e1e9d9',
-        true,
+      keyCap: rounded(0.265, 0.1, 0.195, 0.022),
+      controlMaps: project.controls.map((control) =>
+        controlTexture(
+          project.id === 'shoreline'
+            ? ({ left: 'Left', right: 'Right', up: 'Jump', down: 'Pump' }[control.action] ??
+                control.label)
+            : control.label,
+          control.key,
+          project.id === 'shoreline',
+        ),
       ),
     };
   }, [project]);
   useEffect(
     () => () => {
-      Object.values(resources).forEach((r) => r.dispose());
+      Object.values(resources).forEach((r) =>
+        Array.isArray(r) ? r.forEach((texture) => texture.dispose()) : r.dispose(),
+      );
     },
     [resources],
   );
   const order = ((index - selected + 4) % 3) - 1;
-  const targetX = order * (playing ? 3.9 : 2.18);
-  const targetZ = active ? (playing ? 0.35 : 0.25) : playing ? -1.4 : -0.55;
-  const targetR = active ? (playing ? 0 : -0.12) : -order * 0.28;
+  const targetX = order * (playing ? 3.9 : 2.24);
+  const targetZ = active ? (playing ? 0.35 : 0.72) : playing ? -1.4 : -0.62;
+  const targetR = active ? (playing ? 0 : -0.055) : -order * 0.3;
   const initialPosition = useRef<[number, number, number]>([targetX, 0, targetZ]);
   const initialRotation = useRef<[number, number, number]>([0, targetR, 0]);
   const boxes = useMemo(() => new Map<string, THREE.BufferGeometry>(), []);
   useEffect(() => () => boxes.forEach((g) => g.dispose()), [boxes]);
+  useEffect(() => {
+    resources.body.color.set(project.cabinetColor).multiplyScalar(active ? 1 : 0.64);
+    resources.body.envMapIntensity = active ? 0.9 : 0.45;
+    resources.metal.envMapIntensity = active ? 1 : 0.4;
+    resources.black.envMapIntensity = active ? 0.85 : 0.35;
+    invalidate();
+  }, [active, project.cabinetColor, resources, invalidate]);
   useFrame((_, dt) => {
     if (!group.current) return;
     const g = group.current;
@@ -437,6 +480,29 @@ function Cabinet({
     g.position.x = THREE.MathUtils.lerp(g.position.x, targetX, a);
     g.position.z = THREE.MathUtils.lerp(g.position.z, targetZ, a);
     g.rotation.y = THREE.MathUtils.lerp(g.rotation.y, targetR, a);
+    const hotspot = machineRefs.current[index];
+    if (hotspot && !playing) {
+      g.updateWorldMatrix(true, false);
+      let left = Infinity,
+        top = Infinity,
+        right = -Infinity,
+        bottom = -Infinity;
+      hotspotCorners.forEach((corner) => {
+        hotspotPoint.copy(corner).applyMatrix4(g.matrixWorld).project(camera);
+        const x = ((hotspotPoint.x + 1) * size.width) / 2;
+        const y = ((1 - hotspotPoint.y) * size.height) / 2;
+        left = Math.min(left, x);
+        right = Math.max(right, x);
+        top = Math.min(top, y);
+        bottom = Math.max(bottom, y);
+      });
+      hotspot.style.left = `${Math.max(0, left)}px`;
+      hotspot.style.top = `${Math.max(0, top)}px`;
+      hotspot.style.width = `${Math.max(0, Math.min(size.width, right) - Math.max(0, left))}px`;
+      hotspot.style.height = `${Math.max(0, Math.min(size.height, bottom) - Math.max(0, top))}px`;
+      hotspot.style.zIndex = active ? '3' : '2';
+      hotspot.style.visibility = 'visible';
+    }
     if (
       Math.abs(g.position.x - targetX) +
         Math.abs(g.position.z - targetZ) +
@@ -538,7 +604,7 @@ function Cabinet({
           map={resources.marquee}
           emissiveMap={resources.marquee}
           emissive="#ffffff"
-          emissiveIntensity={0.6}
+          emissiveIntensity={active ? 0.6 : 0.12}
           roughness={0.23}
           metalness={0.1}
         />
@@ -547,7 +613,11 @@ function Cabinet({
       {box('crt-surround', [0, SCREEN.y, 0.402], [1.25, 0.82, 0.1], resources.black, 0.06)}
       <mesh position={[0, SCREEN.y, SCREEN.z]}>
         <planeGeometry args={[SCREEN.width, SCREEN.height, 14, 10]} />
-        <meshBasicMaterial map={resources.screen} toneMapped={false} />
+        <meshBasicMaterial
+          map={resources.screen}
+          color={active ? '#ffffff' : '#718394'}
+          toneMapped={false}
+        />
       </mesh>
       {box('deck', [0, 1.31, 0.56], [1.53, 0.16, 0.59], resources.black, 0.045)}
       {box('deck-face', [0, 1.21, 0.842], [1.5, 0.14, 0.07], resources.body)}
@@ -564,88 +634,126 @@ function Cabinet({
           </mesh>
         )),
       )}
-      <group
-        position={[-0.4, 1.41, 0.57]}
-        rotation={[
-          held.includes('down') ? 0.16 : held.includes('up') ? -0.16 : 0,
-          0,
-          held.includes('left') ? 0.18 : held.includes('right') ? -0.18 : 0,
-        ]}
-      >
-        <mesh>
-          <cylinderGeometry args={[0.13, 0.14, 0.026, 32]} />
-          <primitive object={resources.black} attach="material" />
-        </mesh>
-        <mesh position={[0, 0.08, 0]}>
-          <cylinderGeometry args={[0.026, 0.026, 0.16, 20]} />
-          <primitive object={resources.metal} attach="material" />
-        </mesh>
-        <mesh
-          position={[0, 0.18, 0]}
-          castShadow
-          onPointerDown={(e) => {
-            e.stopPropagation();
-            if (!active || !playing) {
-              onSelect(index);
-              return;
-            }
-            grip.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
-            capturedControls.current.set(e.pointerId, 'stick');
-            (e.target as unknown as { setPointerCapture: (id: number) => void }).setPointerCapture(
-              e.pointerId,
-            );
-          }}
-          onPointerMove={(e) => {
-            if (!grip.current || grip.current.pointerId !== e.pointerId) return;
-            e.stopPropagation();
-            const dx = e.clientX - grip.current.x;
-            const dy = e.clientY - grip.current.y;
-            input.set('left', dx < -8);
-            input.set('right', dx > 8);
-            if (project.id === 'warehouse') {
-              input.set('up', dy < -8);
-              input.set('down', dy > 8);
-            }
-          }}
-          onPointerUp={releaseStick}
+      {project.id !== 'shoreline' && (
+        <group
+          position={[-0.4, 1.41, 0.57]}
+          rotation={[
+            active && project.id === 'warehouse'
+              ? held.includes('down')
+                ? 0.16
+                : held.includes('up')
+                  ? -0.16
+                  : 0
+              : 0,
+            0,
+            active ? (held.includes('left') ? 0.18 : held.includes('right') ? -0.18 : 0) : 0,
+          ]}
         >
-          <sphereGeometry args={[0.075, 32, 24]} />
-          <meshPhysicalMaterial
-            color={project.accent}
-            roughness={0.24}
-            clearcoat={1}
-            clearcoatRoughness={0.16}
-          />
-        </mesh>
-      </group>
-      {project.controls.map((control, j) => (
-        <group key={control.action} position={[0.18 + j * 0.27, 1.41, 0.59 - j * 0.07]}>
           <mesh>
-            <cylinderGeometry args={[0.111, 0.116, 0.025, 40]} />
+            <cylinderGeometry args={[0.13, 0.14, 0.026, 32]} />
+            <primitive object={resources.black} attach="material" />
+          </mesh>
+          <mesh position={[0, 0.08, 0]}>
+            <cylinderGeometry args={[0.026, 0.026, 0.16, 20]} />
             <primitive object={resources.metal} attach="material" />
           </mesh>
           <mesh
-            position={[0, active && held.includes(control.action) ? 0.018 : 0.047, 0]}
+            position={[0, 0.18, 0]}
             castShadow
-            onPointerDown={(e) => press(control.action, e)}
-            onPointerUp={(e) => release(control.action, e)}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              if (!active || !playing) {
+                onSelect(index);
+                return;
+              }
+              grip.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
+              capturedControls.current.set(e.pointerId, 'stick');
+              (
+                e.target as unknown as { setPointerCapture: (id: number) => void }
+              ).setPointerCapture(e.pointerId);
+            }}
+            onPointerMove={(e) => {
+              if (!grip.current || grip.current.pointerId !== e.pointerId) return;
+              e.stopPropagation();
+              const dx = e.clientX - grip.current.x;
+              const dy = e.clientY - grip.current.y;
+              input.set('left', dx < -8);
+              input.set('right', dx > 8);
+              if (project.id === 'warehouse') {
+                input.set('up', dy < -8);
+                input.set('down', dy > 8);
+              }
+            }}
+            onPointerUp={releaseStick}
           >
-            <cylinderGeometry args={[0.089, 0.096, 0.052, 40]} />
+            <sphereGeometry args={[0.075, 32, 24]} />
             <meshPhysicalMaterial
-              color={j ? '#edf0e7' : project.accent}
-              clearcoat={1}
+              color={project.accent}
               roughness={0.24}
-              metalness={0.05}
+              clearcoat={1}
+              clearcoatRoughness={0.16}
             />
           </mesh>
         </group>
-      ))}
-      {[resources.controlA, resources.controlB].map((map, j) => (
-        <mesh key={j} position={[0.18 + j * 0.27, 1.22, 0.89]}>
-          <planeGeometry args={[0.25, 0.0625]} />
-          <meshStandardMaterial map={map} roughness={0.7} />
-        </mesh>
-      ))}
+      )}
+      {project.controls.map((control, j) => {
+        const arrows = project.id === 'shoreline';
+        const x = arrows
+          ? control.action === 'left'
+            ? -0.31
+            : control.action === 'right'
+              ? 0.31
+              : 0
+          : project.id === 'warehouse'
+            ? 0.29
+            : 0.15 + j * 0.33;
+        const z = arrows ? (control.action === 'up' ? 0.455 : 0.71) : 0.62 - j * 0.075;
+        const depressed = active && held.includes(control.action);
+        return (
+          <group key={control.action} position={[x, 1.41, z]}>
+            <mesh>
+              {arrows ? (
+                <boxGeometry args={[0.285, 0.027, 0.215]} />
+              ) : (
+                <cylinderGeometry args={[0.149, 0.157, 0.025, 40]} />
+              )}
+              <primitive object={resources.metal} attach="material" />
+            </mesh>
+            <mesh
+              position={[0, depressed ? 0.033 : 0.061, 0]}
+              castShadow
+              onPointerDown={(e) => press(control.action, e)}
+              onPointerUp={(e) => release(control.action, e)}
+            >
+              {arrows ? (
+                <primitive object={resources.keyCap} attach="geometry" />
+              ) : (
+                <cylinderGeometry args={[0.13, 0.139, 0.072, 40]} />
+              )}
+              <meshPhysicalMaterial
+                color={arrows || j === 0 ? project.accent : '#edf0e7'}
+                clearcoat={1}
+                roughness={0.24}
+                metalness={0.05}
+              />
+              <mesh
+                position={[0, arrows ? 0.051 : 0.037, 0]}
+                rotation={[-Math.PI / 2, 0, 0]}
+                onPointerDown={(e) => press(control.action, e)}
+                onPointerUp={(e) => release(control.action, e)}
+              >
+                <planeGeometry args={arrows ? [0.23, 0.18] : [0.235, 0.235]} />
+                <meshBasicMaterial
+                  map={resources.controlMaps[j]}
+                  transparent
+                  toneMapped={false}
+                  depthWrite={false}
+                />
+              </mesh>
+            </mesh>
+          </group>
+        );
+      })}
       {box('coin-door', [-0.27, 0.69, 0.553], [0.42, 0.49, 0.035], resources.black, 0.015)}
       {box('slot-metal', [-0.27, 0.84, 0.58], [0.21, 0.075, 0.02], resources.metal, 0.007)}
       {box('slot', [-0.27, 0.84, 0.594], [0.15, 0.015, 0.012], resources.black, 0.002)}
@@ -695,6 +803,21 @@ function Room({ selected, playing, reduced, screenRef, onReady, ...props }: Scen
   const { gl, scene, camera, size, invalidate } = useThree();
   const target = useRef(new THREE.Vector3(0, 1.5, 0));
   const ready = useRef(false);
+  const heroTarget = useMemo(() => {
+    const object = new THREE.Object3D();
+    object.position.set(0, 1.55, 0.45);
+    return object;
+  }, []);
+  const projection = useMemo(
+    () => ({
+      world: new THREE.Matrix4(),
+      camera: new THREE.Matrix4(),
+      viewport: new THREE.Matrix4(),
+      combined: new THREE.Matrix4(),
+      point: new THREE.Vector3(),
+    }),
+    [],
+  );
   useEffect(() => {
     const generator = new THREE.PMREMGenerator(gl);
     const room = new RoomEnvironment();
@@ -721,12 +844,18 @@ function Room({ selected, playing, reduced, screenRef, onReady, ...props }: Scen
     const closeZ =
       0.805 +
       SCREEN.width /
-        (2 * Math.tan(THREE.MathUtils.degToRad(34 / 2)) * Math.min(aspect * 0.86, 0.95));
-    const closeY = aspect < 0.8 ? SCREEN.y : 1.87;
+        (2 * Math.tan(THREE.MathUtils.degToRad(34 / 2)) * Math.min(aspect * 0.92, 0.8));
+    const closeTargetY = 1.88;
+    const closeTargetZ = 0.75;
+    const closeY = closeTargetY + (closeZ - closeTargetZ) * Math.tan(THREE.MathUtils.degToRad(22));
     const desired = playing
       ? new THREE.Vector3(0, closeY, closeZ)
-      : new THREE.Vector3(0, 2.9, aspect < 0.8 ? 11.3 : 9.7);
-    const desiredTarget = new THREE.Vector3(0, playing ? closeY : 1.65, 0);
+      : new THREE.Vector3(0, 2.7, aspect < 0.8 ? 7.9 : 7.45);
+    const desiredTarget = new THREE.Vector3(
+      0,
+      playing ? closeTargetY : 1.61,
+      playing ? closeTargetZ : 0.1,
+    );
     const factor = reduced ? 1 : 1 - Math.exp(-Math.min(dt, 0.06) * 6);
     camera.position.lerp(desired, factor);
     target.current.lerp(desiredTarget, factor);
@@ -736,20 +865,78 @@ function Room({ selected, playing, reduced, screenRef, onReady, ...props }: Scen
     if (dist > 0.0003) invalidate();
     const element = screenRef.current;
     if (element) {
-      const a = new THREE.Vector3(
+      // Transform the whole DOM game plane through the same perspective camera.
+      // A bounding rectangle would drift away from the CRT when looking down at it.
+      projection.point.set(SCREEN.width / 2, SCREEN.y, SCREEN.z + 0.35).project(camera);
+      const width = Math.max(1, projection.point.x * size.width);
+      const height = width / 1.6;
+      projection.world.set(
+        SCREEN.width / width,
+        0,
+        0,
         -SCREEN.width / 2,
+        0,
+        -SCREEN.height / height,
+        0,
         SCREEN.y + SCREEN.height / 2,
+        0,
+        0,
+        1,
         SCREEN.z + 0.35,
-      ).project(camera);
-      const b = new THREE.Vector3(
-        SCREEN.width / 2,
-        SCREEN.y - SCREEN.height / 2,
-        SCREEN.z + 0.35,
-      ).project(camera);
-      element.style.left = `${((a.x + 1) * size.width) / 2}px`;
-      element.style.top = `${((1 - a.y) * size.height) / 2}px`;
-      element.style.width = `${((b.x - a.x) * size.width) / 2}px`;
-      element.style.height = `${((a.y - b.y) * size.height) / 2}px`;
+        0,
+        0,
+        0,
+        1,
+      );
+      projection.camera.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+      projection.viewport.set(
+        size.width / 2,
+        0,
+        0,
+        size.width / 2,
+        0,
+        -size.height / 2,
+        0,
+        size.height / 2,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+      );
+      projection.combined
+        .copy(projection.viewport)
+        .multiply(projection.camera)
+        .multiply(projection.world);
+      const m = projection.combined.elements;
+      const k = m[15];
+      const css = [
+        m[0] / k,
+        m[1] / k,
+        0,
+        m[3] / k,
+        m[4] / k,
+        m[5] / k,
+        0,
+        m[7] / k,
+        0,
+        0,
+        1,
+        0,
+        m[12] / k,
+        m[13] / k,
+        0,
+        1,
+      ];
+      element.style.left = '0px';
+      element.style.top = '0px';
+      element.style.width = `${width}px`;
+      element.style.height = `${height}px`;
+      element.style.transformOrigin = '0 0';
+      element.style.transform = `matrix3d(${css.join(',')})`;
       element.style.opacity = playing && dist < 0.018 ? '1' : '0';
       element.style.pointerEvents = playing && dist < 0.018 ? 'auto' : 'none';
       element.dataset.settled = playing && dist < 0.018 ? 'true' : 'false';
@@ -758,10 +945,10 @@ function Room({ selected, playing, reduced, screenRef, onReady, ...props }: Scen
   return (
     <>
       <fog attach="fog" args={['#070c15', 10, 26]} />
-      <ambientLight intensity={0.22} />
+      <ambientLight intensity={0.16} />
       <directionalLight
         position={[2, 6, 5]}
-        intensity={1.8}
+        intensity={1.15}
         color="#e8f0ff"
         castShadow
         shadow-mapSize={[2048, 2048]}
@@ -771,15 +958,25 @@ function Room({ selected, playing, reduced, screenRef, onReady, ...props }: Scen
         shadow-camera-bottom={-4}
         shadow-bias={-0.0002}
       />
+      <primitive object={heroTarget} />
+      <spotLight
+        position={[0, 5.3, 1.4]}
+        target={heroTarget}
+        angle={0.34}
+        penumbra={0.75}
+        intensity={46}
+        color="#eef3e3"
+        distance={10}
+      />
       <spotLight
         position={[-5, 4, 2]}
         angle={0.7}
         penumbra={0.9}
-        intensity={32}
+        intensity={13}
         color="#98bdf5"
         distance={15}
       />
-      <pointLight position={[4, 2.8, -0.5]} intensity={12} color="#b6a5f8" distance={10} />
+      <pointLight position={[4, 2.8, -0.5]} intensity={8} color="#b6a5f8" distance={10} />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.025, 0]} receiveShadow>
         <planeGeometry args={[80, 80]} />
         <meshStandardMaterial

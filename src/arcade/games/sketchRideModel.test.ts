@@ -5,11 +5,16 @@ import {
   beginRide,
   buildTrail,
   defaultTrail,
+  riderTerrainContact,
   TRAIL_FINISH,
   trailHeight,
 } from './sketchRideModel.ts';
 
-const neutral = { left: false, right: false, jump: false };
+const neutral = { left: false, right: false, pedal: false, brake: false, jump: false };
+const flatTrail = [
+  { x: 0, y: 320 },
+  { x: 960, y: 320 },
+];
 
 test('the starter course reaches the finish without needing expert controls', () => {
   const trail = defaultTrail();
@@ -43,11 +48,101 @@ test('pedaling and braking change pace without backing off the course', () => {
   let slow = beginRide(trail);
   let fast = beginRide(trail);
   for (let frame = 0; frame < 60; frame += 1) {
-    slow = advanceSketchRide(slow, trail, { ...neutral, left: true }, 1 / 60);
-    fast = advanceSketchRide(fast, trail, { ...neutral, right: true }, 1 / 60);
+    slow = advanceSketchRide(slow, trail, { ...neutral, brake: true }, 1 / 60);
+    fast = advanceSketchRide(fast, trail, { ...neutral, pedal: true }, 1 / 60);
   }
   assert.ok(fast.x > slow.x + 30);
-  assert.ok(slow.vx >= 24);
+  assert.ok(slow.vx >= 0);
+});
+
+test('leaning changes tilt independently of pedal and brake acceleration', () => {
+  const initial = beginRide(flatTrail);
+  const normal = advanceSketchRide(initial, flatTrail, neutral, 1 / 60);
+  const back = advanceSketchRide(initial, flatTrail, { ...neutral, left: true }, 1 / 60);
+  const forward = advanceSketchRide(initial, flatTrail, { ...neutral, right: true }, 1 / 60);
+  const pedaled = advanceSketchRide(initial, flatTrail, { ...neutral, pedal: true }, 1 / 60);
+  const braked = advanceSketchRide(initial, flatTrail, { ...neutral, brake: true }, 1 / 60);
+  assert.equal(back.vx, normal.vx);
+  assert.equal(forward.vx, normal.vx);
+  assert.ok(back.angle < normal.angle && forward.angle > normal.angle);
+  assert.equal(pedaled.angle, normal.angle);
+  assert.equal(braked.angle, normal.angle);
+  assert.ok(pedaled.vx > normal.vx && braked.vx < normal.vx);
+});
+
+test('holding pedal accelerates continuously without triggering jumps, and brake can stop', () => {
+  let state = beginRide(flatTrail);
+  for (let frame = 0; frame < 90; frame += 1)
+    state = advanceSketchRide(state, flatTrail, { ...neutral, pedal: true }, 1 / 60);
+  assert.ok(state.vx > 150);
+  assert.equal(state.jumps, 0);
+  assert.equal(state.grounded, true);
+  for (let frame = 0; frame < 90; frame += 1)
+    state = advanceSketchRide(state, flatTrail, { ...neutral, brake: true }, 1 / 60);
+  assert.equal(state.vx, 0);
+  assert.equal(state.status, 'riding');
+});
+
+test('upright wheels on flat ground and ordinary slopes do not count as body contact', () => {
+  for (const slope of [-0.6, 0, 0.6]) {
+    const trail = [
+      { x: 0, y: 260 },
+      { x: 960, y: 260 + slope * 960 },
+    ];
+    assert.equal(riderTerrainContact(beginRide(trail), trail), null);
+  }
+});
+
+test('head, torso, arms, and legs each detect their actual geometric contact with terrain', () => {
+  const initial = { ...beginRide(flatTrail), x: 200 };
+  assert.equal(riderTerrainContact({ ...initial, y: 264, angle: Math.PI }, flatTrail), 'head');
+  assert.equal(
+    riderTerrainContact({ ...initial, y: 304, angle: -Math.PI / 2 }, flatTrail),
+    'torso',
+  );
+  assert.equal(riderTerrainContact({ ...initial, y: 300, angle: Math.PI / 2 }, flatTrail), 'arm');
+  assert.equal(riderTerrainContact({ ...initial, y: 319, angle: 0 }, flatTrail), 'leg');
+  assert.equal(riderTerrainContact({ ...initial, y: 259, angle: Math.PI }, flatTrail), null);
+});
+
+test('a sideways arm contact crashes even at low speed and without a hard landing', () => {
+  const initial = {
+    ...beginRide(flatTrail),
+    x: 200,
+    y: 270,
+    angle: Math.PI / 2,
+    grounded: false,
+    vx: 0,
+    vy: 0,
+  };
+  const bump = [
+    { x: 0, y: 320 },
+    { x: 210, y: 320 },
+    { x: 220, y: 288 },
+    { x: 235, y: 288 },
+    { x: 245, y: 320 },
+    { x: 960, y: 320 },
+  ];
+  const state = advanceSketchRide(initial, bump, neutral, 1 / 60);
+  assert.equal(state.status, 'crashed');
+  assert.equal(state.crashPart, 'arm');
+});
+
+test('an inverted falling rider crashes on their head while the axle is still above the trail', () => {
+  let state = {
+    ...beginRide(flatTrail),
+    x: 200,
+    y: 230,
+    angle: Math.PI,
+    grounded: false,
+    vx: 30,
+    vy: 100,
+  };
+  for (let frame = 0; frame < 60 && state.status === 'riding'; frame += 1)
+    state = advanceSketchRide(state, flatTrail, neutral, 1 / 60);
+  assert.equal(state.status, 'crashed');
+  assert.equal(state.crashPart, 'head');
+  assert.ok(state.y < 270, 'head impact must happen before the wheels or axle reach the trail');
 });
 
 test('drawing yields a finite continuous trail and short marks are rejected', () => {

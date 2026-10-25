@@ -52,6 +52,7 @@ export default function ArcadeHub() {
   const [ready, setReady] = useState(false);
   const [held, setHeld] = useState('');
   const screen = useRef<HTMLDivElement>(null);
+  const machineButtons = useRef<(HTMLButtonElement | null)[]>([]);
   const room = useRef<HTMLElement>(null);
   const input = useMemo(createArcadeInput, []);
   const project = arcadeProjects[selected];
@@ -124,6 +125,7 @@ export default function ArcadeHub() {
         if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
           event.preventDefault();
           if (!event.repeat) choose(selected + (event.key === 'ArrowRight' ? 1 : -1));
+          room.current?.focus();
         }
         if (event.key === 'Enter' && event.target === room.current) {
           event.preventDefault();
@@ -185,6 +187,7 @@ export default function ArcadeHub() {
       className={`arcade-page${playing ? ' is-playing' : ''}${expanded ? ' is-expanded' : ''}${!webgl ? ' is-fallback' : ''}`}
       data-renderer={webgl ? (ready ? 'three' : 'loading') : 'fallback'}
       data-game={playing ? project.id : 'selection'}
+      data-selected={project.id}
       style={{ '--active-accent': project.accent } as CSSProperties}
     >
       <ArcadeBackdrop paused={ambiencePaused || playing || !visible} reduced={reduced} />
@@ -214,17 +217,7 @@ export default function ArcadeHub() {
         aria-label="Project arcade"
         data-playing={playing}
       >
-        {!playing && (
-          <div className="arcade-room-intro">
-            <p>01—03 / ORIGINAL EXPERIMENTS</p>
-            <h1>
-              Step up.
-              <br />
-              <em>Play something.</em>
-            </h1>
-            <span>Choose a machine. Take the controls.</span>
-          </div>
-        )}
+        {!playing && <h1 className="arcade-sr-only">Project Arcade</h1>}
         {playing && (
           <div className="arcade-play-header">
             <button onClick={exit} className="arcade-back">
@@ -281,6 +274,7 @@ export default function ArcadeHub() {
                   reduced={reduced}
                   input={input}
                   screenRef={screen}
+                  machineRefs={machineButtons}
                   onSelect={enter}
                   onReady={() => setReady(true)}
                   onFailure={() => {
@@ -296,6 +290,7 @@ export default function ArcadeHub() {
               {arcadeProjects.map((item, i) => (
                 <button
                   key={item.id}
+                  aria-label={`Play ${item.title}`}
                   onClick={() => enter(i)}
                   style={{ '--machine-accent': item.accent } as CSSProperties}
                 >
@@ -330,6 +325,22 @@ export default function ArcadeHub() {
         </div>
         {!playing && (
           <>
+            {webgl && (
+              <div className="arcade-machine-hotspots" role="group" aria-label="Arcade machines">
+                {arcadeProjects.map((item, i) => (
+                  <button
+                    key={item.id}
+                    ref={(element) => {
+                      machineButtons.current[i] = element;
+                    }}
+                    aria-label={`Play ${item.title}`}
+                    onClick={() => enter(i)}
+                  >
+                    <span className="arcade-sr-only">Play {item.title}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="arcade-select-arrows">
               <button aria-label="Previous machine" onClick={() => choose(selected - 1)}>
                 ←
@@ -338,53 +349,36 @@ export default function ArcadeHub() {
                 →
               </button>
             </div>
-            <div className="arcade-lobby-info" aria-live="polite">
-              <span>
-                {project.number} / {project.genre}
-              </span>
-              <h2>{project.title}</h2>
-              <p>{project.tagline}</p>
-              <button className="arcade-enter" onClick={() => enter(selected)}>
-                Step up to play <span>↗</span>
-              </button>
-            </div>
-            <nav className="arcade-machine-list" aria-label="Choose a machine">
-              {arcadeProjects.map((item, i) => (
-                <button
-                  key={item.id}
-                  aria-label={`Choose ${item.title}`}
-                  aria-pressed={i === selected}
-                  onClick={() => choose(i)}
-                >
-                  <span>{item.number}</span>
-                  {item.title}
-                  <i style={{ background: item.accent }} />
-                </button>
-              ))}
-            </nav>
+            <p className="arcade-sr-only" aria-live="polite">
+              {project.title} selected. Use left and right to choose a machine, then Enter to play.
+            </p>
           </>
         )}
         {playing && (
           <div className="arcade-player-controls" aria-label={`${project.title} cabinet controls`}>
-            <div className={`arcade-dpad ${project.id === 'warehouse' ? 'four-way' : ''}`}>
-              {project.id === 'warehouse' && control('up', 'Move up', '↑')}
-              {control('left', 'Move left', '←')}
-              {project.id === 'warehouse' && control('down', 'Move down', '↓')}
-              {control('right', 'Move right', '→')}
+            <div className={`arcade-dpad ${project.id !== 'sketch' ? 'four-way' : ''}`}>
+              {project.id !== 'sketch' &&
+                control('up', project.id === 'shoreline' ? 'Jump' : 'Move up', '↑')}
+              {control('left', project.id === 'sketch' ? 'Tilt back' : 'Move left', '←')}
+              {project.id !== 'sketch' &&
+                control('down', project.id === 'shoreline' ? 'Pump' : 'Move down', '↓')}
+              {control('right', project.id === 'sketch' ? 'Tilt forward' : 'Move right', '→')}
             </div>
-            <div className="arcade-game-actions">
-              {project.controls.map((item) => (
-                <div key={item.action}>
-                  {control(item.action, item.label, item.label)}
-                  <kbd>{item.key}</kbd>
-                </div>
-              ))}
-            </div>
+            {project.id !== 'shoreline' && (
+              <div className="arcade-game-actions">
+                {project.controls.map((item) => (
+                  <div key={item.action}>
+                    {control(item.action, item.label, item.label)}
+                    <kbd>{item.key}</kbd>
+                  </div>
+                ))}
+              </div>
+            )}
             <p>
               {project.id === 'shoreline'
                 ? 'Hold Pump, then Jump.'
                 : project.id === 'sketch'
-                  ? 'Draw on the screen. Jump with Space.'
+                  ? '← → tilt · Space / E pedal · Q brake'
                   : 'Arrows / WASD to move. E to interact.'}
             </p>
           </div>
