@@ -4,6 +4,7 @@ import type { ArcadeInput } from '../input';
 import {
   advanceSketchRide,
   beginRide,
+  bikeGroundClearance,
   buildTrail,
   defaultTrail,
   riderPose,
@@ -439,12 +440,21 @@ function renderScene(
   }
 }
 
-function rideCamera(ride: SketchRideState, phase: Phase, mode: RideMode, finishX: number): Camera {
+function rideCamera(
+  ride: SketchRideState,
+  phase: Phase,
+  mode: RideMode,
+  finishX: number,
+  trail: Trail,
+): Camera {
   if (mode === 'custom' && phase === 'drawing') return { x: 0, y: 0, zoom: 1 };
   const zoom = 1.5;
+  // Leave room for the rider to rise above the trail instead of moving the camera
+  // upward by the exact same amount and making a real jump look glued in place.
+  const jumpHeight = Math.min(110, Math.max(0, bikeGroundClearance(ride, trail)));
   return {
     x: Math.max(0, Math.min(finishX - WIDTH / zoom + 90, ride.x - 245 / zoom)),
-    y: ride.y - 340 / zoom,
+    y: ride.y + jumpHeight - 340 / zoom,
     zoom,
   };
 }
@@ -463,7 +473,7 @@ export default function SketchRide({ input, active }: { input: ArcadeInput; acti
   const drawingRef = useRef(false);
   const jumpRef = useRef(false);
   const cameraRef = useRef(
-    rideCamera(rideRef.current, 'ready', 'levels', courseRef.current.finishX),
+    rideCamera(rideRef.current, 'ready', 'levels', courseRef.current.finishX, trailRef.current),
   );
   const [phase, setPhase] = useState<Phase>('ready');
   const [mode, setMode] = useState<RideMode>('levels');
@@ -478,11 +488,14 @@ export default function SketchRide({ input, active }: { input: ArcadeInput; acti
     crashPart: '',
     crashReason: '',
     worldX: TRAIL_START,
+    worldY: rideRef.current.y,
     cameraX: 0,
     cameraY: 0,
     cursorX: TRAIL_START,
     cursorY: customRef.current.cursor.y,
     revision: 0,
+    grounded: true,
+    clearance: 0,
   });
   activeRef.current = active;
 
@@ -493,7 +506,13 @@ export default function SketchRide({ input, active }: { input: ArcadeInput; acti
 
   const syncHud = useCallback(() => {
     const ride = rideRef.current;
-    const camera = rideCamera(ride, phaseRef.current, modeRef.current, courseRef.current.finishX);
+    const camera = rideCamera(
+      ride,
+      phaseRef.current,
+      modeRef.current,
+      courseRef.current.finishX,
+      trailRef.current,
+    );
     cameraRef.current = camera;
     setStats({
       progress: Math.min(
@@ -507,11 +526,14 @@ export default function SketchRide({ input, active }: { input: ArcadeInput; acti
       crashPart: ride.crashPart ?? '',
       crashReason: ride.crashReason ?? '',
       worldX: ride.x,
+      worldY: ride.y,
       cameraX: camera.x,
       cameraY: camera.y,
       cursorX: customRef.current.cursor.x,
       cursorY: customRef.current.cursor.y,
       revision: customRef.current.revision,
+      grounded: ride.grounded,
+      clearance: bikeGroundClearance(ride, trailRef.current),
     });
   }, []);
 
@@ -707,6 +729,7 @@ export default function SketchRide({ input, active }: { input: ArcadeInput; acti
         phaseRef.current,
         modeRef.current,
         courseRef.current.finishX,
+        trailRef.current,
       );
       if (updateHud && (now - hud > 90 || rideRef.current.status !== 'riding')) {
         syncHud();
@@ -792,10 +815,14 @@ export default function SketchRide({ input, active }: { input: ArcadeInput; acti
       data-course-length={courseRef.current.finishX}
       data-progress={stats.progress}
       data-speed={stats.speed.toFixed(1)}
+      data-grounded={stats.grounded}
+      data-clearance={stats.clearance.toFixed(1)}
+      data-jumps={stats.jumps}
       data-angle={stats.angle.toFixed(3)}
       data-crash-part={stats.crashPart}
       data-crash-reason={stats.crashReason}
       data-world-x={stats.worldX.toFixed(1)}
+      data-world-y={stats.worldY.toFixed(1)}
       data-camera-x={stats.cameraX.toFixed(1)}
       data-camera-y={stats.cameraY.toFixed(1)}
       data-cursor-x={stats.cursorX.toFixed(1)}

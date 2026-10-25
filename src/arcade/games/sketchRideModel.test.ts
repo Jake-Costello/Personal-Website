@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   advanceSketchRide,
   beginRide,
+  bikeGroundClearance,
   buildTrail,
   defaultTrail,
   riderTerrainContact,
@@ -15,6 +16,57 @@ const flatTrail = [
   { x: 0, y: 320 },
   { x: 960, y: 320 },
 ];
+
+test('rear-wheel contact uses the climbing tire, not the descending slope under the axle', () => {
+  const trail = buildTrail([
+    { x: 64, y: 300 },
+    { x: 250, y: 320 },
+    { x: 370, y: 250 },
+    { x: 450, y: 370 },
+    { x: 886, y: 430 },
+  ])!;
+  const seed = {
+    ...beginRide(trail),
+    x: 381,
+    y: 0,
+    vx: 150,
+    vy: 70,
+    angle: -0.15,
+    spin: 0,
+    grounded: false,
+  };
+  seed.y = bikeGroundClearance(seed, trail) - 0.1;
+  const landed = advanceSketchRide(seed, trail, neutral, 1 / 240);
+  assert.equal(landed.status, 'riding');
+  assert.ok(
+    landed.vy < 0,
+    'the rear tire is still climbing, so contact must not force downward velocity',
+  );
+  assert.ok(bikeGroundClearance(landed, trail) >= -0.001);
+});
+
+test('a custom ramp preserves launch momentum and produces visible flight without the jump action', () => {
+  const trail = buildTrail([
+    { x: 64, y: 300 },
+    { x: 250, y: 320 },
+    { x: 370, y: 250 },
+    { x: 450, y: 370 },
+    { x: 886, y: 430 },
+  ])!;
+  let state = beginRide(trail);
+  let maximumClearance = 0;
+  let upwardTakeoff = false;
+  for (let frame = 0; frame < 60 * 20 && state.status === 'riding'; frame += 1) {
+    state = advanceSketchRide(state, trail, { ...neutral, pedal: true }, 1 / 60);
+    const clearance = bikeGroundClearance(state, trail);
+    maximumClearance = Math.max(maximumClearance, clearance);
+    if (clearance > 5 && state.vy < -30) upwardTakeoff = true;
+  }
+  assert.equal(state.status, 'finished');
+  assert.ok(maximumClearance > 40);
+  assert.ok(upwardTakeoff);
+  assert.equal(state.jumps, 0);
+});
 
 test('the starter course reaches the finish without needing expert controls', () => {
   const trail = defaultTrail();

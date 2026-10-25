@@ -28,6 +28,7 @@ export type SketchRideState = {
 export const TRAIL_START = 64;
 export const TRAIL_FINISH = 886;
 export const WHEEL_RADIUS = 12;
+const GRAVITY = 500;
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 export function defaultTrail(): Trail {
@@ -220,6 +221,11 @@ function wheelContactHeight(trail: Trail, x: number, angle: number) {
   );
 }
 
+/** Signed clearance of the lower tire above the trail; positive means both tires are clear. */
+export function bikeGroundClearance(state: SketchRideState, trail: Trail): number {
+  return wheelContactHeight(trail, state.x, state.angle) - state.y;
+}
+
 function stepRide(
   previous: SketchRideState,
   trail: Trail,
@@ -243,12 +249,12 @@ function stepRide(
   const brake = controls.brake ? 225 : 0;
   state.vx = clamp(state.vx + (state.grounded ? 28 + slope * 175 + pedal - brake : 4) * dt, 0, 190);
   state.x += state.vx * dt;
-  state.vy += 620 * dt;
+  state.vy += GRAVITY * dt;
   state.y += state.vy * dt;
   const floorAngle = Math.atan(trailSlope(trail, state.x));
   const lean = (controls.right ? 1 : 0) - (controls.left ? 1 : 0);
   const restoring = state.grounded ? angleDifference(floorAngle, state.angle) * 3.5 : 0;
-  state.spin += (lean * (state.grounded ? 7.5 : 3.4) + restoring) * dt;
+  state.spin += (lean * (state.grounded ? 7.5 : 4.6) + restoring) * dt;
   state.spin *= Math.exp(-(state.grounded ? 2.8 : 1.1) * dt);
   state.angle += state.spin * dt;
 
@@ -256,8 +262,19 @@ function stepRide(
   const floor = wheelContactHeight(trail, state.x, state.angle);
   if (state.y >= floor) {
     state.y = floor;
-    state.vy = trailSlope(trail, state.x) * state.vx;
-    state.grounded = true;
+    // Use the tire that is supporting the bike. The axle can pass the crest while
+    // the rear tire is still climbing; sampling at the axle erases that takeoff momentum.
+    const supportSlope =
+      wheelContactHeight(trail, state.x + 0.5, state.angle) -
+      wheelContactHeight(trail, state.x - 0.5, state.angle);
+    const rotationSlope =
+      (wheelContactHeight(trail, state.x, state.angle + 0.001) -
+        wheelContactHeight(trail, state.x, state.angle - 0.001)) /
+      0.002;
+    const supportVelocity = supportSlope * state.vx + rotationSlope * state.spin;
+    // A tire can push the bike out of the trail, but it cannot pull it down a falling crest.
+    state.grounded = state.vy >= supportVelocity - 0.01;
+    state.vy = Math.min(state.vy, supportVelocity);
   } else if (floor - state.y > 2.5 || !state.grounded) state.grounded = false;
   const contact = riderTerrainContact(state, trail);
   const obstacleContact = riderObstacleContact(state, obstacles);

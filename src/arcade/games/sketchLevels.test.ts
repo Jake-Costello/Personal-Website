@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { advanceSketchRide, beginRide, defaultTrail, trailHeight } from './sketchRideModel.ts';
-import type { RideControls } from './sketchRideModel.ts';
+import {
+  advanceSketchRide,
+  beginRide,
+  bikeGroundClearance,
+  defaultTrail,
+  trailHeight,
+} from './sketchRideModel.ts';
+import type { RideControls, SketchRideState } from './sketchRideModel.ts';
 import {
   advanceTrailEditor,
   completeLevel,
@@ -10,52 +16,112 @@ import {
   nextLevel,
   SKETCH_LEVELS,
 } from './sketchLevels.ts';
+import type { SketchLevel } from './sketchLevels.ts';
 
 const pedal: RideControls = { left: false, right: false, pedal: true, brake: false, jump: false };
 
-test('all ten increasingly long courses finish with real pedal, brake, and lean controls', () => {
-  let previousLength = 0;
-  for (const level of SKETCH_LEVELS) {
-    assert.ok(level.finishX > previousLength);
-    assert.equal(level.ramps.length, level.number);
-    previousLength = level.finishX;
-    let state = beginRide(level.trail);
-    let airborneFrames = 0;
-    let brakes = 0;
-    let leans = 0;
-    for (let frame = 0; frame < 60 * 65 && state.status === 'riding'; frame += 1) {
-      // Reference rider: pedal the kickers, then slow and lean forward at the marked low branch.
-      const zone = level.cautionZones.find(
-        (candidate) => state.x >= candidate.from && state.x <= candidate.to,
+function displayFrame(
+  state: SketchRideState,
+  level: SketchLevel,
+  controls: RideControls,
+  fps: number,
+) {
+  const seconds = 1 / fps;
+  const steps = Math.max(1, Math.ceil(seconds / (1 / 120)));
+  for (let step = 0; step < steps; step += 1)
+    state = advanceSketchRide(
+      state,
+      level.trail,
+      controls,
+      seconds / steps,
+      level.finishX,
+      level.obstacles,
+    );
+  return state;
+}
+
+test('all ten increasingly long courses finish with real tire clearance at 30, 60, 120, and 144 Hz', () => {
+  for (const fps of [30, 60, 120, 144]) {
+    let previousLength = 0;
+    for (const level of SKETCH_LEVELS) {
+      assert.ok(level.finishX > previousLength);
+      assert.equal(level.ramps.length, level.number);
+      previousLength = level.finishX;
+      let state = beginRide(level.trail);
+      let airborneSeconds = 0;
+      let maximumClearance = 0;
+      let brakes = 0;
+      let leans = 0;
+      for (let frame = 0; frame < fps * 65 && state.status === 'riding'; frame += 1) {
+        // Reference rider: pedal the kickers, then slow and lean forward at the marked low branch.
+        const zone = level.cautionZones.find(
+          (candidate) => state.x >= candidate.from && state.x <= candidate.to,
+        );
+        const correction = (zone?.targetAngle ?? 0) - state.angle - state.spin * 0.3;
+        const brake = !!zone && state.vx > zone.targetSpeed;
+        const right = !!zone && correction > 0.1;
+        const left = !!zone && correction < -0.1;
+        state = displayFrame(state, level, { ...pedal, pedal: !brake, brake, left, right }, fps);
+        const clearance = bikeGroundClearance(state, level.trail);
+        maximumClearance = Math.max(maximumClearance, clearance);
+        if (clearance > 5) airborneSeconds += 1 / fps;
+        if (brake) brakes += 1;
+        if (left || right) leans += 1;
+      }
+      assert.equal(
+        state.status,
+        'finished',
+        `level ${level.number} at ${fps} Hz: ${state.crashReason} at ${Math.round(state.x)}`,
       );
-      const correction = (zone?.targetAngle ?? 0) - state.angle - state.spin * 0.3;
-      const brake = !!zone && state.vx > zone.targetSpeed;
-      const right = !!zone && correction > 0.1;
-      const left = !!zone && correction < -0.1;
-      state = advanceSketchRide(
-        state,
-        level.trail,
-        { ...pedal, pedal: !brake, brake, left, right },
-        1 / 60,
-        level.finishX,
-        level.obstacles,
+      assert.equal(state.x, level.finishX);
+      assert.ok(
+        airborneSeconds >= level.number * 0.2 && maximumClearance > 40,
+        `level ${level.number} at ${fps} Hz must visibly clear the ground`,
       );
-      if (!state.grounded) airborneFrames += 1;
-      if (brake) brakes += 1;
-      if (left || right) leans += 1;
+      if (level.number >= 5) assert.ok(brakes > 0 && leans > 0);
     }
-    assert.equal(
-      state.status,
-      'finished',
-      `level ${level.number}: ${state.crashReason} at ${Math.round(state.x)}`,
-    );
-    assert.equal(state.x, level.finishX);
-    assert.ok(
-      airborneFrames >= level.number * 20,
-      `level ${level.number} must contain actual airtime`,
-    );
-    if (level.number >= 5) assert.ok(brakes > 0 && leans > 0);
   }
+});
+
+test('a single start followed by coasting clears the first rock without a jump button at every display rate', () => {
+  const level = SKETCH_LEVELS[0];
+  for (const fps of [30, 60, 120, 144]) {
+    let state = beginRide(level.trail);
+    let maximumClearance = 0;
+    let upwardTakeoff = false;
+    for (let frame = 0; frame < fps * 30 && state.status === 'riding'; frame += 1) {
+      state = displayFrame(state, level, { ...pedal, pedal: false }, fps);
+      const clearance = bikeGroundClearance(state, level.trail);
+      maximumClearance = Math.max(maximumClearance, clearance);
+      if (clearance > 5 && state.vy < -40) upwardTakeoff = true;
+    }
+    assert.equal(state.status, 'finished', `coasting at ${fps} Hz should clear the first rock`);
+    assert.ok(upwardTakeoff, `coasting at ${fps} Hz must launch upward from the ramp`);
+    assert.ok(
+      maximumClearance > 40,
+      `coasting at ${fps} Hz needs visible tire clearance, got ${maximumClearance}`,
+    );
+    assert.equal(state.jumps, 0, 'ramp flight must not require or synthesize a jump-button press');
+  }
+});
+
+test('braking to a slow approach still leaves too little momentum to clear a rock', () => {
+  const level = SKETCH_LEVELS[0];
+  let state = beginRide(level.trail);
+  let maximumClearance = 0;
+  for (let frame = 0; frame < 60 * 30 && state.status === 'riding'; frame += 1) {
+    state = displayFrame(
+      state,
+      level,
+      { ...pedal, pedal: state.vx < 70, brake: state.vx >= 70 },
+      60,
+    );
+    maximumClearance = Math.max(maximumClearance, bikeGroundClearance(state, level.trail));
+  }
+  assert.equal(state.status, 'crashed');
+  assert.equal(state.crashReason, 'obstacle');
+  assert.ok(maximumClearance < 30);
+  assert.equal(state.jumps, 0);
 });
 
 test('later courses require handling: holding pedal without leaning hits the low branch', () => {

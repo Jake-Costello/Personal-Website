@@ -346,7 +346,7 @@ test('Sketch cabinet pedals and brakes change speed, and an actual rider collisi
   await expect(page).toHaveURL(/\/arcade\/$/);
 });
 
-test('Sketch levels scroll beyond the monitor and advance after a completed course', async ({
+test('Sketch ramps launch naturally and scrolling levels advance after completion', async ({
   page,
 }, testInfo) => {
   test.setTimeout(60_000);
@@ -362,12 +362,35 @@ test('Sketch levels scroll beyond the monitor and advance after a completed cour
     await testInfo.attach('Sketch level ' + state, { path, contentType: 'image/png' });
   };
   await captureLevel('ready');
-  await page.keyboard.down('e');
+  await controls(page).getByRole('button', { name: 'Pedal', exact: true }).click();
   await expect(game).toHaveAttribute('data-phase', 'riding');
   await expect.poll(() => numeric(game, 'data-camera-x')).toBeGreaterThan(150);
   await captureLevel('riding');
+  // Observe each frame: a normal jump is shorter than expect.poll's one-second backoff.
+  const flight = await page.waitForFunction(
+    () => {
+      const element = document.querySelector<HTMLElement>('[data-game="sketch-ride"]');
+      if (
+        !element ||
+        Number(element.dataset.clearance) <= 35 ||
+        element.dataset.grounded !== 'false'
+      )
+        return false;
+      return {
+        clearance: Number(element.dataset.clearance),
+        screenY: (Number(element.dataset.worldY) - Number(element.dataset.cameraY)) * 1.5,
+        jumps: Number(element.dataset.jumps),
+      };
+    },
+    undefined,
+    { polling: 'raf', timeout: 15_000 },
+  );
+  const airborne = await flight.jsonValue();
+  expect(airborne.clearance).toBeGreaterThan(35);
+  expect(airborne.jumps).toBe(0);
+  expect(airborne.screenY).toBeLessThan(290);
+  await captureLevel('airborne');
   await expect(game).toHaveAttribute('data-phase', 'finished', { timeout: 35_000 });
-  await page.keyboard.up('e');
   await captureLevel('finish');
   expect(await numeric(game, 'data-camera-x')).toBeGreaterThan(100);
   expect(await numeric(game, 'data-world-x')).toBeGreaterThan(1500);
