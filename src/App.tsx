@@ -405,9 +405,6 @@ function App() {
                 Ideas, made <em>real.</em>
               </h2>
             </div>
-            <p className="section-intro">
-              A business taking shape. <br />A live experiment in connecting data.
-            </p>
           </div>
           <div className="project-grid">
             {projects.map((project) => (
@@ -435,19 +432,6 @@ function App() {
                     <span key={tag}>{tag}</span>
                   ))}
                 </div>
-                {project.website && (
-                  <div className="project-website">
-                    <a
-                      className="text-link"
-                      href={project.website.href}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {project.website.label} <Arrow diagonal />
-                    </a>
-                    <p>{project.website.note}</p>
-                  </div>
-                )}
               </article>
             ))}
           </div>
