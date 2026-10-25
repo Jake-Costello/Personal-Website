@@ -9,6 +9,7 @@ import { revisionMarine } from './data/revision';
 
 const ProteinExplorer = lazy(() => import('./components/ProteinExplorer'));
 const contactEndpoint = getContactEndpoint(import.meta.env.VITE_CONTACT_FORM_ENDPOINT);
+const arcadeUrl = `${import.meta.env.BASE_URL}arcade/`;
 
 function Arrow({ diagonal = false, className = '' }: { diagonal?: boolean; className?: string }) {
   return (
@@ -304,6 +305,9 @@ function App() {
               {label}
             </a>
           ))}
+          <a href={arcadeUrl} onClick={() => setMenuOpen(false)}>
+            Project Arcade
+          </a>
           <a className="nav-contact" href="#contact" onClick={() => setMenuOpen(false)}>
             Say hello <Arrow diagonal />
           </a>
@@ -435,6 +439,15 @@ function App() {
               </article>
             ))}
           </div>
+          <a className="arcade-invite" href={arcadeUrl}>
+            <div>
+              <p className="eyebrow">Project Arcade</p>
+              <h3>A few experiments worth playing.</h3>
+            </div>
+            <span className="arcade-invite-action">
+              Enter the arcade <Arrow diagonal />
+            </span>
+          </a>
         </section>
 
         <section id="lab" className="lab-section section-shell" aria-labelledby="lab-title">

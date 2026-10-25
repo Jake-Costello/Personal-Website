@@ -11,6 +11,8 @@ npm run dev
 
 Open the local address printed by Vite, normally `http://127.0.0.1:5173`.
 
+The homepage and `/arcade/` are separate Vite HTML entry points. The arcade can be refreshed or opened directly on GitHub Pages without a client-side routing fallback. Its optional WebGL background loads separately from the selector and is never imported by the homepage.
+
 The portfolio runs without a backend, but the protein graph requires the Python service. A missing or unavailable service produces a loading/error state with retry, never a synthetic fallback. Graphs and species comparisons require no API keys. Optional AI explanations require a server-side OpenAI project key.
 
 ## Enable live data locally
@@ -47,20 +49,32 @@ Python checks, from the repository root in PowerShell:
 
 ## Content and interaction configuration
 
-| Location | Purpose |
-| --- | --- |
-| `src/data/experience.ts` | Timeline chapters, dates, life stages, stories, skills, and links shared by the game and readable overview. |
-| `src/game/route.ts` | Route spacing derived from story length, reading speed, hold duration, fades, and gaps. |
-| `src/game/trial.ts` | Trial obstacles, collision penalties, and the target derived from route length. |
-| `src/lib/achievements.ts` | Local progress and reward persistence, with session fallback if storage is blocked. |
-| `src/data/personal.ts` | Golf story collections and club mappings. |
-| `src/data/trivia.ts` | Bioinformatics questions, choices, answers, explanations, and sources. |
-| `src/data/proteins.ts` | Curated protein and experimental-structure mappings, rechecked against RCSB when inspected. |
-| `src/App.tsx` | Page sections and project case-study copy. |
+| Location                       | Purpose                                                                                                     |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `src/data/experience.ts`       | Timeline chapters, dates, life stages, stories, skills, and links shared by the game and readable overview. |
+| `src/game/route.ts`            | Route spacing derived from story length, reading speed, hold duration, fades, and gaps.                     |
+| `src/game/trial.ts`            | Trial obstacles, collision penalties, and the target derived from route length.                             |
+| `src/lib/achievements.ts`      | Local progress and reward persistence, with session fallback if storage is blocked.                         |
+| `src/data/personal.ts`         | Golf story collections and club mappings.                                                                   |
+| `src/data/trivia.ts`           | Bioinformatics questions, choices, answers, explanations, and sources.                                      |
+| `src/data/proteins.ts`         | Curated protein and experimental-structure mappings, rechecked against RCSB when inspected.                 |
+| `src/App.tsx`                  | Page sections and project case-study copy.                                                                  |
+| `src/arcade/projects.ts`       | Cabinet titles, status, preview copy, planned skills, and live destinations.                                |
+| `src/arcade/ArcadeHub.tsx`     | Orbital cabinet selection, keyboard/touch input, and project dialogs.                                       |
+| `src/arcade/ArcadeCabinet.tsx` | Cabinet controls and original SVG screen artwork.                                                           |
+| `src/arcade/ArcadeShader.tsx`  | ShaderGradient colors, camera, and animation settings.                                                      |
 
 Review route spacing and playability after adding timeline chapters. Progress uses the `personal-website:achievements:v1` local-storage key; there is no account system or public leaderboard. The site does not implement a public resume upload form or automatic resume parser.
 
 See [golf content and achievement editing](GOLF-CONTENT.md) for the per-ball fields, reward messages, and challenge behavior.
+
+## Project Arcade
+
+Use the arrows, project tabs, cabinet joystick, or a horizontal swipe to change cabinets. When the selector itself has keyboard focus, left/right arrows choose a cabinet, A/Enter opens it, and B opens its details. The physical A/B buttons also work with a mouse, touch, or keyboard. Dialogs close with Escape and return focus to the control that opened them.
+
+Protein Playground and Shoreline Run open the existing homepage experiences. Sketch-to-Ride and Warehouse Shift currently open concept previews; their gameplay and AI features are not implemented. The intended first game is a downhill, left-to-right ride generated from a reviewed sketch. The warehouse concept starts with manual inbound, putaway, and outbound work, then uses order earnings to purchase upgrades inspired by real software projects.
+
+The shader uses one canvas, stops its frame loop when paused, and unmounts in hidden tabs. Reduced motion, WebGL failure, and context loss preserve the CSS backdrop and all cabinet interactions. Dependencies are pinned because ShaderGradient's renderer and React Three Fiber peer compatibility need to be checked together. Its unused Framer export is removed by the production build; Framer is not required for this integration.
 
 ## Frontend deployment
 
