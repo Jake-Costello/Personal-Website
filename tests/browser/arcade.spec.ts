@@ -135,6 +135,9 @@ test('three-machine selection wraps and Enter plays locally while Escape returns
 test('Shoreline really moves, pumps and jumps; pausing freezes it and blur clears held keys', async ({
   page,
 }) => {
+  // Software GPUs need extra total time for initialization and several camera transitions.
+  // Individual gameplay assertions retain their normal deadlines.
+  test.setTimeout(60_000);
   await page.goto('/arcade/');
   await play(page, 'Shoreline Run');
   const game = page.locator('.shoreline-game');

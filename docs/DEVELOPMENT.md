@@ -39,6 +39,8 @@ npm run test:browser
 
 Browser checks use installed Microsoft Edge locally and Chromium in CI. Without Edge, install Playwright Chromium and set `CI=1`, or adjust `channel` in `playwright.config.ts`.
 
+CI runs the arcade checks with one worker because its 3D scenes share a software renderer. The remaining portfolio checks run separately with three workers. Both groups must pass before publishing.
+
 Python checks, from the repository root in PowerShell:
 
 ```powershell
