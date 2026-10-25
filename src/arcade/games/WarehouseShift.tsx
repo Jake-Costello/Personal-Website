@@ -627,7 +627,7 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
       </button>
       <button className="wh-interact" onClick={interact} disabled={!active || showUpgrades}>
         {actionLabel}
-        <span> A</span>
+        <span> E</span>
       </button>
       <p className="wh-sr-only" role="status" aria-live="polite">
         {state.message} Cash: ${state.cash}. Stock: {state.stock}. Carrying: {state.carrying} of{' '}
