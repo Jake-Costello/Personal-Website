@@ -90,7 +90,7 @@ test('Revision Marine identifies the engineering role and links to the company',
   await expect(about.getByRole('link', { name: /Revision Marine/ })).toHaveCount(0);
   await expect(
     page.locator('#project-revision').getByRole('link', { name: /Revision Marine/ }),
-  ).toHaveAttribute('href', 'https://revision-marine.com/');
+  ).toHaveCount(0);
   await page.getByRole('button', { name: 'Read about Revision Marine' }).click();
   const project = page.getByRole('dialog');
   await expect(project).toContainText(/founding engineer/i);
