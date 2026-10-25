@@ -14,16 +14,38 @@ async function expectSelected(page: Page, title: string) {
     await expect(choose(page, machine)).toHaveAttribute('aria-pressed', String(machine === title));
 }
 
-async function play(page: Page, title: (typeof machines)[number]) {
-  await choose(page, title).click();
-  await page.getByRole('button', { name: 'Step up to play', exact: false }).click();
+async function expectRoomReady(page: Page) {
+  await expect(page.locator('.arcade-page')).toHaveAttribute(
+    'data-renderer',
+    /^(three|fallback)$/,
+    {
+      timeout: 15_000,
+    },
+  );
+}
+
+async function expectGameReady(page: Page, title: (typeof machines)[number]) {
   await expect(page.locator('.arcade-page')).toHaveAttribute(
     'data-game',
     gameIds[machines.indexOf(title)],
   );
+  await expectRoomReady(page);
+  // The game DOM mounts before the Three camera projects a usable cabinet screen.
+  if ((await page.locator('.arcade-page').getAttribute('data-renderer')) === 'three') {
+    await expect(page.locator('.arcade-live-screen')).toHaveAttribute('data-settled', 'true', {
+      timeout: 15_000,
+    });
+  }
   await expect(page.locator('.arcade-live-screen')).toBeVisible();
   const roots = ['.shoreline-game', '[data-game="sketch-ride"]', '[data-game="warehouse-shift"]'];
   await expect(page.locator(roots[machines.indexOf(title)])).toBeVisible();
+}
+
+async function play(page: Page, title: (typeof machines)[number]) {
+  await expectRoomReady(page);
+  await choose(page, title).click();
+  await page.getByRole('button', { name: 'Step up to play', exact: false }).click();
+  await expectGameReady(page, title);
 }
 
 async function holdKeyUntil(
@@ -88,6 +110,7 @@ test('three-machine selection wraps and Enter plays locally while Escape returns
   page,
 }) => {
   await page.goto('/arcade/');
+  await expectRoomReady(page);
   for (const title of ['Sketch-to-Ride', 'Warehouse Shift', 'Shoreline Run']) {
     await page.getByRole('button', { name: 'Next machine', exact: true }).click();
     await expectSelected(page, title);
@@ -101,7 +124,7 @@ test('three-machine selection wraps and Enter plays locally while Escape returns
   await page.keyboard.press('ArrowLeft');
   await expectSelected(page, 'Warehouse Shift');
   await page.keyboard.press('Enter');
-  await expect(page.locator('[data-game="warehouse-shift"]')).toBeVisible();
+  await expectGameReady(page, 'Warehouse Shift');
   await expect(page).toHaveURL(/\/arcade\/$/);
   await page.keyboard.press('Escape');
   await expect(page.locator('.arcade-page')).toHaveAttribute('data-game', 'selection');

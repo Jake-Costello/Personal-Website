@@ -2,7 +2,7 @@ import { Component, lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 
 // The cabinets and fallback remain usable while the optional GPU renderer loads.
-// Reduced-motion and no-WebGL visitors never download Three.js.
+// Reduced-motion and no-WebGL visitors skip the optional backdrop renderer.
 const ArcadeShader = lazy(() => import('./ArcadeShader'));
 
 type BackdropProps = {
@@ -51,7 +51,7 @@ export default function ArcadeBackdrop({ paused, reduced }: BackdropProps) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Reduced-motion visitors never allocate a WebGL context.
+    // Reduced-motion visitors do not allocate a second context for the backdrop.
     if (!reduced) setSupported(supportsWebGL());
   }, [reduced]);
 

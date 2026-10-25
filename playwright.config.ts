@@ -3,7 +3,8 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests/browser',
   fullyParallel: true,
-  workers: 3,
+  // CI shares a software GPU; parallel 3D rooms starve browser frames and input processing.
+  workers: process.env.CI ? 1 : 3,
   timeout: 30_000,
   use: {
     baseURL: 'http://127.0.0.1:5173',
