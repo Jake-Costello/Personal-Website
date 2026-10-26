@@ -126,7 +126,9 @@ test('the arcade loads and reloads two 3D machines with Sketch hidden and no API
 test('the optional backdrop waits for the cabinet and idle, and cancels pending startup during play', async ({
   page,
 }) => {
-  test.setTimeout(90_000);
+  // CI's software GPU renders the room, two camera transitions, and a second
+  // WebGL context here. Keep individual readiness deadlines while allowing the full flow.
+  test.setTimeout(180_000);
   const shaderRequests: string[] = [];
   page.on('request', (request) => {
     if (/\/ArcadeShader[.-]/.test(new URL(request.url()).pathname))
@@ -173,48 +175,59 @@ test('the optional backdrop waits for the cabinet and idle, and cancels pending 
   const pending = () => page.evaluate(() => (window as IdleProbeWindow).arcadeIdleProbe.pending());
   const flush = () => page.evaluate(() => (window as IdleProbeWindow).arcadeIdleProbe.flush());
 
-  await page.goto('/arcade/');
-  await expect(page.locator('.arcade-page')).toHaveAttribute('data-renderer', 'three', {
-    timeout: 15_000,
+  await test.step('paint the cabinet before scheduling the optional shader', async () => {
+    await page.goto('/arcade/');
+    await expect(page.locator('.arcade-page')).toHaveAttribute('data-renderer', 'three', {
+      timeout: 15_000,
+    });
+    await expect(page.locator('.arcade-backdrop__fallback')).toBeVisible();
+    await expect.poll(pending).toBeGreaterThan(0);
+    expect(shaderRequests).toEqual([]);
   });
-  await expect(page.locator('.arcade-backdrop__fallback')).toBeVisible();
-  await expect.poll(pending).toBeGreaterThan(0);
-  expect(shaderRequests).toEqual([]);
 
-  await page.getByRole('button', { name: 'Pause ambience', exact: true }).click();
-  await expect.poll(pending).toBe(0);
-  await flush();
-  expect(shaderRequests).toEqual([]);
-  await page.getByRole('button', { name: 'Resume ambience', exact: true }).click();
-  await expect.poll(pending).toBeGreaterThan(0);
-  await play(page, 'Resume Run');
-  await expect.poll(pending).toBe(0);
-  await flush();
-  expect(shaderRequests).toEqual([]);
-  await expect(page.locator('.arcade-backdrop')).toHaveAttribute('data-renderer', 'static');
-
-  await page.getByRole('button', { name: /Back to machines/ }).click();
-  await expect.poll(pending).toBeGreaterThan(0);
-  await flush();
-  await expect(page.locator('.arcade-backdrop')).toHaveAttribute('data-renderer', 'shader', {
-    timeout: 30_000,
+  await test.step('pausing ambience cancels the pending idle callback', async () => {
+    await page.getByRole('button', { name: 'Pause ambience', exact: true }).click();
+    await expect.poll(pending).toBe(0);
+    await flush();
+    expect(shaderRequests).toEqual([]);
+    await page.getByRole('button', { name: 'Resume ambience', exact: true }).click();
+    await expect.poll(pending).toBeGreaterThan(0);
   });
-  const timings = await page.evaluate(() => ({
-    cabinet: performance.getEntriesByName('test:arcade-cabinet-ready')[0]?.startTime,
-    shader: performance
-      .getEntriesByType('resource')
-      .find((entry) => /\/ArcadeShader[.-]/.test(new URL(entry.name).pathname))?.startTime,
-  }));
-  expect(shaderRequests).toHaveLength(1);
-  expect(timings.cabinet).toBeDefined();
-  expect(timings.shader).toBeDefined();
-  expect(timings.shader!).toBeGreaterThanOrEqual(timings.cabinet!);
 
-  const canvas = await page.locator('.arcade-backdrop canvas').elementHandle();
-  await page.getByRole('button', { name: 'Pause ambience', exact: true }).click();
-  await expect(page.locator('.arcade-backdrop')).toHaveAttribute('data-renderer', 'shader');
-  expect(await canvas!.evaluate((element) => element.isConnected)).toBe(true);
-  expect(shaderRequests).toHaveLength(1);
+  await test.step('entering a game cancels startup before any shader download', async () => {
+    await play(page, 'Resume Run');
+    await expect.poll(pending).toBe(0);
+    await flush();
+    expect(shaderRequests).toEqual([]);
+    await expect(page.locator('.arcade-backdrop')).toHaveAttribute('data-renderer', 'static');
+  });
+
+  await test.step('returning to the room starts the shader after readiness and idle', async () => {
+    await page.getByRole('button', { name: /Back to machines/ }).click();
+    await expect.poll(pending).toBeGreaterThan(0);
+    await flush();
+    await expect(page.locator('.arcade-backdrop')).toHaveAttribute('data-renderer', 'shader', {
+      timeout: 30_000,
+    });
+    const timings = await page.evaluate(() => ({
+      cabinet: performance.getEntriesByName('test:arcade-cabinet-ready')[0]?.startTime,
+      shader: performance
+        .getEntriesByType('resource')
+        .find((entry) => /\/ArcadeShader[.-]/.test(new URL(entry.name).pathname))?.startTime,
+    }));
+    expect(shaderRequests).toHaveLength(1);
+    expect(timings.cabinet).toBeDefined();
+    expect(timings.shader).toBeDefined();
+    expect(timings.shader!).toBeGreaterThanOrEqual(timings.cabinet!);
+  });
+
+  await test.step('pausing an initialized shader preserves its canvas', async () => {
+    const canvas = await page.locator('.arcade-backdrop canvas').elementHandle();
+    await page.getByRole('button', { name: 'Pause ambience', exact: true }).click();
+    await expect(page.locator('.arcade-backdrop')).toHaveAttribute('data-renderer', 'shader');
+    expect(await canvas!.evaluate((element) => element.isConnected)).toBe(true);
+    expect(shaderRequests).toHaveLength(1);
+  });
 });
 
 test('two-machine selection wraps and Enter plays locally while Escape returns to the room', async ({
