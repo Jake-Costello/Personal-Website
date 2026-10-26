@@ -146,7 +146,9 @@ test('two-machine selection wraps and Enter plays locally while Escape returns t
 test('physical cabinet buttons respond across their top disks and release safely', async ({
   page,
 }, testInfo) => {
-  test.setTimeout(60_000);
+  // Eighteen native press/release pairs plus touch and pause checks require more
+  // total time on CI's software GPU; individual input assertions keep their deadlines.
+  test.setTimeout(180_000);
   // A shorter desktop window puts the transparent DOM controls panel over the deck,
   // reproducing the old offset-looking dead area on the front of the physical caps.
   if (testInfo.project.name === 'desktop') await page.setViewportSize({ width: 1440, height: 800 });
