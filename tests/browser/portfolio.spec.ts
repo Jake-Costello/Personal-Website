@@ -506,7 +506,7 @@ test('full screen preserves the chapter, focuses the ride, and offers an exit', 
 
 test('project details are accessible and the dialog closes with Escape', async ({ page }) => {
   await page.goto('/#work');
-  await expect(page.locator('#work .project-card')).toHaveCount(2);
+  await expect(page.locator('#work .project-card')).toHaveCount(3);
   await expect(page.locator('#project-payphone')).toHaveCount(0);
   await expect(page.locator('#work')).not.toContainText(/payphone/i);
   await page.getByRole('button', { name: 'Read about Revision Marine' }).click();

@@ -656,7 +656,7 @@ test('the homepage links to the separate arcade and the arcade links back to the
 }) => {
   await installProteinApi(page);
   await page.goto('/#work');
-  await expect(page.locator('#work .project-card')).toHaveCount(2);
+  await expect(page.locator('#work .project-card')).toHaveCount(3);
   const invitation = page.getByRole('link', { name: /A few experiments worth playing/ });
   await expect(invitation).toHaveAttribute('href', '/arcade/');
   await invitation.click();

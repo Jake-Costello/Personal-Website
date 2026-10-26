@@ -438,16 +438,41 @@ function App() {
                 </div>
               </article>
             ))}
+            <article className="project-card arcade-card" id="project-arcade">
+              <a
+                className="project-art-button arcade-invite"
+                href={arcadeUrl}
+                aria-label="A few experiments worth playing. Enter the arcade"
+              >
+                <div className="project-art arcade-art" aria-hidden="true">
+                  <span className="art-corner">PROJECT ARCADE / PLAY, MAKE, REPEAT</span>
+                  <span className="arcade-art-title">
+                    A few experiments worth <em>playing.</em>
+                  </span>
+                  <span className="art-bottom">ENTER THE ARCADE</span>
+                </div>
+                <span className="project-open-icon">
+                  <Arrow diagonal />
+                </span>
+              </a>
+              <div className="project-meta">
+                <span>GAMES / INTERACTION / EXPERIMENTS</span>
+                <span>03</span>
+              </div>
+              <h3>
+                <a href={arcadeUrl}>Project Arcade</a>
+              </h3>
+              <p>
+                Games built to explore interactive systems, from a jetski resume tour to a warehouse
+                you run and improve.
+              </p>
+              <div className="tag-list">
+                <span>Three.js</span>
+                <span>React</span>
+                <span>Game systems</span>
+              </div>
+            </article>
           </div>
-          <a className="arcade-invite" href={arcadeUrl}>
-            <div>
-              <p className="eyebrow">Project Arcade</p>
-              <h3>A few experiments worth playing.</h3>
-            </div>
-            <span className="arcade-invite-action">
-              Enter the arcade <Arrow diagonal />
-            </span>
-          </a>
         </section>
 
         <section id="lab" className="lab-section section-shell" aria-labelledby="lab-title">
