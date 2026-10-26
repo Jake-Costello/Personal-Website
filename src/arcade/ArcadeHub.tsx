@@ -106,8 +106,8 @@ export default function ArcadeHub() {
       ArrowDown: 'down',
       s: 'down',
       ' ': 'action',
-      e: 'action',
-      q: 'secondary',
+      e: project.id === 'warehouse' ? 'secondary' : 'action',
+      q: project.id === 'warehouse' ? 'action' : 'secondary',
       r: 'reset',
       ...(project.id === 'sketch' ? { c: 'mode-custom', l: 'mode-levels' } : {}),
     };
@@ -392,7 +392,7 @@ export default function ArcadeHub() {
                 ? 'Hold Pump, then Jump.'
                 : project.id === 'sketch'
                   ? 'Joystick draws / tilts · Space / E pedal · Q brake'
-                  : 'Arrows / WASD move · E pick up · Q put down'}
+                  : 'Arrows / WASD move · Q pick up · E put down'}
             </p>
           </div>
         )}

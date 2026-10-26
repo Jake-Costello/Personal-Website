@@ -88,11 +88,6 @@
   stroke-width: 1.5px;
   stroke-dasharray: 5 4;
 }
-.wh-zone-circle {
-  fill: #cad5bb;
-  stroke: #a6b898;
-  stroke-width: 1.5px;
-}
 .wh-zone-number {
   font-size: 19px;
   font-weight: 700;
@@ -109,10 +104,6 @@
   fill-opacity: 0.84;
   stroke: #5a8550;
   stroke-width: 2px;
-}
-.wh-station--goal .wh-zone-circle {
-  fill: #537a4e;
-  stroke: #486b42;
 }
 .wh-station--goal .wh-zone-number {
   fill: #f2f8de;
@@ -146,11 +137,6 @@
   fill: #a3b7a7;
   font-weight: 600;
   letter-spacing: 1px;
-}
-.wh-carry-label text {
-  fill: #465b35;
-  font-size: 19px;
-  font-weight: 600;
 }
 .wh-box-label {
   fill: #594e29;
@@ -387,7 +373,6 @@
   .wh-feedback,
   .wh-goal,
   .wh-goal-label,
-  .wh-carry-label,
   .wh-help,
   .wh-interact,
   .wh-putaway {
@@ -398,7 +383,7 @@
     grid-template-columns: 1fr auto auto;
     position: absolute;
     inset: 0 0 auto;
-    height: 36px;
+    height: 28px;
     align-items: center;
     justify-content: space-between;
     column-gap: 8px;
@@ -412,14 +397,8 @@
   }
   .wh-scene {
     position: absolute;
-    top: 36px;
-    height: calc(100% - 72px);
-  }
-  .wh-compact-load {
-    grid-column: 1 / -1;
-    font-size: 10px;
-    line-height: 12px;
-    color: #d0d9b8;
+    top: 28px;
+    height: calc(100% - 64px);
   }
   .wh-compact-hud strong {
     color: #d5f291;

@@ -269,6 +269,11 @@ button:disabled {
   border-radius: 8px;
   background: linear-gradient(130deg, #192b3aed, #111c2ded);
   box-shadow: 0 10px 40px #03091680;
+  /* The desktop panel spans the deck: its empty space must not cover 3D button caps. */
+  pointer-events: none;
+}
+.arcade-player-controls button {
+  pointer-events: auto;
 }
 .arcade-dpad {
   display: flex;

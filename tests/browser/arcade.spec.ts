@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { CDPSession, Locator, Page } from '@playwright/test';
 import { installProteinApi } from './protein-fixtures';
 import { arcadeProjects } from '../../src/arcade/projects';
+import { checkPhysicalButtonCaps } from './arcade-control-checks';
 
 const machines = ['Resume Run', 'Sketch-to-Ride', 'Warehouse Warrior'] as const;
 const gameIds = ['shoreline', 'sketch', 'warehouse'] as const;
@@ -140,6 +141,19 @@ test('two-machine selection wraps and Enter plays locally while Escape returns t
   await expect(page.locator('.arcade-page')).toHaveAttribute('data-game', 'selection');
   await expectSelected(page, 'Warehouse Warrior');
   await expect(room).toBeFocused();
+});
+
+test('physical cabinet buttons respond across their top disks and release safely', async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(60_000);
+  // A shorter desktop window puts the transparent DOM controls panel over the deck,
+  // reproducing the old offset-looking dead area on the front of the physical caps.
+  if (testInfo.project.name === 'desktop') await page.setViewportSize({ width: 1440, height: 800 });
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/arcade/');
+  await play(page, 'Warehouse Warrior');
+  await checkPhysicalButtonCaps(page);
 });
 
 test('Resume Run moves, pumps and jumps; pausing freezes it and blur clears held keys', async ({
@@ -572,23 +586,23 @@ test('Warehouse Warrior keeps held boxes until placement and charges for discard
   };
   const carried = () => game.getAttribute('data-carried');
   await walk('B1');
-  await page.keyboard.press('e');
+  await page.keyboard.press('q');
   await expect(game).toHaveAttribute('data-carrying', '1');
   const load = await carried();
   await walk('receiving2');
   await panel.getByRole('button', { name: 'Pick up', exact: true }).click();
   expect(await carried()).toBe(load);
-  await page.keyboard.press('q');
+  await page.keyboard.press('e');
   expect(await carried()).toBe(load);
   await walk('B2');
   await panel.getByRole('button', { name: 'Put down', exact: true }).click();
   expect(await carried()).toBe(load);
   await walk('trash');
   await expect(game.locator('.wh-trash-cost')).toContainText('$5');
-  await panel.getByRole('button', { name: 'Put down', exact: true }).click();
+  await page.keyboard.press('e');
   await expect(game).toHaveAttribute('data-carrying', '0');
   await expect(game).toHaveAttribute('data-cash', '-5');
-  await page.keyboard.press('q');
+  await page.keyboard.press('e');
   expect(await numeric(game, 'data-cash')).toBe(-5);
 });
 

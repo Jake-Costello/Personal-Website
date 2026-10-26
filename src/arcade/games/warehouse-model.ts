@@ -80,8 +80,8 @@ export const RACKS = [
   { id: 'B', x: 306, y: 395, w: 348, h: 62 },
 ] as const;
 export const STATIONS: Record<WarehouseStation, Point> = {
-  receiving: { x: 210, y: 220 },
-  receiving2: { x: 210, y: 410 },
+  receiving: { x: 224, y: 220 },
+  receiving2: { x: 224, y: 410 },
   ...Object.fromEntries(
     RACK_IDS.map((id, index) => [
       id,
@@ -89,7 +89,7 @@ export const STATIONS: Record<WarehouseStation, Point> = {
     ]),
   ),
   dispatch: { x: 756, y: 220 },
-  dispatch2: { x: 756, y: 410 },
+  dispatch2: { x: 756, y: 385 },
   trash: { x: 760, y: 495 },
 } as Record<WarehouseStation, Point>;
 const OBSTACLES = [
@@ -97,7 +97,7 @@ const OBSTACLES = [
   { x: 0, y: 180, w: 175, h: 80 },
   { x: 0, y: 370, w: 175, h: 80 },
   { x: 796, y: 180, w: 164, h: 80 },
-  { x: 796, y: 370, w: 164, h: 80 },
+  { x: 796, y: 345, w: 164, h: 80 },
   { x: 802, y: 478, w: 48, h: 40 },
 ];
 export const RACK_CAPACITY = 4;
@@ -496,18 +496,35 @@ export function nextStation(state: WarehouseState): WarehouseStation {
   return incoming?.id ?? 'receiving';
 }
 
+export const STATION_ZONE = {
+  rack: { halfWidth: 36, halfHeight: 18 },
+  other: { halfWidth: 39, halfHeight: 30 },
+} as const;
+
+// Shared by the visible floor boxes and the interaction hit test.
+export function stationBounds(station: WarehouseStation) {
+  const center = STATIONS[station];
+  const size = isRack(station) ? STATION_ZONE.rack : STATION_ZONE.other;
+  return {
+    x: center.x - size.halfWidth,
+    y: center.y - size.halfHeight,
+    width: size.halfWidth * 2,
+    height: size.halfHeight * 2,
+  };
+}
+
 export function stationNear(point: Point): WarehouseStation | null {
-  let nearest: WarehouseStation | null = null;
-  let distance = Infinity;
   for (const name of Object.keys(STATIONS) as WarehouseStation[]) {
-    const location = STATIONS[name];
-    const next = Math.hypot(point.x - location.x, point.y - location.y);
-    if (next < (isRack(name) ? 22 : 52) && next < distance) {
-      nearest = name;
-      distance = next;
-    }
+    const bounds = stationBounds(name);
+    if (
+      point.x >= bounds.x &&
+      point.x <= bounds.x + bounds.width &&
+      point.y >= bounds.y &&
+      point.y <= bounds.y + bounds.height
+    )
+      return name;
   }
-  return nearest;
+  return null;
 }
 
 export function canStand(point: Point) {

@@ -53,8 +53,8 @@ const arcadeCatalog: ArcadeProject[] = [
     genre: 'ONE BOX AT A TIME',
     tagline: 'Beat the clock. Upgrade your warehouse. See how many days you last.',
     controls: [
-      { action: 'action', label: 'Pick up', key: 'E' },
-      { action: 'secondary', label: 'Put down', key: 'Q' },
+      { action: 'action', label: 'Pick up', key: 'Q' },
+      { action: 'secondary', label: 'Put down', key: 'E' },
     ],
   },
 ];

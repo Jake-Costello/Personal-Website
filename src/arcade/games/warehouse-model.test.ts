@@ -26,9 +26,10 @@ import {
   putDownAt,
   routeTo,
   stationNear,
+  stationBounds,
   warehouseProgress,
 } from './warehouse-model';
-import type { RackId, WarehouseState, OutboundId } from './warehouse-model';
+import type { RackId, WarehouseState, OutboundId, WarehouseStation } from './warehouse-model';
 
 function restock(state: WarehouseState, location: RackId): WarehouseState {
   let next = state;
@@ -372,6 +373,28 @@ test('saved progression validates version and types and never restores arbitrary
   assert.equal(restored.cart, true);
   assert.equal(restored.automation, true);
   assert.equal(restored.bestDay, 8);
+});
+
+test('actions require standing inside the visible station box, including its edges and corners', () => {
+  for (const name of Object.keys(STATIONS) as WarehouseStation[]) {
+    const bounds = stationBounds(name);
+    const center = STATIONS[name];
+    for (const x of [bounds.x, center.x, bounds.x + bounds.width]) {
+      for (const y of [bounds.y, center.y, bounds.y + bounds.height])
+        assert.equal(stationNear({ x, y }), name, `${name} must accept its visible boundary`);
+      for (const y of [bounds.y - 0.01, bounds.y + bounds.height + 0.01])
+        assert.equal(stationNear({ x, y }), null, `${name} must reject points above/below its box`);
+    }
+    for (const y of [bounds.y, center.y, bounds.y + bounds.height]) {
+      for (const x of [bounds.x - 0.01, bounds.x + bounds.width + 0.01])
+        assert.equal(stationNear({ x, y }), null, `${name} must reject points beside its box`);
+    }
+  }
+  // These positions used to count under the broad 52px radial dock/dispatch radius.
+  assert.equal(stationNear({ x: STATIONS.receiving.x + 40, y: STATIONS.receiving.y }), null);
+  assert.equal(stationNear({ x: STATIONS.dispatch.x, y: STATIONS.dispatch.y + 31 }), null);
+  assert.ok(stationBounds('receiving').x > 178, 'conveyor and standing box must not overlap');
+  assert.ok(stationBounds('receiving2').x > 178, 'second conveyor must stay outside the box');
 });
 
 test('all sixteen rack addresses, both docks, both trucks and trash remain reachable', () => {

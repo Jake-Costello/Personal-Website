@@ -24,6 +24,7 @@ import {
   nextStation,
   routeTo,
   stationNear,
+  stationBounds,
   pickUpAt,
   putDownAt,
 } from './warehouse-model';
@@ -640,29 +641,12 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
               }}
               className={`wh-station${rack ? ' wh-station--rack' : ''}${rack && state.inventory[station as RackId] >= RACK_CAPACITY ? ' wh-station--full' : ''}${goal === station ? ' wh-station--goal' : ''}`}
             >
-              <rect
-                x={point.x - (rack ? 36 : 39)}
-                y={point.y - (rack ? 18 : 30)}
-                width={rack ? 72 : 78}
-                height={rack ? 36 : 60}
-                rx={rack ? 7 : 12}
-                className="wh-zone"
-              />
-              {!rack && <circle cx={point.x} cy={point.y - 5} r="24" className="wh-zone-circle" />}
-              <text
-                x={point.x}
-                y={point.y + (rack ? 6 : 2)}
-                className="wh-zone-number"
-                textAnchor="middle"
-              >
-                {rack
-                  ? `${station} ${state.inventory[station as RackId]}/${RACK_CAPACITY}`
-                  : station === 'trash'
-                    ? '×'
-                    : station.startsWith('receiving')
-                      ? 'IN'
-                      : 'OUT'}
-              </text>
+              <rect {...stationBounds(station)} rx={rack ? 7 : 12} className="wh-zone" />
+              {rack && (
+                <text x={point.x} y={point.y + 6} className="wh-zone-number" textAnchor="middle">
+                  {station} {state.inventory[station as RackId]}/{RACK_CAPACITY}
+                </text>
+              )}
             </g>
           );
         })}
@@ -723,14 +707,6 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
         <text x="26" y="585" className="wh-goal">
           {pickLocations || '—'}
         </text>
-        {state.carrying > 0 && (
-          <g className="wh-carry-label">
-            <rect x="26" y="101" width="590" height="29" rx="5" fill="#f5f0d7" />
-            <text x="38" y="122">
-              Holding: {carriedLabel}
-            </text>
-          </g>
-        )}
       </svg>
       <div className="wh-compact-hud" aria-hidden="true">
         <span>
@@ -740,7 +716,6 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
           {state.dayShipped}/{state.quota} orders
         </span>
         <strong className={state.remaining < 15 ? 'wh-time-low' : ''}>{timeLabel}</strong>
-        <small className="wh-compact-load">Holding: {carriedLabel || '—'}</small>
       </div>
       <div className="wh-compact-next" aria-hidden="true">
         <span>Next pick</span>
@@ -756,14 +731,14 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
         onClick={() => work('pickup')}
         disabled={!active || showUpgrades || state.status !== 'working'}
       >
-        Pick up <span>E</span>
+        Pick up <span>Q</span>
       </button>
       <button
         className="wh-putaway"
         onClick={() => work('putdown')}
         disabled={!active || showUpgrades || state.status !== 'working'}
       >
-        Put down <span>Q</span>
+        Put down <span>E</span>
       </button>
       <p className="wh-sr-only" role="status" aria-live="polite">
         {state.message} Incoming boxes: {state.inbound.map((lane) => lane.location).join(', ')}.
