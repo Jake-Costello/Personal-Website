@@ -191,7 +191,11 @@ export default function ArcadeHub() {
       data-selected={project.id}
       style={{ '--active-accent': project.accent } as CSSProperties}
     >
-      <ArcadeBackdrop paused={ambiencePaused || playing || !visible} reduced={reduced} />
+      <ArcadeBackdrop
+        cabinetReady={webgl && ready}
+        paused={ambiencePaused || playing || !visible}
+        reduced={reduced}
+      />
       <header className="arcade-header">
         <a className="arcade-home" href={import.meta.env.BASE_URL} aria-label="Back to portfolio">
           <b>

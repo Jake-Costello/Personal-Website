@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import JetskiJourney from './components/JetskiJourney';
 import ContactForm from './components/ContactForm';
-import GolfFacts from './components/GolfFacts';
+import DeferredGolfFacts from './components/DeferredGolfFacts';
 import GolfBallCollection from './components/GolfBallCollection';
 import AchievementPopup from './components/AchievementPopup';
 import { getContactEndpoint, linkedInUrl } from './lib/contact';
@@ -520,7 +520,7 @@ function App() {
             </div>
           </div>
           <GolfBallCollection />
-          <GolfFacts />
+          <DeferredGolfFacts />
         </section>
 
         <section

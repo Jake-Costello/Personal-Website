@@ -82,9 +82,12 @@ test('the arcade loads and reloads two 3D machines with Sketch hidden and no API
 }) => {
   const errors: string[] = [];
   const dataRequests: string[] = [];
+  const shaderRequests: string[] = [];
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('request', (request) => {
     const url = new URL(request.url());
+    if (/\/ArcadeShader[.-]/.test(url.pathname)) shaderRequests.push(url.pathname);
     if (
       url.pathname.startsWith('/api/') ||
       /string-db\.org|ensembl\.org|rcsb\.org|api\.openai\.com/.test(url.hostname)
@@ -99,6 +102,8 @@ test('the arcade loads and reloads two 3D machines with Sketch hidden and no API
       timeout: 15_000,
     });
     await expect(page.locator('.arcade-webgl canvas')).toBeVisible();
+    await expect(page.locator('.arcade-backdrop')).toHaveAttribute('data-renderer', 'static');
+    await expect(page.locator('.arcade-backdrop canvas')).toHaveCount(0);
     await expect(
       page.getByRole('group', { name: 'Arcade machines', exact: true }).getByRole('button'),
     ).toHaveCount(2);
@@ -114,7 +119,102 @@ test('the arcade loads and reloads two 3D machines with Sketch hidden and no API
     ).toHaveCount(0);
   }
   expect(dataRequests).toEqual([]);
+  expect(shaderRequests).toEqual([]);
   expect(errors).toEqual([]);
+});
+
+test('the optional backdrop waits for the cabinet and idle, and cancels pending startup during play', async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const shaderRequests: string[] = [];
+  page.on('request', (request) => {
+    if (/\/ArcadeShader[.-]/.test(new URL(request.url()).pathname))
+      shaderRequests.push(request.url());
+  });
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  type IdleProbeWindow = Window & {
+    arcadeIdleProbe: { pending: () => number; flush: () => void };
+  };
+  await page.addInitScript(() => {
+    // Control idle delivery, not elapsed time, so cancellation is deterministic on
+    // both fast devices and CI's software GPU. No application hooks are needed.
+    const callbacks = new Map<number, IdleRequestCallback>();
+    let sequence = 0;
+    window.requestIdleCallback = (callback) => {
+      const id = ++sequence;
+      callbacks.set(id, callback);
+      return id;
+    };
+    window.cancelIdleCallback = (id) => {
+      callbacks.delete(id);
+    };
+    (window as IdleProbeWindow).arcadeIdleProbe = {
+      pending: () => callbacks.size,
+      flush: () => {
+        const pending = [...callbacks.values()];
+        callbacks.clear();
+        for (const callback of pending) callback({ didTimeout: false, timeRemaining: () => 50 });
+      },
+    };
+    const observer = new MutationObserver(() => {
+      if (document.querySelector('.arcade-page')?.getAttribute('data-renderer') === 'three') {
+        performance.mark('test:arcade-cabinet-ready');
+        observer.disconnect();
+      }
+    });
+    observer.observe(document, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-renderer'],
+    });
+  });
+  const pending = () => page.evaluate(() => (window as IdleProbeWindow).arcadeIdleProbe.pending());
+  const flush = () => page.evaluate(() => (window as IdleProbeWindow).arcadeIdleProbe.flush());
+
+  await page.goto('/arcade/');
+  await expect(page.locator('.arcade-page')).toHaveAttribute('data-renderer', 'three', {
+    timeout: 15_000,
+  });
+  await expect(page.locator('.arcade-backdrop__fallback')).toBeVisible();
+  await expect.poll(pending).toBeGreaterThan(0);
+  expect(shaderRequests).toEqual([]);
+
+  await page.getByRole('button', { name: 'Pause ambience', exact: true }).click();
+  await expect.poll(pending).toBe(0);
+  await flush();
+  expect(shaderRequests).toEqual([]);
+  await page.getByRole('button', { name: 'Resume ambience', exact: true }).click();
+  await expect.poll(pending).toBeGreaterThan(0);
+  await play(page, 'Resume Run');
+  await expect.poll(pending).toBe(0);
+  await flush();
+  expect(shaderRequests).toEqual([]);
+  await expect(page.locator('.arcade-backdrop')).toHaveAttribute('data-renderer', 'static');
+
+  await page.getByRole('button', { name: /Back to machines/ }).click();
+  await expect.poll(pending).toBeGreaterThan(0);
+  await flush();
+  await expect(page.locator('.arcade-backdrop')).toHaveAttribute('data-renderer', 'shader', {
+    timeout: 30_000,
+  });
+  const timings = await page.evaluate(() => ({
+    cabinet: performance.getEntriesByName('test:arcade-cabinet-ready')[0]?.startTime,
+    shader: performance
+      .getEntriesByType('resource')
+      .find((entry) => /\/ArcadeShader[.-]/.test(new URL(entry.name).pathname))?.startTime,
+  }));
+  expect(shaderRequests).toHaveLength(1);
+  expect(timings.cabinet).toBeDefined();
+  expect(timings.shader).toBeDefined();
+  expect(timings.shader!).toBeGreaterThanOrEqual(timings.cabinet!);
+
+  const canvas = await page.locator('.arcade-backdrop canvas').elementHandle();
+  await page.getByRole('button', { name: 'Pause ambience', exact: true }).click();
+  await expect(page.locator('.arcade-backdrop')).toHaveAttribute('data-renderer', 'shader');
+  expect(await canvas!.evaluate((element) => element.isConnected)).toBe(true);
+  expect(shaderRequests).toHaveLength(1);
 });
 
 test('two-machine selection wraps and Enter plays locally while Escape returns to the room', async ({

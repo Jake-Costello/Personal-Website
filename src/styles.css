@@ -582,6 +582,30 @@ article[id] {
 .about-heading {
   min-width: 0;
 }
+.golf-deferred {
+  min-width: 0;
+}
+/* Match GolfFacts' 600×340 scene frame and its 12px + 16.5px instruction line. */
+.golf-loading-scene {
+  aspect-ratio: 600 / 340;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: #5f6d58;
+  font: 12px/1.5 var(--mono);
+}
+.golf-loading-scene button {
+  margin-top: 12px;
+  padding: 8px 14px;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+}
+.golf-loading-caption {
+  margin-top: 12px;
+  text-align: center;
+  color: #5f6d58;
+  font: 11px/1.5 var(--mono);
+}
 .about-heading .eyebrow {
   margin-bottom: 23px;
 }

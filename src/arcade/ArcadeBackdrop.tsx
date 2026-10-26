@@ -6,6 +6,7 @@ import type { ErrorInfo, ReactNode } from 'react';
 const ArcadeShader = lazy(() => import('./ArcadeShader'));
 
 type BackdropProps = {
+  cabinetReady: boolean;
   paused: boolean;
   reduced: boolean;
 };
@@ -31,29 +32,12 @@ class GradientBoundary extends Component<BoundaryProps, { failed: boolean }> {
   }
 }
 
-function supportsWebGL() {
-  try {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('webgl2', { powerPreference: 'low-power' });
-    if (!context) return false;
-    context.getExtension('WEBGL_lose_context')?.loseContext();
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export default function ArcadeBackdrop({ paused, reduced }: BackdropProps) {
+export default function ArcadeBackdrop({ cabinetReady, paused, reduced }: BackdropProps) {
   const root = useRef<HTMLDivElement>(null);
-  const [supported, setSupported] = useState(false);
+  const [started, setStarted] = useState(false);
   const [visible, setVisible] = useState(() => !document.hidden);
   const [failed, setFailed] = useState(false);
   const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    // Reduced-motion visitors do not allocate a second context for the backdrop.
-    if (!reduced) setSupported(supportsWebGL());
-  }, [reduced]);
 
   useEffect(() => {
     const onVisibility = () => {
@@ -75,7 +59,36 @@ export default function ArcadeBackdrop({ paused, reduced }: BackdropProps) {
     return () => element?.removeEventListener('webglcontextlost', onContextLost, true);
   }, []);
 
-  const renderShader = supported && visible && !reduced && !failed;
+  useEffect(() => {
+    if (started || !cabinetReady || paused || !visible || reduced || failed) return;
+    // A working cabinet already proves WebGL support. Let it paint before loading
+    // the optional second renderer, then wait for idle time to avoid competing with it.
+    let cancelled = false;
+    let secondFrame = 0;
+    let idle: number | undefined;
+    let timer: number | undefined;
+    const start = () => {
+      if (!cancelled && !document.hidden) setStarted(true);
+    };
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        if (typeof window.requestIdleCallback === 'function') {
+          idle = window.requestIdleCallback(start, { timeout: 1500 });
+        } else {
+          timer = window.setTimeout(start, 150);
+        }
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+      if (idle !== undefined) window.cancelIdleCallback(idle);
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [started, cabinetReady, paused, visible, reduced, failed]);
+
+  const renderShader = started && cabinetReady && visible && !reduced && !failed;
 
   useEffect(() => {
     if (!renderShader) setReady(false);
