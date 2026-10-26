@@ -45,16 +45,16 @@ const arcadeCatalog: ArcadeProject[] = [
   },
   {
     id: 'warehouse',
-    title: 'Warehouse Shift',
-    shortTitle: 'WAREHOUSE',
+    title: 'Warehouse Warrior',
+    shortTitle: 'WAREHOUSE WARRIOR',
     number: '03',
     accent: '#f7b478',
     cabinetColor: '#3d2c22',
     genre: 'ONE BOX AT A TIME',
     tagline: 'Beat the clock. Upgrade your warehouse. See how many days you last.',
     controls: [
-      { action: 'action', label: 'Pick', key: 'E' },
-      { action: 'secondary', label: 'Put away', key: 'Q' },
+      { action: 'action', label: 'Pick up', key: 'E' },
+      { action: 'secondary', label: 'Put down', key: 'Q' },
     ],
   },
 ];

@@ -224,10 +224,7 @@ export default function ArcadeHub() {
             <button onClick={exit} className="arcade-back">
               ← Back to machines <kbd>Esc</kbd>
             </button>
-            <div>
-              <span>{project.number} / NOW PLAYING</span>
-              <h1>{project.title}</h1>
-            </div>
+            <h1 className="arcade-sr-only">{project.title}</h1>
             <div className="arcade-play-tools">
               <button
                 onClick={() => {
@@ -395,7 +392,7 @@ export default function ArcadeHub() {
                 ? 'Hold Pump, then Jump.'
                 : project.id === 'sketch'
                   ? 'Joystick draws / tilts · Space / E pedal · Q brake'
-                  : 'Arrows / WASD move · E pick · Q put away'}
+                  : 'Arrows / WASD move · E pick up · Q put down'}
             </p>
           </div>
         )}

@@ -15,11 +15,23 @@ export type RackId =
   | 'B6'
   | 'B7'
   | 'B8';
-export type WarehouseStation = 'receiving' | RackId | 'dispatch';
+export const INBOUND_IDS = ['receiving', 'receiving2'] as const;
+export const OUTBOUND_IDS = ['dispatch', 'dispatch2'] as const;
+export type InboundId = (typeof INBOUND_IDS)[number];
+export type OutboundId = (typeof OUTBOUND_IDS)[number];
+export type WarehouseStation = InboundId | RackId | OutboundId | 'trash';
 export type WarehouseUpgrade = 'cart' | 'automation';
 export type WarehouseProgress = { version: 1; cart: boolean; automation: boolean; bestDay: number };
 export type CargoLine = { location: RackId; quantity: number; kind: 'inbound' | 'picked' };
 export type OrderLine = { location: RackId; required: number; delivered: number };
+export type InboundLane = { id: InboundId; location: RackId; sequence: number; remaining: number };
+export type OutboundTruck = {
+  id: OutboundId;
+  order: OrderLine[];
+  sequence: number;
+  phase: 'loading' | 'departing' | 'arriving';
+  remaining: number;
+};
 export type WarehouseState = {
   cash: number;
   stock: number;
@@ -28,9 +40,11 @@ export type WarehouseState = {
   carrying: number;
   shipped: number;
   deliveries: number;
-  inboundLocation: RackId;
-  order: OrderLine[];
+  trashed: number;
+  inbound: InboundLane[];
+  trucks: OutboundTruck[];
   orderSequence: number;
+  dayAssigned: number;
   cart: boolean;
   automation: boolean;
   bestDay: number;
@@ -66,19 +80,30 @@ export const RACKS = [
   { id: 'B', x: 306, y: 395, w: 348, h: 62 },
 ] as const;
 export const STATIONS: Record<WarehouseStation, Point> = {
-  receiving: { x: 202, y: 332 },
+  receiving: { x: 210, y: 220 },
+  receiving2: { x: 210, y: 410 },
   ...Object.fromEntries(
     RACK_IDS.map((id, index) => [
       id,
-      {
-        x: 348 + (index % 4) * 88,
-        y: index < 4 ? 195 : index < 8 ? 315 : index < 12 ? 365 : 485,
-      },
+      { x: 348 + (index % 4) * 88, y: index < 4 ? 195 : index < 8 ? 315 : index < 12 ? 365 : 485 },
     ]),
   ),
-  dispatch: { x: 758, y: 332 },
+  dispatch: { x: 756, y: 220 },
+  dispatch2: { x: 756, y: 410 },
+  trash: { x: 760, y: 495 },
 } as Record<WarehouseStation, Point>;
-const OBSTACLES = [...RACKS, { x: 30, y: 236, w: 118, h: 148 }, { x: 812, y: 236, w: 118, h: 148 }];
+const OBSTACLES = [
+  ...RACKS,
+  { x: 0, y: 180, w: 175, h: 80 },
+  { x: 0, y: 370, w: 175, h: 80 },
+  { x: 796, y: 180, w: 164, h: 80 },
+  { x: 796, y: 370, w: 164, h: 80 },
+  { x: 802, y: 478, w: 48, h: 40 },
+];
+export const RACK_CAPACITY = 4;
+export const CONVEYOR_SECONDS = 1.1;
+export const TRUCK_DEPART_SECONDS = 1.2;
+export const TRUCK_ARRIVE_SECONDS = 1.2;
 export const UPGRADE_COST: Record<WarehouseUpgrade, number> = { cart: 40, automation: 100 };
 export const WAREHOUSE_PROGRESS_KEY = 'jc-warehouse-progress-v1';
 export const capacity = (state: WarehouseState) => (state.cart ? 3 : 1);
@@ -86,7 +111,11 @@ export const dayQuota = (day: number) => day + 1;
 export const daySeconds = (day: number) => Math.max(45, 90 - (day - 1) * 3);
 export const orderSize = (day: number) => (day === 1 ? 1 : day < 4 ? 2 : 3);
 export const isRack = (station: WarehouseStation): station is RackId =>
-  station !== 'receiving' && station !== 'dispatch';
+  RACK_IDS.includes(station as RackId);
+export const isInbound = (station: WarehouseStation): station is InboundId =>
+  INBOUND_IDS.includes(station as InboundId);
+export const isOutbound = (station: WarehouseStation): station is OutboundId =>
+  OUTBOUND_IDS.includes(station as OutboundId);
 const emptyProgress = (): WarehouseProgress => ({
   version: 1,
   cart: false,
@@ -127,20 +156,11 @@ function makeOrder(day: number, sequence: number): OrderLine[] {
 }
 function refresh(state: WarehouseState): WarehouseState {
   const carried = state.carried.filter((item) => item.quantity > 0);
-  const missing = state.order.find(
-    (line) =>
-      line.required - line.delivered >
-      state.inventory[line.location] +
-        carried
-          .filter((item) => item.location === line.location)
-          .reduce((total, item) => total + item.quantity, 0),
-  );
   return {
     ...state,
     carried,
     carrying: carried.reduce((total, item) => total + item.quantity, 0),
     stock: Object.values(state.inventory).reduce((total, quantity) => total + quantity, 0),
-    inboundLocation: missing?.location ?? RACK_IDS[state.deliveries % RACK_IDS.length],
   };
 }
 function addCargo(carried: CargoLine[], location: RackId, kind: CargoLine['kind']): CargoLine[] {
@@ -148,6 +168,36 @@ function addCargo(carried: CargoLine[], location: RackId, kind: CargoLine['kind'
   return existing
     ? carried.map((line) => (line === existing ? { ...line, quantity: line.quantity + 1 } : line))
     : [...carried, { location, kind, quantity: 1 }];
+}
+function outstanding(state: WarehouseState) {
+  return state.trucks
+    .filter((truck) => truck.phase !== 'departing')
+    .flatMap((truck) => truck.order.filter((line) => line.delivered < line.required));
+}
+export function nextPickLocations(state: WarehouseState): RackId[] {
+  return [...new Set(outstanding(state).map((line) => line.location))];
+}
+// A visible box never changes its label. Choose a replacement only after pickup.
+function nextIncoming(state: WarehouseState, lane: InboundId): RackId {
+  const available = (location: RackId) =>
+    state.inventory[location] +
+    state.carried
+      .filter((item) => item.location === location)
+      .reduce((total, item) => total + item.quantity, 0) +
+    state.inbound.filter((item) => item.id !== lane && item.location === location).length;
+  const needs = new Map<RackId, number>();
+  for (const line of outstanding(state))
+    needs.set(line.location, (needs.get(line.location) ?? 0) + line.required - line.delivered);
+  for (const [location, required] of needs) if (available(location) < required) return location;
+  const start = (state.deliveries + (lane === 'receiving2' ? 8 : 0)) % RACK_IDS.length;
+  for (let i = 0; i < RACK_IDS.length; i++) {
+    const location = RACK_IDS[(start + i) % RACK_IDS.length];
+    if (available(location) < RACK_CAPACITY) return location;
+  }
+  return RACK_IDS[start];
+}
+function makeTruck(id: OutboundId, day: number, sequence: number): OutboundTruck {
+  return { id, order: makeOrder(day, sequence), sequence, phase: 'loading', remaining: 0 };
 }
 export const newWarehouse = (progress: WarehouseProgress = emptyProgress()): WarehouseState =>
   refresh({
@@ -161,9 +211,14 @@ export const newWarehouse = (progress: WarehouseProgress = emptyProgress()): War
     carrying: 0,
     shipped: 0,
     deliveries: 0,
-    inboundLocation: 'A5',
-    order: makeOrder(1, 0),
-    orderSequence: 0,
+    trashed: 0,
+    inbound: [
+      { id: 'receiving', location: 'A5', sequence: 0, remaining: 0 },
+      { id: 'receiving2', location: 'B2', sequence: 0, remaining: 0 },
+    ],
+    trucks: OUTBOUND_IDS.map((id, index) => makeTruck(id, 1, index)),
+    orderSequence: 2,
+    dayAssigned: 2,
     cart: progress.cart,
     automation: progress.automation,
     bestDay: progress.bestDay,
@@ -174,19 +229,57 @@ export const newWarehouse = (progress: WarehouseProgress = emptyProgress()): War
     quotaMet: false,
     status: 'working',
     message:
-      'Incoming: A5. Put away unloads the box; take it to A5. Pick fills the outbound order.',
+      'Pick up a box from a conveyor or rack. Put it down at its labeled rack or matching truck.',
   });
 
 export function advanceWarehouseTime(state: WarehouseState, seconds: number): WarehouseState {
   if (state.status !== 'working' || !Number.isFinite(seconds) || seconds <= 0) return state;
-  const remaining = Math.max(0, state.remaining - seconds);
-  if (remaining > 0) return { ...state, remaining };
-  return {
+  const elapsed = Math.min(seconds, state.remaining);
+  const remaining = Math.max(0, state.remaining - elapsed);
+  let orderSequence = state.orderSequence;
+  let dayAssigned = state.dayAssigned;
+  const trucks = state.trucks.map((original) => {
+    let truck = original;
+    let time = elapsed;
+    while (truck.phase !== 'loading' && time >= truck.remaining) {
+      time -= truck.remaining;
+      if (truck.phase === 'departing') {
+        const assigned = dayAssigned < state.quota;
+        truck = {
+          ...truck,
+          phase: 'arriving',
+          remaining: TRUCK_ARRIVE_SECONDS,
+          sequence: orderSequence,
+          order: assigned ? makeOrder(state.day, orderSequence) : [],
+        };
+        // Even after the quota is allocated, a replacement truck pulls up and waits.
+        if (assigned) {
+          orderSequence++;
+          dayAssigned++;
+        }
+      } else truck = { ...truck, phase: 'loading', remaining: 0 };
+    }
+    return truck.phase === 'loading'
+      ? truck
+      : { ...truck, remaining: Math.max(0, truck.remaining - time) };
+  });
+  const next = {
     ...state,
-    remaining: 0,
+    trucks,
+    orderSequence,
+    dayAssigned,
+    inbound: state.inbound.map((lane) => ({
+      ...lane,
+      remaining: Math.max(0, lane.remaining - elapsed),
+    })),
+    remaining,
+  };
+  if (remaining > 0) return next;
+  return {
+    ...next,
     status: state.quotaMet ? 'day-complete' : 'failed',
     message: state.quotaMet
-      ? `Day ${state.day} complete. Your rack stock carries into tomorrow.`
+      ? `Day ${state.day} complete. Your stock and carried boxes stay for tomorrow.`
       : `Time is up. You completed ${state.day - 1} days. Your upgrades are saved.`,
   };
 }
@@ -195,7 +288,7 @@ export function endDay(state: WarehouseState): WarehouseState {
   return {
     ...state,
     status: 'day-complete',
-    message: `Day ${state.day} complete. Your rack stock and carried boxes stay ready for tomorrow.`,
+    message: `Day ${state.day} complete. Your stock and carried boxes stay for tomorrow.`,
   };
 }
 export function nextDay(state: WarehouseState): WarehouseState {
@@ -206,90 +299,123 @@ export function nextDay(state: WarehouseState): WarehouseState {
     day,
     quota: dayQuota(day),
     dayShipped: 0,
+    dayAssigned: 2,
     remaining: daySeconds(day),
     quotaMet: false,
     status: 'working',
-    order: makeOrder(day, state.orderSequence),
+    trucks: OUTBOUND_IDS.map((id, index) => makeTruck(id, day, state.orderSequence + index)),
+    orderSequence: state.orderSequence + 2,
     message: `Day ${day}: ${dayQuota(day)} orders, ${orderSize(day)} items each. Stock from yesterday is ready.`,
   });
 }
-
-export function putAwayAt(
+export function pickUpAt(state: WarehouseState, station: WarehouseStation): WarehouseState {
+  if (state.status !== 'working') return state;
+  if (!isInbound(station) && !isRack(station))
+    return {
+      ...state,
+      message: 'Pick up boxes at a conveyor or rack. Use Put down to deliver or discard them.',
+    };
+  if (state.carrying >= capacity(state))
+    return { ...state, message: 'Your load is full. Put down a box before picking up another.' };
+  if (isInbound(station)) {
+    const lane = state.inbound.find((item) => item.id === station)!;
+    if (lane.remaining > 0)
+      return { ...state, message: 'The next box is moving down the conveyor.' };
+    const loaded = refresh({
+      ...state,
+      deliveries: state.deliveries + 1,
+      carried: addCargo(state.carried, lane.location, 'inbound'),
+    });
+    const location = nextIncoming(loaded, station);
+    return {
+      ...loaded,
+      inbound: loaded.inbound.map((item) =>
+        item.id === station
+          ? { ...item, location, sequence: item.sequence + 1, remaining: CONVEYOR_SECONDS }
+          : item,
+      ),
+      message: `Picked up ${lane.location}. Put it down at ${lane.location} or a truck requesting it.`,
+    };
+  }
+  if (!state.inventory[station])
+    return {
+      ...state,
+      message: `${station} is empty. A box with that address must arrive at a conveyor.`,
+    };
+  return refresh({
+    ...state,
+    inventory: { ...state.inventory, [station]: state.inventory[station] - 1 },
+    carried: addCargo(state.carried, station, 'picked'),
+    message: `Picked up ${station}. Put it down at a matching truck or return it to ${station}.`,
+  });
+}
+export function putDownAt(
   state: WarehouseState,
   station: WarehouseStation,
   inboundOnly = false,
 ): WarehouseState {
   if (state.status !== 'working') return state;
-  if (station === 'receiving') {
-    if (state.carrying >= capacity(state))
+  if (isInbound(station))
+    return {
+      ...state,
+      message:
+        'Boxes cannot go back on the conveyor. Use their rack, a matching truck, or the $5 trash bin.',
+    };
+  if (!state.carrying) return { ...state, message: 'You are not carrying a box.' };
+  if (station === 'trash') {
+    if (inboundOnly) return state;
+    const first = state.carried[0];
+    return refresh({
+      ...state,
+      cash: state.cash - 5,
+      trashed: state.trashed + 1,
+      carried: state.carried.map((item, index) =>
+        index === 0 ? { ...item, quantity: item.quantity - 1 } : item,
+      ),
+      message: `Discarded one ${first.location} box. -$5 disposal cost.`,
+    });
+  }
+  if (isRack(station)) {
+    let free = RACK_CAPACITY - state.inventory[station];
+    let moved = 0;
+    const carried = state.carried.map((item) => {
+      if (item.location !== station || (inboundOnly && item.kind !== 'inbound')) return item;
+      const quantity = Math.min(item.quantity, free);
+      free -= quantity;
+      moved += quantity;
+      return { ...item, quantity: item.quantity - quantity };
+    });
+    if (!moved)
       return {
         ...state,
         message:
-          'Your load is full. Put boxes at their labeled rack or deliver picked order items.',
-      };
-    const location = state.inboundLocation;
-    return refresh({
-      ...state,
-      deliveries: state.deliveries + 1,
-      carried: addCargo(state.carried, location, 'inbound'),
-      message: `Box loaded: ${location}. Take it to ${location} and press Put away.`,
-    });
-  }
-  if (station === 'dispatch')
-    return { ...state, message: 'Use Pick at outbound to deliver the picked items in your order.' };
-  const matching = state.carried.filter(
-    (line) => line.location === station && (!inboundOnly || line.kind === 'inbound'),
-  );
-  const quantity = matching.reduce((total, line) => total + line.quantity, 0);
-  if (!quantity)
-    return {
-      ...state,
-      message: `No carried boxes belong to ${station}. Every box has a labeled storage address.`,
-    };
-  return refresh({
-    ...state,
-    inventory: { ...state.inventory, [station]: state.inventory[station] + quantity },
-    carried: state.carried.filter((line) => !matching.includes(line)),
-    message: `Stored ${quantity} at ${station}. This same location is available for picking.`,
-  });
-}
-
-export function pickAt(state: WarehouseState, station: WarehouseStation): WarehouseState {
-  if (state.status !== 'working') return state;
-  if (station === 'receiving')
-    return { ...state, message: 'Use Put away at inbound to unload the labeled box.' };
-  if (station !== 'dispatch') {
-    if (!state.inventory[station])
-      return {
-        ...state,
-        message: `${station} is empty. Check the incoming box label and restock here.`,
-      };
-    if (state.carrying >= capacity(state))
-      return {
-        ...state,
-        message:
-          'Your load is full. Deliver your picked items or put boxes back at their labeled rack.',
+          free <= 0
+            ? `${station} is full (${RACK_CAPACITY}/${RACK_CAPACITY}). Keep the box, deliver it, or use the $5 trash bin.`
+            : `Your boxes belong at their labeled addresses, not ${station}.`,
       };
     return refresh({
       ...state,
-      inventory: { ...state.inventory, [station]: state.inventory[station] - 1 },
-      carried: addCargo(state.carried, station, 'picked'),
-      message: `Picked 1 from ${station}. Deliver it at outbound with Pick.`,
+      inventory: { ...state.inventory, [station]: state.inventory[station] + moved },
+      carried,
+      message: `Stored ${moved} at ${station}.${carried.some((item) => item.location === station && item.quantity > 0) ? ' The rack is full; the remaining boxes stay with you.' : ''}`,
     });
   }
-  if (state.quotaMet)
+  const truck = state.trucks.find((item) => item.id === station)!;
+  if (truck.phase !== 'loading')
+    return { ...state, message: 'Wait for the next truck to park before loading.' };
+  if (state.quotaMet || !truck.order.length)
     return {
       ...state,
-      message: 'Daily quota met. Restock your racks for tomorrow, or end the day.',
+      message: 'This truck is waiting for tomorrow. Restock your racks or finish the day.',
     };
+  const carried = state.carried.map((item) => ({ ...item }));
   let moved = 0;
-  const carried = state.carried.map((line) => ({ ...line }));
-  const order = state.order.map((line) => {
+  const order = truck.order.map((line) => {
     let needed = line.required - line.delivered;
     let delivered = line.delivered;
     for (const cargo of carried) {
-      if (cargo.kind !== 'picked' || cargo.location !== line.location || needed <= 0) continue;
-      const quantity = Math.min(needed, cargo.quantity);
+      if (cargo.location !== line.location || needed <= 0) continue;
+      const quantity = Math.min(cargo.quantity, needed);
       cargo.quantity -= quantity;
       needed -= quantity;
       delivered += quantity;
@@ -298,38 +424,43 @@ export function pickAt(state: WarehouseState, station: WarehouseStation): Wareho
     return { ...line, delivered };
   });
   if (!moved)
-    return {
-      ...state,
-      message: 'No matching picked items in your load. Follow the outbound order labels.',
-    };
-  if (order.some((line) => line.delivered < line.required))
+    return { ...state, message: 'No carried boxes match this truck. Check its order locations.' };
+  const complete = order.every((line) => line.delivered >= line.required);
+  const trucks = state.trucks.map((item) =>
+    item.id === station
+      ? {
+          ...item,
+          order,
+          phase: complete ? ('departing' as const) : ('loading' as const),
+          remaining: complete ? TRUCK_DEPART_SECONDS : 0,
+        }
+      : item,
+  );
+  if (!complete)
     return refresh({
       ...state,
       carried,
-      order,
-      message: 'Items delivered. Fill the remaining order slots to earn $20.',
+      trucks,
+      message: "Box loaded. Fill this truck's remaining slots to earn $20.",
     });
   const dayShipped = state.dayShipped + 1;
   const quotaMet = dayShipped >= state.quota;
-  const orderSequence = state.orderSequence + 1;
   return refresh({
     ...state,
     carried,
+    trucks,
     cash: state.cash + 20,
     shipped: state.shipped + 1,
     dayShipped,
     quotaMet,
     bestDay: quotaMet ? Math.max(state.bestDay, state.day) : state.bestDay,
-    orderSequence,
-    order: quotaMet ? [] : makeOrder(state.day, orderSequence),
     message: quotaMet
-      ? 'Quota met! Use the remaining time to restock for tomorrow, or End day.'
-      : 'Order complete! +$20. The outbound truck has your next order.',
+      ? 'Quota met! Restock for tomorrow, or End day to buy upgrades.'
+      : 'Order complete! +$20. The truck is leaving.',
   });
 }
-
 export function buyUpgrade(state: WarehouseState, upgrade: WarehouseUpgrade): WarehouseState {
-  if (state.status === 'failed' || state[upgrade]) return state;
+  if (state.status !== 'day-complete' || state[upgrade]) return state;
   if (state.cash < UPGRADE_COST[upgrade])
     return {
       ...state,
@@ -341,27 +472,30 @@ export function buyUpgrade(state: WarehouseState, upgrade: WarehouseUpgrade): Wa
     cash: state.cash - UPGRADE_COST[upgrade],
     message:
       upgrade === 'cart'
-        ? 'Picking cart saved. Carry 3 labeled boxes, including mixed orders.'
-        : 'Routing automation saved. Auto stow inbound boxes, auto deliver picked items, and move 25% faster.',
+        ? 'Picking cart saved. Carry three labeled boxes.'
+        : 'Routing automation saved. Automatic rack storage and truck delivery; movement is 25% faster.',
   };
 }
 export function nextStation(state: WarehouseState): WarehouseStation {
-  const inbound = state.carried.find((line) => line.kind === 'inbound');
-  if (inbound) return inbound.location;
-  if (
-    state.carried.some(
-      (item) =>
-        item.kind === 'picked' &&
-        state.order.some(
-          (line) => line.location === item.location && line.delivered < line.required,
-        ),
+  for (const truck of state.trucks)
+    if (
+      truck.phase === 'loading' &&
+      truck.order.some(
+        (line) =>
+          line.required > line.delivered &&
+          state.carried.some((item) => item.location === line.location),
+      )
     )
-  )
-    return 'dispatch';
-  const needed = state.order.find((line) => line.delivered < line.required);
-  if (needed) return state.inventory[needed.location] > 0 ? needed.location : 'receiving';
-  return 'receiving';
+      return truck.id;
+  const cargo = state.carried[0];
+  if (cargo) return state.inventory[cargo.location] < RACK_CAPACITY ? cargo.location : 'trash';
+  const locations = nextPickLocations(state);
+  const stocked = locations.find((location) => state.inventory[location] > 0);
+  if (stocked) return stocked;
+  const incoming = state.inbound.find((lane) => locations.includes(lane.location));
+  return incoming?.id ?? 'receiving';
 }
+
 export function stationNear(point: Point): WarehouseStation | null {
   let nearest: WarehouseStation | null = null;
   let distance = Infinity;

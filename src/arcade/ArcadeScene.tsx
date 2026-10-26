@@ -658,13 +658,13 @@ function Cabinet({
         />
       </mesh>
       <group position={[0, SCREEN.y, SCREEN.z]} rotation={[SCREEN.tilt, 0, 0]}>
-        {box('monitor-recess', [0, 0, -0.16], [1.43, 1.01, 0.24], resources.black, 0.045)}
-        {box('crt-surround', [0, 0, -0.055], [1.405, 0.915, 0.1], resources.black, 0.035)}
+        {box('monitor-bezel', [0, 0, -0.08], [1.43, 0.96, 0.15], resources.black, 0.035)}
         <mesh>
           <planeGeometry args={[SCREEN.width, SCREEN.height, 14, 10]} />
           <meshBasicMaterial
-            map={resources.screen}
-            color={active ? '#ffffff' : '#718394'}
+            key={active && playing ? 'playing-glass' : 'attract-glass'}
+            map={active && playing ? null : resources.screen}
+            color={active && playing ? '#0a1a21' : active ? '#ffffff' : '#718394'}
             toneMapped={false}
           />
         </mesh>

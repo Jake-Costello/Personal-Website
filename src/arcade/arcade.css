@@ -214,22 +214,6 @@ button:disabled {
   border-radius: 3px;
   font-size: 9px;
 }
-.arcade-play-header > div:nth-child(2) {
-  text-align: center;
-}
-.arcade-play-header span {
-  color: var(--active-accent);
-  font:
-    8px 'IBM Plex Mono',
-    monospace;
-  letter-spacing: 1.5px;
-}
-.arcade-play-header h1 {
-  font-size: 22px;
-  font-weight: 500;
-  margin: 5px 0 0;
-  letter-spacing: -0.8px;
-}
 .arcade-play-tools {
   display: flex;
   gap: 6px;
@@ -578,20 +562,6 @@ button:disabled {
   }
   .arcade-back kbd {
     display: none;
-  }
-  .arcade-play-header h1 {
-    font-size: 17px;
-  }
-  .arcade-play-header span {
-    font-size: 6px;
-  }
-  .arcade-play-header > div:nth-child(2) {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
   }
   .arcade-play-tools {
     width: auto;

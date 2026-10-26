@@ -3,9 +3,9 @@ import type { CDPSession, Locator, Page } from '@playwright/test';
 import { installProteinApi } from './protein-fixtures';
 import { arcadeProjects } from '../../src/arcade/projects';
 
-const machines = ['Resume Run', 'Sketch-to-Ride', 'Warehouse Shift'] as const;
+const machines = ['Resume Run', 'Sketch-to-Ride', 'Warehouse Warrior'] as const;
 const gameIds = ['shoreline', 'sketch', 'warehouse'] as const;
-const visibleMachines = ['Resume Run', 'Warehouse Shift'] as const;
+const visibleMachines = ['Resume Run', 'Warehouse Warrior'] as const;
 const sketchHidden = !arcadeProjects.some((project) => project.id === 'sketch');
 const machine = (page: Page, title: string) =>
   page.getByRole('button', { name: `Play ${title}`, exact: true });
@@ -121,24 +121,24 @@ test('two-machine selection wraps and Enter plays locally while Escape returns t
 }) => {
   await page.goto('/arcade/');
   await expectRoomReady(page);
-  for (const title of ['Warehouse Shift', 'Resume Run'] as const) {
+  for (const title of ['Warehouse Warrior', 'Resume Run'] as const) {
     await page.getByRole('button', { name: 'Next machine', exact: true }).click();
     await expectSelected(page, title);
   }
   await page.getByRole('button', { name: 'Previous machine', exact: true }).click();
-  await expectSelected(page, 'Warehouse Shift');
+  await expectSelected(page, 'Warehouse Warrior');
   const room = page.getByRole('main', { name: 'Project arcade', exact: true });
   await room.focus();
   await page.keyboard.press('ArrowRight');
   await expectSelected(page, 'Resume Run');
   await page.keyboard.press('ArrowLeft');
-  await expectSelected(page, 'Warehouse Shift');
+  await expectSelected(page, 'Warehouse Warrior');
   await page.keyboard.press('Enter');
-  await expectGameReady(page, 'Warehouse Shift');
+  await expectGameReady(page, 'Warehouse Warrior');
   await expect(page).toHaveURL(/\/arcade\/$/);
   await page.keyboard.press('Escape');
   await expect(page.locator('.arcade-page')).toHaveAttribute('data-game', 'selection');
-  await expectSelected(page, 'Warehouse Shift');
+  await expectSelected(page, 'Warehouse Warrior');
   await expect(room).toBeFocused();
 });
 
@@ -408,40 +408,51 @@ test('Sketch ramps launch naturally and scrolling levels advance after completio
   await expect(game).toHaveAttribute('data-completed', '1');
 });
 
-test('warehouse shares stock locations, completes orders, restocks overnight and keeps upgrades', async ({
+type WarehouseTruck = {
+  id: 'dispatch' | 'dispatch2';
+  sequence: number;
+  phase: string;
+  order: { location: string; required: number; delivered: number }[];
+};
+
+test('Warehouse Warrior serves independent trucks, restocks overnight and buys upgrades between days', async ({
   page,
 }, testInfo) => {
-  test.setTimeout(90_000);
+  test.setTimeout(120_000);
   await page.clock.install();
   await page.goto('/arcade/');
-  await play(page, 'Warehouse Shift');
+  await play(page, 'Warehouse Warrior');
   const game = page.locator('[data-game="warehouse-shift"]');
   const panel = controls(page);
   const inventory = async () => JSON.parse((await game.getAttribute('data-inventory'))!);
-  const order = async (): Promise<{ location: string; required: number; delivered: number }[]> =>
-    JSON.parse((await game.getAttribute('data-order'))!);
+  const trucks = async (): Promise<WarehouseTruck[]> =>
+    JSON.parse((await game.getAttribute('data-trucks'))!);
+  const inbound = async (): Promise<
+    { id: string; location: string; sequence: number; remaining: number }[]
+  > => JSON.parse((await game.getAttribute('data-inbound'))!);
   const carried = async (): Promise<{ location: string; quantity: number; kind: string }[]> =>
     JSON.parse((await game.getAttribute('data-carried'))!);
   const walk = async (station: string) => {
     await game.locator(`[data-station="${station}"]`).click();
     await expect(game).toHaveAttribute('data-near', station, { timeout: 10_000 });
   };
-  const pick = () => panel.getByRole('button', { name: 'Pick', exact: true }).click();
-  const putAway = () => panel.getByRole('button', { name: 'Put away', exact: true }).click();
-  const restock = async () => {
-    const destination = (await game.getAttribute('data-inbound-location'))!;
-    const before = (await inventory())[destination];
-    await walk('receiving');
-    await putAway();
+  const pickUp = () => panel.getByRole('button', { name: 'Pick up', exact: true }).click();
+  const putDown = () => panel.getByRole('button', { name: 'Put down', exact: true }).click();
+  const restock = async (id = 'receiving') => {
+    await walk(id);
     await expect
-      .poll(async () =>
-        (await carried()).some((item) => item.location === destination && item.kind === 'inbound'),
-      )
+      .poll(async () => (await inbound()).find((lane) => lane.id === id)!.remaining)
+      .toBe(0);
+    const lane = (await inbound()).find((lane) => lane.id === id)!;
+    const before = (await inventory())[lane.location];
+    await pickUp();
+    await expect
+      .poll(async () => (await carried()).some((item) => item.location === lane.location))
       .toBe(true);
-    await walk(destination);
-    await putAway();
-    await expect.poll(async () => (await inventory())[destination]).toBe(before + 1);
-    return destination;
+    await walk(lane.location);
+    await putDown();
+    await expect.poll(async () => (await inventory())[lane.location]).toBe(before + 1);
+    return lane.location;
   };
 
   await expect(game).toHaveAttribute('data-day', '1');
@@ -449,78 +460,83 @@ test('warehouse shares stock locations, completes orders, restocks overnight and
   await expect(game).toHaveAttribute('data-cash', '0');
   await expect(panel.locator('.arcade-dpad').getByRole('button')).toHaveCount(4);
   await expect(panel.locator('.arcade-game-actions').getByRole('button')).toHaveCount(2);
-  await expect(game.locator('[data-station]')).toHaveCount(18);
+  await expect(game.locator('[data-station]')).toHaveCount(21);
+  await expect(game.getByRole('button', { name: /upgrades/i })).toHaveCount(0);
+  await expect(page.locator('.arcade-play-header')).not.toContainText('NOW PLAYING');
+  await expect(game.getByText(/Tap to walk.*Every address does both/)).toHaveCount(0);
+  expect((await trucks()).map((truck) => truck.order[0].location)).toEqual(['A5', 'B2']);
+  await expect(
+    game.locator('.wh-goal-label:visible, .wh-compact-next:visible').first(),
+  ).toContainText(/Next pick/i);
+
   await page.getByRole('button', { name: 'Pause game', exact: true }).click();
   const frozenClock = await numeric(game, 'data-remaining');
+  const frozenDocks = await inbound();
   await page.clock.fastForward(5_000);
   expect(await numeric(game, 'data-remaining')).toBe(frozenClock);
+  expect(await inbound()).toEqual(frozenDocks);
   await page
     .locator('.arcade-play-tools')
     .getByRole('button', { name: 'Resume game', exact: true })
     .click();
 
-  const firstLocation = (await order())[0].location;
-  expect(firstLocation).toBe('A5');
-  expect((await inventory())[firstLocation]).toBe(0);
-  await expect(game).toHaveAttribute('data-inbound-location', firstLocation);
-  await walk('receiving');
-  await putAway();
-  await expect.poll(async () => (await carried()).length).toBe(1);
-  await walk('A1');
-  await putAway();
-  expect((await carried())[0].location).toBe(firstLocation);
-  expect((await inventory())[firstLocation]).toBe(0);
-  await walk(firstLocation);
-  await putAway();
-  await expect.poll(async () => (await inventory())[firstLocation]).toBe(1);
-  await pick();
-  await expect.poll(async () => (await inventory())[firstLocation]).toBe(0);
-  expect((await carried())[0].kind).toBe('picked');
+  // The same two actions unload, store, retrieve, and load a truck.
+  expect(await restock()).toBe('A5');
+  await pickUp();
+  await expect.poll(async () => (await inventory()).A5).toBe(0);
+  await walk('dispatch2');
+  await putDown();
+  expect((await carried())[0].location).toBe('A5');
+  expect(await numeric(game, 'data-cash')).toBe(0);
+  const secondTruck = (await trucks())[1];
   await walk('dispatch');
-  await pick();
+  await putDown();
   await expect(game).toHaveAttribute('data-day-shipped', '1');
   await expect(game).toHaveAttribute('data-cash', '20');
+  expect((await trucks())[1]).toEqual(secondTruck);
+  await putDown();
+  expect(await numeric(game, 'data-cash')).toBe(20);
+  await expect(game.locator('[data-truck="dispatch"]')).toHaveAttribute('data-phase', 'loading', {
+    timeout: 8_000,
+  });
+  expect((await trucks())[0].order).toEqual([]);
 
-  const secondLocation = (await order())[0].location;
-  expect((await inventory())[secondLocation]).toBeGreaterThan(0);
-  await walk(secondLocation);
-  await pick();
-  await walk('dispatch');
-  await pick();
+  await walk('B2');
+  await pickUp();
+  await walk('dispatch2');
+  await putDown();
   await expect(game).toHaveAttribute('data-quota-met', 'true');
   await expect(game).toHaveAttribute('data-status', 'working');
   await expect(game).toHaveAttribute('data-cash', '40');
-  await restock();
+  await expect(game.getByRole('button', { name: /upgrades/i })).toHaveCount(0);
+  await restock('receiving2');
   const overnightStock = await inventory();
   if (testInfo.project.name === 'mobile') {
-    await page.screenshot({ path: testInfo.outputPath('warehouse-shared-inventory.png') });
+    await page.screenshot({ path: testInfo.outputPath('warehouse-warrior-docks.png') });
   }
   await game.getByRole('button', { name: 'End day', exact: true }).click();
   await expect(game).toHaveAttribute('data-status', 'day-complete');
-  await expect(game).toHaveAttribute('data-best-day', '1');
   const complete = game.getByRole('dialog', { name: 'Day 1 complete', exact: true });
   await complete.getByRole('button', { name: 'Shop upgrades', exact: true }).click();
   const upgrades = game.getByRole('dialog', { name: 'Warehouse upgrades', exact: true });
-  await upgrades.getByRole('button', { name: '$40 · Buy', exact: true }).click();
+  await upgrades.getByRole('button', { name: '$40 \u00b7 Buy', exact: true }).click();
   await expect(game).toHaveAttribute('data-cart', 'true');
   await expect(game).toHaveAttribute('data-cash', '0');
   await upgrades.getByRole('button', { name: 'Close upgrades', exact: true }).click();
   await complete.getByRole('button', { name: 'Start day 2', exact: true }).click();
   await expect(game).toHaveAttribute('data-day', '2');
   expect(await inventory()).toEqual(overnightStock);
-  const nextOrder = await order();
-  expect(nextOrder.reduce((sum, line) => sum + line.required, 0)).toBe(2);
-  const firstItem = nextOrder[0];
-  for (let attempt = 0; (await inventory())[firstItem.location] === 0 && attempt < 5; attempt += 1)
-    await restock();
+  const nextTruck = (await trucks())[0];
+  expect(nextTruck.order.reduce((sum, line) => sum + line.required, 0)).toBe(2);
+  const firstItem = nextTruck.order[0];
   expect((await inventory())[firstItem.location]).toBeGreaterThan(0);
   await walk(firstItem.location);
-  await pick();
+  await pickUp();
   await walk('dispatch');
-  await pick();
+  await putDown();
   await expect(game).toHaveAttribute('data-day-shipped', '0');
   await expect(game).toHaveAttribute('data-cash', '0');
-  expect((await order()).reduce((sum, line) => sum + line.delivered, 0)).toBe(1);
+  expect((await trucks())[0].order.reduce((sum, line) => sum + line.delivered, 0)).toBe(1);
 
   await page.getByRole('button', { name: 'Restart game', exact: true }).click();
   await expect(game).toHaveAttribute('data-day', '1');
@@ -528,19 +544,52 @@ test('warehouse shares stock locations, completes orders, restocks overnight and
   await expect(game).toHaveAttribute('data-cart', 'true');
   await expect(game).toHaveAttribute('data-best-day', '1');
   await page.getByRole('button', { name: /Back to machines/ }).click();
-  await play(page, 'Warehouse Shift');
+  await play(page, 'Warehouse Warrior');
   await expect(game).toHaveAttribute('data-cart', 'true');
   await expect(game).toHaveAttribute('data-best-day', '1');
   await page.clock.fastForward(120_000);
   await expect(game).toHaveAttribute('data-status', 'failed');
+  await expect(game.getByRole('button', { name: /upgrades/i })).toHaveCount(0);
   await game
     .getByRole('dialog', { name: 'Shift over', exact: true })
     .getByRole('button', { name: /Try again/ })
     .click();
   await expect(game).toHaveAttribute('data-status', 'working');
-  await expect(game).toHaveAttribute('data-day', '1');
   await expect(game).toHaveAttribute('data-cart', 'true');
-  await expect(game).toHaveAttribute('data-best-day', '1');
+});
+
+test('Warehouse Warrior keeps held boxes until placement and charges for discarding them', async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.goto('/arcade/');
+  await play(page, 'Warehouse Warrior');
+  const game = page.locator('[data-game="warehouse-shift"]');
+  const panel = controls(page);
+  const walk = async (station: string) => {
+    await game.locator(`[data-station="${station}"]`).click();
+    await expect(game).toHaveAttribute('data-near', station, { timeout: 10_000 });
+  };
+  const carried = () => game.getAttribute('data-carried');
+  await walk('B1');
+  await page.keyboard.press('e');
+  await expect(game).toHaveAttribute('data-carrying', '1');
+  const load = await carried();
+  await walk('receiving2');
+  await panel.getByRole('button', { name: 'Pick up', exact: true }).click();
+  expect(await carried()).toBe(load);
+  await page.keyboard.press('q');
+  expect(await carried()).toBe(load);
+  await walk('B2');
+  await panel.getByRole('button', { name: 'Put down', exact: true }).click();
+  expect(await carried()).toBe(load);
+  await walk('trash');
+  await expect(game.locator('.wh-trash-cost')).toContainText('$5');
+  await panel.getByRole('button', { name: 'Put down', exact: true }).click();
+  await expect(game).toHaveAttribute('data-carrying', '0');
+  await expect(game).toHaveAttribute('data-cash', '-5');
+  await page.keyboard.press('q');
+  expect(await numeric(game, 'data-cash')).toBe(-5);
 });
 
 test('both visible games remain playable and Sketch stays hidden without WebGL', async ({
