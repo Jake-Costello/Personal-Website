@@ -166,8 +166,11 @@ function OutboundVehicle({ truck, index }: { truck: OutboundTruck; index: number
         </g>
       ))}
       {!truck.order.length && (
-        <text x="51" y="58" textAnchor="middle" className="wh-order-truck-label">
-          READY
+        <text x="51" y="45" textAnchor="middle" className="wh-order-status">
+          <tspan x="51">Orders</tspan>
+          <tspan x="51" dy="20">
+            Complete
+          </tspan>
         </text>
       )}
       <path d="M-7 8v87" stroke="#c9b779" strokeWidth="5" />
@@ -425,7 +428,15 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
   const goal = nextStation(state);
   const timeLabel = `${Math.floor(Math.ceil(state.remaining) / 60)}:${String(Math.ceil(state.remaining) % 60).padStart(2, '0')}`;
   const near = stationNear(pose);
-  const carriedLabel = state.carried.map((item) => `${item.location} x${item.quantity}`).join(', ');
+  const carriedByLocation = new Map<RackId, number>();
+  for (const item of state.carried)
+    carriedByLocation.set(
+      item.location,
+      (carriedByLocation.get(item.location) ?? 0) + item.quantity,
+    );
+  const carriedLabel = [...carriedByLocation]
+    .map(([location, quantity]) => `${location} ×${quantity}`)
+    .join(', ');
   const pickLocations = nextPickLocations(state).join(', ');
   const finishDay = () => {
     if (active) {
@@ -704,7 +715,11 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
         <text x="26" y="558" className="wh-goal-label">
           NEXT PICK
         </text>
-        <text x="26" y="585" className="wh-goal">
+        <text
+          x="26"
+          y="585"
+          className={`wh-goal${nextPickLocations(state).length > 3 ? ' wh-goal--many' : ''}`}
+        >
           {pickLocations || '—'}
         </text>
       </svg>
@@ -720,6 +735,10 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
       <div className="wh-compact-next" aria-hidden="true">
         <span>Next pick</span>
         <b>{pickLocations || '—'}</b>
+      </div>
+      <div className="wh-holding" aria-hidden="true">
+        <span>Holding</span>
+        <strong>{carriedLabel || 'Nothing'}</strong>
       </div>
       {state.quotaMet && state.status === 'working' && (
         <button className="wh-end-day" onClick={finishDay} disabled={!active || showUpgrades}>

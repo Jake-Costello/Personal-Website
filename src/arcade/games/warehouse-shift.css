@@ -138,6 +138,37 @@
   font-weight: 600;
   letter-spacing: 1px;
 }
+.wh-goal--many {
+  font-size: 18px;
+}
+.wh-holding {
+  position: absolute;
+  left: 33%;
+  bottom: 2%;
+  width: 34%;
+  height: 9%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+}
+.wh-holding span {
+  color: #a3b7a7;
+  font-size: 1.35cqw;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: 0.1cqw;
+  text-transform: uppercase;
+}
+.wh-holding strong {
+  color: #e3efbc;
+  font-size: 2.7cqw;
+  line-height: 1.2;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
 .wh-box-label {
   fill: #594e29;
   font-size: 17px;
@@ -447,9 +478,25 @@
     pointer-events: none;
   }
   .wh-compact-next b {
-    font-size: 14px;
-    line-height: 17px;
+    max-width: 25cqw;
+    font-size: clamp(10px, 3.4cqw, 14px);
+    line-height: 1.1;
     color: #e3efbc;
+  }
+  .wh-holding {
+    left: 29%;
+    bottom: 0;
+    width: 42%;
+    height: 36px;
+  }
+  .wh-holding span {
+    font-size: 10px;
+    line-height: 12px;
+    letter-spacing: 0.5px;
+  }
+  .wh-holding strong {
+    font-size: clamp(10px, 3.4cqw, 14px);
+    line-height: 16px;
   }
   .wh-game[data-quota-met='true'] .wh-compact-next {
     padding-right: 85px;
@@ -667,6 +714,11 @@
 }
 .wh-order-truck-label {
   font-size: 18px;
+  fill: #38513e;
+  font-weight: 700;
+}
+.wh-order-status {
+  font-size: 17px;
   fill: #38513e;
   font-weight: 700;
 }
