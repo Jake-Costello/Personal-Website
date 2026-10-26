@@ -1,6 +1,7 @@
 import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode, PointerEvent } from 'react';
 import ArcadeBackdrop from './ArcadeBackdrop';
+import ArcadeLoader from './ArcadeLoader';
 import { arcadeProjects } from './projects';
 import { createArcadeInput } from './input';
 
@@ -254,6 +255,7 @@ export default function ArcadeHub() {
           </div>
         )}
         <div className="arcade-room-scene">
+          {webgl && !ready && <ArcadeLoader />}
           {webgl && (
             <SceneBoundary
               onFailure={() => {
@@ -262,14 +264,7 @@ export default function ArcadeHub() {
                 setReady(false);
               }}
             >
-              <Suspense
-                fallback={
-                  <div className="arcade-loading">
-                    POWERING UP THE MACHINES
-                    <span />
-                  </div>
-                }
-              >
+              <Suspense fallback={null}>
                 <ArcadeScene
                   selected={selected}
                   playing={playing}
@@ -312,9 +307,7 @@ export default function ArcadeHub() {
             inert={!playing}
           >
             {playing && (
-              <Suspense
-                fallback={<div className="arcade-game-loading">Loading {project.title}…</div>}
-              >
+              <Suspense fallback={<ArcadeLoader label={`Loading ${project.title}…`} compact />}>
                 <Game key={project.id} input={input} active={visible && !gamePaused} />
               </Suspense>
             )}

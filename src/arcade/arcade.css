@@ -411,27 +411,6 @@ button:disabled {
   background: var(--active-accent);
   color: #13252d;
 }
-.arcade-loading,
-.arcade-game-loading {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-content: center;
-  gap: 15px;
-  text-align: center;
-  color: #b9c8dc;
-  font:
-    10px 'IBM Plex Mono',
-    monospace;
-  letter-spacing: 1.5px;
-}
-.arcade-loading span {
-  width: 120px;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, #dcf68d, transparent);
-  animation: room-power 1s infinite alternate;
-  justify-self: center;
-}
 .is-expanded .arcade-live-screen,
 .is-fallback.is-playing .arcade-live-screen {
   left: 50% !important;
@@ -483,12 +462,6 @@ button:disabled {
   text-align: center;
   font-size: 11px;
   color: #9aaec1;
-}
-@keyframes room-power {
-  to {
-    opacity: 0.2;
-    transform: scaleX(0.5);
-  }
 }
 @media (max-width: 900px) {
   .arcade-header-center {
