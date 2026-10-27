@@ -307,7 +307,7 @@ export default function ArcadeHub() {
             inert={!playing}
           >
             {playing && (
-              <Suspense fallback={<ArcadeLoader label={`Loading ${project.title}…`} compact />}>
+              <Suspense fallback={<ArcadeLoader compact />}>
                 <Game key={project.id} input={input} active={visible && !gamePaused} />
               </Suspense>
             )}
