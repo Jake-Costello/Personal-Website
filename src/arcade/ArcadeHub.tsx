@@ -4,6 +4,7 @@ import ArcadeBackdrop from './ArcadeBackdrop';
 import ArcadeLoader from './ArcadeLoader';
 import { arcadeProjects } from './projects';
 import { createArcadeInput } from './input';
+import { trackEvent } from '../lib/analytics';
 
 const ArcadeScene = lazy(() => import('./ArcadeScene'));
 const ShorelineGame = lazy(() => import('./games/ShorelineGame'));
@@ -55,11 +56,13 @@ export default function ArcadeHub() {
   const screen = useRef<HTMLDivElement>(null);
   const machineButtons = useRef<(HTMLButtonElement | null)[]>([]);
   const room = useRef<HTMLElement>(null);
+  const enteredGame = useRef<number | null>(null);
   const input = useMemo(createArcadeInput, []);
   const project = arcadeProjects[selected];
   const Game = games[project.id];
 
   const exit = () => {
+    enteredGame.current = null;
     input.clear();
     setPlaying(false);
     setExpanded(false);
@@ -71,6 +74,11 @@ export default function ArcadeHub() {
     setSelected((index + arcadeProjects.length) % arcadeProjects.length);
   };
   const enter = (index: number) => {
+    const nextIndex = (index + arcadeProjects.length) % arcadeProjects.length;
+    if (enteredGame.current !== nextIndex) {
+      enteredGame.current = nextIndex;
+      trackEvent('arcade_game_start', { source: 'arcade', game: arcadeProjects[nextIndex].id });
+    }
     choose(index);
     setGamePaused(false);
     setPlaying(true);

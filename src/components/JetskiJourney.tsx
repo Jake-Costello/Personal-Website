@@ -14,6 +14,7 @@ import {
   TRIAL_SPEED,
 } from '../game/trial';
 import { markStoryFinished, recordTrialResult, useAchievements } from '../lib/achievements';
+import { trackEvent } from '../lib/analytics';
 import ClevelandSkyline from './ClevelandSkyline';
 import JetskiSprite from './JetskiSprite';
 import { JetskiSplash } from './JetskiWater';
@@ -247,6 +248,7 @@ export default function JetskiJourney() {
   const [trialPhase, setTrialPhase] = useState<TrialPhase>('ready');
   const [trial, setTrial] = useState(initialTrial);
   const trialSimulation = useRef(initialTrial());
+  const storyCompletionTracked = useRef(false);
   const [ride, setRide] = useState(initialRide);
   const [speed, setSpeed] = useState<number>(DEFAULT_RIDE_SPEED);
   const speedRef = useRef<number>(DEFAULT_RIDE_SPEED);
@@ -274,7 +276,12 @@ export default function JetskiJourney() {
   const atDestination = ride.position >= route.length - 1;
 
   useEffect(() => {
-    if (mode === 'story' && atDestination) markStoryFinished();
+    if (mode !== 'story' || !atDestination) return;
+    markStoryFinished();
+    if (!storyCompletionTracked.current) {
+      storyCompletionTracked.current = true;
+      trackEvent('resume_complete', { source: 'home' });
+    }
   }, [mode, atDestination]);
 
   useEffect(() => {
@@ -464,6 +471,7 @@ export default function JetskiJourney() {
   }
 
   function startOver() {
+    storyCompletionTracked.current = false;
     setMode('story');
     setBlimpStartedAt(null);
     speedRef.current = DEFAULT_RIDE_SPEED;
@@ -494,6 +502,8 @@ export default function JetskiJourney() {
   }
 
   function exitTrial() {
+    // Returning to the finish menu is not another completed story run.
+    storyCompletionTracked.current = true;
     setMode('story');
     setTrialPhase('ready');
     speedRef.current = DEFAULT_RIDE_SPEED;

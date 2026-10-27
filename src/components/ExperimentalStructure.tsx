@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { recordProteinDiscovery, useAchievements } from '../lib/achievements';
 import { curatedStructure, fetchExperimentalStructure } from '../lib/structures';
 import type { ExperimentalStructureEvidence } from '../lib/structures';
+import { trackEvent } from '../lib/analytics';
 import './experimental-structure.css';
 
 interface Props {
@@ -36,6 +37,7 @@ export default function ExperimentalStructure({ protein, disabled }: Props) {
 
   async function inspect() {
     if (!protein || !target || disabled || active.current) return;
+    trackEvent('lab_action', { action: 'inspect' });
     const inspectedProtein = protein;
     const requestId = ++sequence.current;
     const controller = new AbortController();

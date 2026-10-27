@@ -90,6 +90,18 @@ The cabinet scene renders on demand and uses procedural assets without external 
 
 ## Frontend deployment
 
+### Visitor analytics
+
+Both entrypoints initialize `src/lib/analytics.ts`, which asynchronously loads the supplied Umami Cloud tracker only on `jake-costello.com` and `www.jake-costello.com`. Local previews, GitHub preview domains, and CI do not load it. The website ID is public; there is no analytics API key or backend dependency. Pageviews are automatic, with query strings and URL hashes excluded. No distinct visitor IDs, form content, protein queries, or game movement inputs are sent by our custom events.
+
+Open `https://jake-costello.com/analytics.html?exclude=1` once in each browser/device used for development or personal visits. This untracked preferences page sets Umami's `umami.disabled` local-storage flag before the portfolio is opened. It applies to the homepage and arcade on the same origin. The page confirms the saved choice and can re-enable collection. Clearing site storage removes it; if storage is inaccessible, our tracker skips collection. The flag is a browser preference, not authentication.
+
+Custom events: `project_open` (project), `external_link` (LinkedIn, GitHub, or Revision Marine destination), `resume_complete` (once per story run), `arcade_game_start` (game), and `lab_action` (explore, compare, explain, inspect). Each includes `source: home | arcade`. Manual lab retries count as an action; automatic initial network loading does not. Queued early events are bounded and dropped when opted out or the tracker fails. Blockers or network errors do not interrupt the site. Counts are estimates and collection begins only after installation.
+
+Use the private Umami Cloud dashboard for page and event reports. The automated checks use stubs or local hosts so they do not create real visitor records. Provider references: [tracker configuration](https://docs.umami.is/docs/tracker-configuration), [events](https://docs.umami.is/docs/track-events), and [excluding your own visits](https://docs.umami.is/docs/exclude-my-own-visits).
+
+### Publishing
+
 The [publication workflow](../.github/workflows/pages.yml) checks the application, builds it, and publishes `dist/` to GitHub Pages. The Python service deploys separately using [`render.yaml`](../render.yaml); see [Render setup](../backend/README.md#deploy-on-render).
 
 1. In the GitHub repository's **Settings > Pages**, choose **GitHub Actions** as the source.

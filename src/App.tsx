@@ -5,6 +5,7 @@ import DeferredGolfFacts from './components/DeferredGolfFacts';
 import GolfBallCollection from './components/GolfBallCollection';
 import AchievementPopup from './components/AchievementPopup';
 import { getContactEndpoint, linkedInUrl } from './lib/contact';
+import { trackEvent } from './lib/analytics';
 import { revisionMarine } from './data/revision';
 
 const ProteinExplorer = lazy(() => import('./components/ProteinExplorer'));
@@ -250,6 +251,11 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  function openProject(project: Project) {
+    trackEvent('project_open', { source: 'home', project: project.id });
+    setSelectedProject(project);
+  }
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -415,7 +421,7 @@ function App() {
               <article className="project-card" id={`project-${project.id}`} key={project.id}>
                 <button
                   className="project-art-button"
-                  onClick={() => setSelectedProject(project)}
+                  onClick={() => openProject(project)}
                   aria-label={`Read about ${project.title}`}
                 >
                   <ProjectArt kind={project.id} />
@@ -428,7 +434,7 @@ function App() {
                   <span>{project.number}</span>
                 </div>
                 <h3>
-                  <button onClick={() => setSelectedProject(project)}>{project.title}</button>
+                  <button onClick={() => openProject(project)}>{project.title}</button>
                 </h3>
                 <p>{project.summary}</p>
                 <div className="tag-list">
@@ -442,6 +448,7 @@ function App() {
               <a
                 className="project-art-button arcade-invite"
                 href={arcadeUrl}
+                onClick={() => trackEvent('project_open', { source: 'home', project: 'arcade' })}
                 aria-label="A few experiments worth playing. Enter the arcade"
               >
                 <div className="project-art arcade-art" aria-hidden="true">
@@ -460,7 +467,12 @@ function App() {
                 <span>03</span>
               </div>
               <h3>
-                <a href={arcadeUrl}>Project Arcade</a>
+                <a
+                  href={arcadeUrl}
+                  onClick={() => trackEvent('project_open', { source: 'home', project: 'arcade' })}
+                >
+                  Project Arcade
+                </a>
               </h3>
               <p>
                 Games built to explore interactive systems, from a jetski resume tour to a warehouse

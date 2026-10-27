@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { parseAiStatus, parseComparison, parseExplanation, rankSpecies } from '../lib/comparison';
 import type { NetworkExplanation, ProteinComparisonData } from '../lib/comparison';
+import { trackEvent } from '../lib/analytics';
 import './protein-comparison.css';
 
 interface Props {
@@ -76,6 +77,9 @@ export default function ProteinComparison({ apiBase, query, disabled }: Props) {
 
   async function compare() {
     if (unavailable || !apiBase || !query) return;
+    if (phase === null && query.pair.includes(protein)) {
+      trackEvent('lab_action', { action: 'compare' });
+    }
     clearResults();
     const current = ++sequence.current;
     const controller = new AbortController();
@@ -127,6 +131,9 @@ export default function ProteinComparison({ apiBase, query, disabled }: Props) {
 
   async function explain() {
     if (unavailable || !apiBase || !query || !comparison || availability !== 'enabled') return;
+    if (phase === null && query.pair.includes(protein)) {
+      trackEvent('lab_action', { action: 'explain' });
+    }
     const current = ++sequence.current;
     request.current?.abort();
     const controller = new AbortController();

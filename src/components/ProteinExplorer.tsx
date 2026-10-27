@@ -8,6 +8,7 @@ import {
   projectNode,
 } from '../lib/protein';
 import type { ProteinCatalog, ProteinNetwork } from '../lib/protein';
+import { trackEvent } from '../lib/analytics';
 import ProteinComparison from './ProteinComparison';
 import ExperimentalStructure from './ExperimentalStructure';
 import LabImplementation from './LabImplementation';
@@ -143,6 +144,21 @@ export default function ProteinExplorer() {
     }
   }, []);
 
+  function exploreNetwork() {
+    if (!catalog) return;
+    if (
+      apiBase &&
+      pair[0] !== pair[1] &&
+      pair.every((symbol) => catalog.proteins.some((protein) => protein.symbol === symbol)) &&
+      confidence >= 0.4 &&
+      confidence <= 0.95 &&
+      [0, 8, 24].includes(neighbors)
+    ) {
+      trackEvent('lab_action', { action: 'explore' });
+    }
+    void fetchNetwork({ pair: [...pair], confidence, neighbors });
+  }
+
   const initialize = useCallback(async () => {
     if (!apiBase) {
       setLoading(false);
@@ -245,7 +261,7 @@ export default function ProteinExplorer() {
         className="protein-query"
         onSubmit={(event) => {
           event.preventDefault();
-          if (catalog) void fetchNetwork({ pair: [...pair], confidence, neighbors });
+          exploreNetwork();
         }}
       >
         <div className="protein-query-fields">
@@ -361,8 +377,11 @@ export default function ProteinExplorer() {
               type="button"
               disabled={loading}
               onClick={() => {
-                if (catalog) void fetchNetwork({ pair: [...pair], confidence, neighbors });
-                else void initialize();
+                if (catalog) exploreNetwork();
+                else {
+                  if (apiBase && !loading) trackEvent('lab_action', { action: 'explore' });
+                  void initialize();
+                }
               }}
             >
               Try again

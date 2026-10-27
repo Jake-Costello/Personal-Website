@@ -15,6 +15,7 @@ import {
   TRIAL_SPEED,
 } from '../../game/trial';
 import { markStoryFinished, recordTrialResult, useAchievements } from '../../lib/achievements';
+import { trackEvent } from '../../lib/analytics';
 import type { ArcadeInput } from '../input';
 import './shoreline-game.css';
 
@@ -168,6 +169,7 @@ export default function ShorelineGame({ input, active }: { input: ArcadeInput; a
   );
   const simulation = useRef(initialRide());
   const trialSimulation = useRef(initialTrial());
+  const storyCompletionTracked = useRef(false);
   const jumpQueued = useRef(false);
   const readButton = useRef<HTMLButtonElement>(null);
   const resumeButton = useRef<HTMLButtonElement>(null);
@@ -202,10 +204,15 @@ export default function ShorelineGame({ input, active }: { input: ArcadeInput; a
   function restart() {
     setReading(false);
     if (mode === 'trial') prepareTrial();
-    else resetRide();
+    else {
+      storyCompletionTracked.current = false;
+      resetRide();
+    }
   }
 
   function leaveTrial() {
+    // Returning to the finish menu is not another completed story run.
+    storyCompletionTracked.current = true;
     setMode('story');
     setPhase('ready');
     resetRide(route.length);
@@ -226,7 +233,12 @@ export default function ShorelineGame({ input, active }: { input: ArcadeInput; a
   }, [reading, input]);
 
   useEffect(() => {
-    if (mode === 'story' && atFinish) markStoryFinished();
+    if (mode !== 'story' || !atFinish) return;
+    markStoryFinished();
+    if (!storyCompletionTracked.current) {
+      storyCompletionTracked.current = true;
+      trackEvent('resume_complete', { source: 'arcade' });
+    }
   }, [mode, atFinish]);
 
   useEffect(() => {
