@@ -249,6 +249,7 @@ function ProjectDialog({ project, close }: { project: Project | null; close: () 
 
 function App() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuToggleRef = useRef<HTMLButtonElement>(null);
   const [activeSection, setActiveSection] = useState('');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   function openProject(project: Project) {
@@ -274,7 +275,16 @@ function App() {
       <a className="skip-link" href="#main">
         Skip to content
       </a>
-      <header className="site-header">
+      <header
+        className="site-header"
+        onKeyDown={(event) => {
+          if (menuOpen && event.key === 'Escape') {
+            event.preventDefault();
+            setMenuOpen(false);
+            menuToggleRef.current?.focus();
+          }
+        }}
+      >
         <a href="#" className="brand" aria-label="Jake Costello, home">
           <span className="brand-mark">
             jc<span>↗</span>
@@ -284,6 +294,7 @@ function App() {
           </span>
         </a>
         <button
+          ref={menuToggleRef}
           className="menu-toggle"
           aria-expanded={menuOpen}
           aria-controls="main-nav"
