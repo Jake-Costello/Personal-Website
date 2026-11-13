@@ -1,4 +1,5 @@
 import { proteinStructures } from '../data/proteins';
+import { readBoundedText } from './boundedResponse';
 
 const DATA_API = 'https://data.rcsb.org/rest/v1/core';
 const verificationFailure =
@@ -104,8 +105,7 @@ export function parseExperimentalStructure(
 async function readRecord(response: Response): Promise<unknown> {
   // 404 means this curated record is unavailable, not that the protein lacks a structure.
   if (!response.ok) throw new Error(unavailableFailure);
-  const body = await response.text();
-  if (body.length > 1_000_000) throw new Error(verificationFailure);
+  const body = await readBoundedText(response, 1_000_000, verificationFailure);
   try {
     return JSON.parse(body);
   } catch {

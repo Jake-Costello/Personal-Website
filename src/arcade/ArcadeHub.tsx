@@ -12,6 +12,32 @@ const SketchRide = lazy(() => import('./games/SketchRide'));
 const WarehouseShift = lazy(() => import('./games/WarehouseShift'));
 const games = { shoreline: ShorelineGame, sketch: SketchRide, warehouse: WarehouseShift };
 
+class GameBoundary extends Component<
+  { children: ReactNode; onExit: () => void },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  private recovery = { current: null as HTMLButtonElement | null };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch() {
+    this.recovery.current?.focus();
+  }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <div className="arcade-paused" role="alert">
+        <p>This game couldn’t load. Reload the page to try again.</p>
+        <button ref={this.recovery} onClick={this.props.onExit}>
+          Back to machines
+        </button>
+        <button onClick={() => window.location.reload()}>Reload page</button>
+      </div>
+    );
+  }
+}
+
 class SceneBoundary extends Component<
   { children: ReactNode; onFailure: () => void },
   { failed: boolean }
@@ -315,9 +341,11 @@ export default function ArcadeHub() {
             inert={!playing}
           >
             {playing && (
-              <Suspense fallback={<ArcadeLoader compact />}>
-                <Game key={project.id} input={input} active={visible && !gamePaused} />
-              </Suspense>
+              <GameBoundary key={project.id} onExit={exit}>
+                <Suspense fallback={<ArcadeLoader compact />}>
+                  <Game input={input} active={visible && !gamePaused} />
+                </Suspense>
+              </GameBoundary>
             )}
             {gamePaused && playing && (
               <div className="arcade-paused">

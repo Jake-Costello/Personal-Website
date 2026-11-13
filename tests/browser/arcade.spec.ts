@@ -645,9 +645,11 @@ test('Warehouse Warrior serves independent trucks, restocks overnight and buys u
   }
   await game.getByRole('button', { name: 'End day', exact: true }).click();
   await expect(game).toHaveAttribute('data-status', 'day-complete');
+  await expect(game.getByRole('button', { name: 'Start day 2', exact: true })).toBeFocused();
   const complete = game.getByRole('dialog', { name: 'Day 1 complete', exact: true });
   await complete.getByRole('button', { name: 'Shop upgrades', exact: true }).click();
   const upgrades = game.getByRole('dialog', { name: 'Warehouse upgrades', exact: true });
+  await expect(upgrades.getByRole('button', { name: 'Close upgrades' })).toBeFocused();
   await upgrades.getByRole('button', { name: '$40 \u00b7 Buy', exact: true }).click();
   await expect(game).toHaveAttribute('data-cart', 'true');
   await expect(game).toHaveAttribute('data-cash', '0');
@@ -678,6 +680,7 @@ test('Warehouse Warrior serves independent trucks, restocks overnight and buys u
   await expect(game).toHaveAttribute('data-best-day', '1');
   await page.clock.fastForward(120_000);
   await expect(game).toHaveAttribute('data-status', 'failed');
+  await expect(game.getByRole('button', { name: /Try again/ })).toBeFocused();
   await expect(game.getByRole('button', { name: /upgrades/i })).toHaveCount(0);
   await game
     .getByRole('dialog', { name: 'Shift over', exact: true })
@@ -785,3 +788,38 @@ test('the homepage links to the separate arcade and the arcade links back to the
     .click();
   await expect(page).toHaveURL(/\/arcade\/$/);
 });
+
+for (const [title, module] of [
+  ['Resume Run', 'ShorelineGame'],
+  ['Warehouse Warrior', 'WarehouseShift'],
+] as const) {
+  test(`${title} chunk failure preserves recovery and the arcade shell`, async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(60000);
+    const chunk = new RegExp(
+      `/(?:src/arcade/games/${module}\\.tsx|assets/${module}-[^/?]+\\.js)(?:\\?|$)`,
+    );
+    await page.route(chunk, (route) => route.abort('failed'));
+    await page.goto('/arcade/');
+    await expectRoomReady(page);
+    await machine(page, title).click();
+    const error = page.getByRole('alert');
+    await expect(error).toContainText('couldn’t load');
+    await expect(
+      error.getByRole('button', { name: 'Back to machines', exact: true }),
+    ).toBeFocused();
+    await expect(page.getByRole('link', { name: 'Back to portfolio' })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`${module}-recovery.png`) });
+    await error.getByRole('button', { name: 'Back to machines', exact: true }).click();
+    await expect(page.locator('.arcade-page')).toHaveAttribute('data-game', 'selection');
+    await machine(page, title).click();
+    await expect(error).toBeVisible();
+    await page.unroute(chunk);
+    await Promise.all([
+      page.waitForEvent('domcontentloaded'),
+      error.getByRole('button', { name: 'Reload page' }).click(),
+    ]);
+    await play(page, title);
+  });
+}

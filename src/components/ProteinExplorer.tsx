@@ -9,6 +9,7 @@ import {
 } from '../lib/protein';
 import type { ProteinCatalog, ProteinNetwork } from '../lib/protein';
 import { trackEvent } from '../lib/analytics';
+import { readBoundedJson } from '../lib/boundedResponse';
 import ProteinComparison from './ProteinComparison';
 import ExperimentalStructure from './ExperimentalStructure';
 import LabImplementation from './LabImplementation';
@@ -118,7 +119,7 @@ export default function ProteinExplorer() {
         signal: controller.signal,
       });
       if (!response.ok) throw serviceError(response.status);
-      const next = parseNetwork(await response.json());
+      const next = parseNetwork(await readBoundedJson(response, 2_000_000));
       if (sequence !== requestSequence.current || controller.signal.aborted) return;
       setNetwork(next);
       setLoadedQuery(query);
@@ -180,7 +181,7 @@ export default function ProteinExplorer() {
     try {
       const response = await fetch(`${apiBase}/api/proteins`, { signal: controller.signal });
       if (!response.ok) throw serviceError(response.status);
-      const next = parseProteinCatalog(await response.json());
+      const next = parseProteinCatalog(await readBoundedJson(response, 2_000_000));
       if (sequence !== requestSequence.current || controller.signal.aborted) return;
       const nextPair = chooseRandomProteinPair(next.proteins);
       setCatalog(next);

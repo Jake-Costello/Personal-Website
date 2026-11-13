@@ -17,6 +17,7 @@
   box-sizing: border-box;
 }
 html {
+  scrollbar-gutter: stable;
   scroll-behavior: smooth;
   scroll-padding-top: 100px;
 }
@@ -758,6 +759,7 @@ article[id] {
   text-decoration: underline;
 }
 .project-dialog {
+  overscroll-behavior: contain;
   background: var(--paper);
   color: var(--ink);
   border: 1px solid var(--ink);

@@ -101,13 +101,19 @@ async def string_request(client: httpx.AsyncClient, method: str,
     # Called within upstream_lock. Respect STRING's one-second request spacing.
     await asyncio.sleep(max(0, 1.05 - (monotonic() - last_upstream_call)))
     last_upstream_call = monotonic()
-    response = await client.get(f"{STRING_BASE}/api/json/{method}", params={
+    async with client.stream("GET", f"{STRING_BASE}/api/json/{method}", params={
         **params, "species": 9606, "caller_identity": "jacob-costello-personal-website"
-    })
-    response.raise_for_status()
-    if len(response.content) > 2_000_000:
-        raise ValueError("Upstream response is too large.")
-    body = response.json()
+    }) as response:
+        response.raise_for_status()
+        length = response.headers.get("Content-Length")
+        if length and length.isdigit() and int(length) > 2_000_000:
+            raise ValueError("Upstream response is too large.")
+        content = bytearray()
+        async for chunk in response.aiter_bytes(chunk_size=65_536):
+            if len(content) + len(chunk) > 2_000_000:
+                raise ValueError("Upstream response is too large.")
+            content.extend(chunk)
+    body = json.loads(content)
     if not isinstance(body, list) or any(not isinstance(row, dict) for row in body):
         raise ValueError("Upstream returned an unexpected response.")
     return body

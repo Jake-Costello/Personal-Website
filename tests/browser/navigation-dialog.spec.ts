@@ -75,3 +75,29 @@ test('project dialogs retain focus, dismissal, lab navigation and viewport fit',
   await expect(dialog).not.toBeVisible();
   await expect(page).toHaveURL(/#lab$/);
 });
+
+test('project dialog contains scrolling and restores page scrolling on close', async ({
+  page,
+}, testInfo) => {
+  await page.goto('/#work');
+  await page.getByRole('button', { name: 'Read about Revision Marine' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.style.overflow))
+    .toBe('hidden');
+  const before = await page.evaluate(() => scrollY);
+  await dialog.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  const bounds = (await dialog.boundingBox())!;
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height - 30);
+  await page.mouse.wheel(0, 700);
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(() => scrollY)).toBe(before);
+  await page.screenshot({ path: testInfo.outputPath('contained-dialog.png') });
+  await page.keyboard.press('Escape');
+  await expect.poll(() => page.evaluate(() => document.documentElement.style.overflow)).toBe('');
+  await page.mouse.wheel(0, 400);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(before);
+});

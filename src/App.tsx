@@ -190,6 +190,14 @@ function ProjectDialog({ project, close }: { project: Project | null; close: () 
     if (project && ref.current && !ref.current.open) ref.current.showModal();
     if (!project) ref.current?.close();
   }, [project]);
+  useEffect(() => {
+    if (!project) return;
+    const overflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.documentElement.style.overflow = overflow;
+    };
+  }, [project]);
   return (
     <dialog
       ref={ref}
