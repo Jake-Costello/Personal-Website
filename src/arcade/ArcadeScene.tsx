@@ -6,6 +6,19 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { arcadeProjects } from './projects';
+import {
+  controlLayout,
+  physicalActions,
+  joystickAxes,
+  moveCabinetJoystick,
+  releaseCabinetJoystick,
+} from './controlLayout';
+import { cabinetMarquee, cabinetDeckArt, buttonGlyph, warehouseSideArt } from './CabinetArtwork';
+import { createCabinetJoystick, poseCabinetJoystick } from './joystick';
+import ResumeCabinetFinish, {
+  createCabinetProfile,
+  refinedLaminateTexture,
+} from './ResumeCabinetFinish';
 import type { ArcadeProject } from './projects';
 import type { ArcadeInput } from './input';
 
@@ -54,15 +67,26 @@ function controlTexture(label: string, key: string, arrows: boolean) {
   c.fillStyle = '#10252c';
   c.textAlign = 'center';
   if (arrows) {
-    c.font = 'bold 138px Arial';
-    c.fillText(key, 128, 151);
+    c.save();
+    c.translate(128, 116);
+    c.rotate({ '↑': 0, '→': Math.PI / 2, '↓': Math.PI, '←': -Math.PI / 2 }[key] ?? 0);
+    c.strokeStyle = '#10252c';
+    c.lineWidth = 13;
+    c.lineCap = 'round';
+    c.lineJoin = 'round';
+    c.beginPath();
+    c.moveTo(0, 49);
+    c.lineTo(0, -47);
+    c.moveTo(-37, -10);
+    c.lineTo(0, -47);
+    c.lineTo(37, -10);
+    c.stroke();
+    c.restore();
     c.font = 'bold 34px Arial';
     c.fillText(label.toUpperCase(), 128, 219, 225);
   } else {
-    c.font = 'bold 43px Arial';
-    c.fillText(label.toUpperCase(), 128, 133, 222);
-    c.font = '25px monospace';
-    c.fillText(key.toUpperCase(), 128, 176, 206);
+    c.font = 'bold 126px Arial';
+    c.fillText(key.split('/').pop()!.trim().toUpperCase(), 128, 174, 214);
   }
   const t = new THREE.CanvasTexture(canvas);
   t.colorSpace = THREE.SRGBColorSpace;
@@ -386,10 +410,7 @@ function Cabinet({
       capturedControls.current.delete(event.pointerId);
       if (action === 'stick') {
         grip.current = null;
-        input.set('left', false);
-        input.set('right', false);
-        input.set('up', false);
-        input.set('down', false);
+        releaseCabinetJoystick(input, project.id);
       } else input.set(action, false);
     };
     const forgetCaptures = () => {
@@ -411,19 +432,8 @@ function Cabinet({
     if (active && playing && project.id === 'sketch') setSketchMode('levels');
   }, [active, playing, project.id]);
   const resources = useMemo(() => {
-    const shape = new THREE.Shape();
-    // Side silhouette of a full-height upright cabinet, extruded across its width.
-    shape.moveTo(-0.6, 0.08);
-    shape.lineTo(0.5, 0.08);
-    shape.lineTo(0.53, 1.05);
-    shape.lineTo(0.82, 1.24);
-    shape.lineTo(0.81, 1.43);
-    shape.lineTo(0.53, 1.61);
-    shape.lineTo(0.38, 2.62);
-    shape.lineTo(0.58, 2.67);
-    shape.lineTo(0.58, 3.05);
-    shape.lineTo(-0.6, 3.05);
-    shape.closePath();
+    const refined = project.id === 'shoreline';
+    const shape = createCabinetProfile();
     const side = new THREE.ExtrudeGeometry(shape, {
       depth: 0.065,
       bevelEnabled: true,
@@ -433,19 +443,19 @@ function Cabinet({
       bevelThickness: 0.012,
     });
     side.rotateY(-Math.PI / 2);
-    const grain = surfaceTexture();
+    const grain = refined ? refinedLaminateTexture() : surfaceTexture();
     const body = new THREE.MeshStandardMaterial({
       color: project.cabinetColor,
-      roughness: 0.55,
-      metalness: 0.15,
+      roughness: refined ? 0.7 : 0.55,
+      metalness: refined ? 0 : 0.15,
       roughnessMap: grain,
       bumpMap: grain,
-      bumpScale: 0.008,
+      bumpScale: refined ? 0.0007 : 0.008,
     });
     const edge = new THREE.MeshStandardMaterial({
-      color: project.accent,
-      roughness: 0.32,
-      metalness: 0.3,
+      color: refined ? '#42616b' : project.accent,
+      roughness: refined ? 0.48 : 0.32,
+      metalness: refined ? 0.05 : 0.3,
     });
     const metal = new THREE.MeshStandardMaterial({
       color: '#9ca6a6',
@@ -454,8 +464,8 @@ function Cabinet({
     });
     const black = new THREE.MeshStandardMaterial({
       color: '#12171a',
-      roughness: 0.34,
-      metalness: 0.2,
+      roughness: refined ? 0.5 : 0.34,
+      metalness: refined ? 0 : 0.2,
     });
     return {
       side,
@@ -464,37 +474,46 @@ function Cabinet({
       edge,
       metal,
       black,
-      marquee: labelTexture(
-        project.shortTitle,
-        `${project.genre}  /  JC EXPERIMENTS`,
-        project.accent,
-      ),
+      marquee:
+        project.id === 'sketch'
+          ? labelTexture(project.shortTitle, `${project.genre} / JC EXPERIMENTS`, project.accent)
+          : cabinetMarquee(project, invalidate),
       screen: attractTexture(project),
-      sideArt: sideTexture(project),
-      badge: labelTexture('JC', 'ORIGINAL EXPERIMENTS', '#c9d2c7', true),
-      keyCap: rounded(0.205, 0.07, 0.15, 0.017),
+      deckArt: cabinetDeckArt(project, invalidate),
+      sideArt: project.id === 'warehouse' ? warehouseSideArt(invalidate) : sideTexture(project),
+      badge: refined ? null : labelTexture('JC', 'ORIGINAL EXPERIMENTS', '#c9d2c7', true),
+      joystick: createCabinetJoystick(black, metal, project.accent),
+      buttonHit: new THREE.CylinderGeometry(0.033, 0.033, 0.012, 12),
+      hitMaterial: new THREE.MeshBasicMaterial({ visible: false }),
       rockerCap: rounded(0.232, 0.055, 0.15, 0.014),
       modeMaps: ['CUSTOM', 'LEVELS'].map(switchTexture),
-      controlMaps: project.controls.map((control) =>
-        controlTexture(
-          project.id === 'shoreline'
-            ? ({ left: 'Left', right: 'Right', up: 'Jump', down: 'Pump' }[control.action] ??
-                control.label)
-            : control.label,
-          control.key,
-          project.id === 'shoreline',
-        ),
+      controlMaps: physicalActions(project).map((control) =>
+        project.id === 'sketch'
+          ? controlTexture(control.label, control.key, false)
+          : buttonGlyph(project, control.action, invalidate),
       ),
     };
   }, [project]);
   useEffect(
     () => () => {
       Object.values(resources).forEach((r) =>
-        Array.isArray(r) ? r.forEach((texture) => texture.dispose()) : r.dispose(),
+        Array.isArray(r) ? r.forEach((texture) => texture.dispose()) : r?.dispose(),
       );
     },
     [resources],
   );
+  useEffect(() => {
+    if (resources.joystick) {
+      poseCabinetJoystick(
+        resources.joystick,
+        held
+          .split('|')
+          .filter((action) => joystickAxes(project.id).some((axis) => axis === action)),
+        active && controlsEnabled,
+      );
+      invalidate();
+    }
+  }, [resources, held, active, controlsEnabled, invalidate, project.id]);
   const count = arcadeProjects.length;
   const half = Math.floor(count / 2);
   const order = count === 2 ? index - selected : ((index - selected + count + half) % count) - half;
@@ -505,11 +524,13 @@ function Cabinet({
   const targetZ = active ? (playing ? 0.35 : 0.72) : playing ? -1.4 : -0.62;
   const targetR =
     !playing && pairedLobby
-      ? (index === 0 ? 1 : -1) * (active ? 0.055 : 0.18)
+      ? (index === 0 ? 1 : -1) * (active ? (project.id === 'shoreline' ? 0.16 : 0.055) : 0.18)
       : active
         ? playing
           ? 0
-          : -0.055
+          : project.id === 'shoreline'
+            ? -0.14
+            : -0.055
         : -order * 0.3;
   const initialPosition = useRef<[number, number, number]>([targetX, 0, targetZ]);
   const initialRotation = useRef<[number, number, number]>([0, targetR, 0]);
@@ -582,10 +603,7 @@ function Cabinet({
     event.stopPropagation();
     capturedControls.current.delete(event.pointerId);
     grip.current = null;
-    input.set('left', false);
-    input.set('right', false);
-    input.set('up', false);
-    input.set('down', false);
+    releaseCabinetJoystick(input, project.id);
   };
   const box = (
     key: string,
@@ -604,6 +622,7 @@ function Cabinet({
 
   return (
     <group
+      name={`cabinet-${project.id}`}
       ref={group}
       position={initialPosition.current}
       rotation={initialRotation.current}
@@ -630,8 +649,10 @@ function Cabinet({
       ))}
       {[-0.735, 0.735].map((x) => (
         <group key={x}>
-          {box(`edge-${x}`, [x, 0.62, 0.51], [0.018, 1.1, 0.025], resources.edge, 0.005)}
-          {box(`topedge-${x}`, [x, 2.85, 0.595], [0.022, 0.33, 0.025], resources.edge, 0.006)}
+          {project.id !== 'shoreline' &&
+            box(`edge-${x}`, [x, 0.62, 0.51], [0.018, 1.1, 0.025], resources.edge, 0.005)}
+          {project.id !== 'shoreline' &&
+            box(`topedge-${x}`, [x, 2.85, 0.595], [0.022, 0.33, 0.025], resources.edge, 0.006)}
           <mesh
             position={[x * 1.075, 1.83, -0.17]}
             rotation={[0, x < 0 ? -Math.PI / 2 : Math.PI / 2, 0]}
@@ -643,7 +664,7 @@ function Cabinet({
       ))}
       {box('back', [0, 1.56, -0.56], [1.42, 2.95, 0.12])}
       {box('base', [0, 0.08, -0.04], [1.5, 0.16, 1.15], resources.black)}
-      {box('front', [0, 0.62, 0.48], [1.4, 1.04, 0.11])}
+      {box('front', [0, 0.69, 0.48], [1.4, 1.18, 0.11])}
       {box('top', [0, 3.04, -0.01], [1.5, 0.09, 1.17])}
       {box('marquee-frame', [0, 2.85, 0.5], [1.43, 0.36, 0.23], resources.black)}
       <mesh position={[0, 2.85, 0.625]}>
@@ -652,7 +673,7 @@ function Cabinet({
           map={resources.marquee}
           emissiveMap={resources.marquee}
           emissive="#ffffff"
-          emissiveIntensity={active ? 0.6 : 0.12}
+          emissiveIntensity={active ? (project.id === 'shoreline' ? 0.35 : 0.6) : 0.12}
           roughness={0.23}
           metalness={0.1}
         />
@@ -670,122 +691,99 @@ function Cabinet({
         </mesh>
       </group>
       <group position={[0, DECK.y, DECK.z]} rotation={[DECK.tilt, 0, 0]}>
-        {box('deck', [0, -0.085, 0], [1.53, 0.16, 0.59], resources.black, 0.045)}
-        {box('deck-face', [0, -0.17, 0.29], [1.5, 0.14, 0.07], resources.body)}
-        {box('deck-trim', [0, -0.14, 0.325], [1.49, 0.025, 0.025], resources.edge, 0.008)}
-        <mesh position={[0, 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        {box('deck', [0, -0.052, 0], [1.53, 0.1, 0.59], resources.black, 0.022)}
+        {box('deck-face', [0, -0.105, 0.29], [1.5, 0.085, 0.065], resources.body, 0.012)}
+        {box('deck-trim', [0, -0.073, 0.325], [1.49, 0.012, 0.018], resources.edge, 0.004)}
+        <mesh position={[0, 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <planeGeometry args={[1.39, 0.47]} />
-          <meshStandardMaterial color={project.cabinetColor} metalness={0.45} roughness={0.28} />
+          <meshStandardMaterial map={resources.deckArt} metalness={0} roughness={0.64} />
         </mesh>
         {[-0.67, 0.67].flatMap((x) =>
           [-0.2, 0.2].map((z) => (
-            <mesh key={`${x}-${z}`} position={[x, 0.012, z]}>
-              <cylinderGeometry args={[0.016, 0.016, 0.01, 12]} />
+            <mesh key={`${x}-${z}`} position={[x, 0.008, z]}>
+              <cylinderGeometry args={[0.009, 0.009, 0.004, 8]} />
               <primitive object={resources.metal} attach="material" />
             </mesh>
           )),
         )}
-        {project.id !== 'shoreline' && (
-          <group
-            position={[-0.44, 0.017, 0.055]}
-            rotation={[
-              active ? (held.includes('down') ? 0.16 : held.includes('up') ? -0.16 : 0) : 0,
-              0,
-              active ? (held.includes('left') ? 0.18 : held.includes('right') ? -0.18 : 0) : 0,
+        {resources.joystick && (
+          <primitive
+            object={resources.joystick.root}
+            position={[
+              controlLayout.joystick.x,
+              controlLayout.joystick.y,
+              controlLayout.joystick.z,
             ]}
-          >
-            <mesh>
-              <cylinderGeometry args={[0.105, 0.112, 0.024, 32]} />
-              <primitive object={resources.black} attach="material" />
-            </mesh>
-            <mesh position={[0, 0.065, 0]}>
-              <cylinderGeometry args={[0.022, 0.022, 0.13, 20]} />
-              <primitive object={resources.metal} attach="material" />
-            </mesh>
-            <mesh
-              position={[0, 0.15, 0]}
-              castShadow
-              onPointerDown={(e) => {
-                e.stopPropagation();
-                if (!active || !playing) {
-                  onSelect(index);
-                  return;
-                }
-                if (!controlsEnabled) return;
-                grip.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
-                capturedControls.current.set(e.pointerId, 'stick');
-                (
-                  e.target as unknown as { setPointerCapture: (id: number) => void }
-                ).setPointerCapture(e.pointerId);
-              }}
-              onPointerMove={(e) => {
-                if (!controlsEnabled || !grip.current || grip.current.pointerId !== e.pointerId)
-                  return;
-                e.stopPropagation();
-                const dx = e.clientX - grip.current.x;
-                const dy = e.clientY - grip.current.y;
-                input.set('left', dx < -8);
-                input.set('right', dx > 8);
-                input.set('up', dy < -8);
-                input.set('down', dy > 8);
-              }}
-              onPointerUp={releaseStick}
-            >
-              <sphereGeometry args={[0.062, 32, 24]} />
-              <meshPhysicalMaterial
-                color={project.accent}
-                roughness={0.24}
-                clearcoat={1}
-                clearcoatRoughness={0.16}
-              />
-            </mesh>
-          </group>
+            onPointerDown={(e: ThreeEvent<PointerEvent>) => {
+              if (!resources.joystick?.isGrip(e.object)) return;
+              e.stopPropagation();
+              if (!active || !playing) {
+                onSelect(index);
+                return;
+              }
+              if (!controlsEnabled) return;
+              grip.current = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
+              capturedControls.current.set(e.pointerId, 'stick');
+              (
+                e.target as unknown as { setPointerCapture: (id: number) => void }
+              ).setPointerCapture(e.pointerId);
+            }}
+            onPointerMove={(e: ThreeEvent<PointerEvent>) => {
+              if (!controlsEnabled || !grip.current || grip.current.pointerId !== e.pointerId)
+                return;
+              e.stopPropagation();
+              const dx = e.clientX - grip.current.x,
+                dy = e.clientY - grip.current.y;
+              moveCabinetJoystick(input, project.id, dx, dy);
+            }}
+            onPointerUp={(e: ThreeEvent<PointerEvent>) => {
+              if (grip.current) releaseStick(e);
+            }}
+          />
         )}
-        {project.controls.map((control, j) => {
-          const arrows = project.id === 'shoreline';
-          const x = arrows
-            ? control.action === 'left'
-              ? -0.245
-              : control.action === 'right'
-                ? 0.245
-                : 0
-            : 0.27 + j * 0.25;
-          const z = arrows ? (control.action === 'up' ? -0.11 : 0.085) : 0.06 - j * 0.055;
+        {physicalActions(project).map((control, j) => {
+          const { x, z } = controlLayout.buttons[j];
           const depressed = active && held.includes(control.action);
           return (
-            <group key={control.action} position={[x, 0.017, z]}>
-              <mesh>
-                {arrows ? (
-                  <boxGeometry args={[0.222, 0.022, 0.166]} />
-                ) : (
-                  <cylinderGeometry args={[0.11, 0.116, 0.022, 40]} />
-                )}
+            <group key={control.action} position={[x, controlLayout.button.mount, z]}>
+              <mesh position={[0, 0.002, 0]}>
+                <cylinderGeometry args={[0.031, 0.032, 0.004, 24]} />
                 <primitive object={resources.metal} attach="material" />
               </mesh>
               <mesh
-                position={[0, depressed ? 0.022 : 0.042, 0]}
+                position={[
+                  0,
+                  depressed ? controlLayout.button.pressed : controlLayout.button.rest,
+                  0,
+                ]}
                 castShadow
                 onPointerDown={(e) => press(control.action, e)}
                 onPointerUp={(e) => release(control.action, e)}
               >
-                {arrows ? (
-                  <primitive object={resources.keyCap} attach="geometry" />
-                ) : (
-                  <cylinderGeometry args={[0.097, 0.104, 0.05, 40]} />
-                )}
+                <cylinderGeometry
+                  args={[controlLayout.button.radius, 0.026, controlLayout.button.height, 24]}
+                />
                 <meshPhysicalMaterial
-                  color={arrows || j === 0 ? project.accent : '#edf0e7'}
+                  color={
+                    project.id === 'shoreline'
+                      ? j === 0
+                        ? '#c5e7a6'
+                        : '#eba5bd'
+                      : j === 0
+                        ? project.accent
+                        : '#edf0e7'
+                  }
                   clearcoat={1}
                   roughness={0.24}
                   metalness={0.05}
                 />
                 <mesh
-                  position={[0, arrows ? 0.036 : 0.026, 0]}
+                  position={[0, 0.0036, 0]}
                   rotation={[-Math.PI / 2, 0, 0]}
                   onPointerDown={(e) => press(control.action, e)}
                   onPointerUp={(e) => release(control.action, e)}
                 >
-                  <planeGeometry args={arrows ? [0.185, 0.142] : [0.18, 0.18]} />
+                  <circleGeometry args={[0.0235, 24]} />
                   <meshBasicMaterial
                     map={resources.controlMaps[j]}
                     transparent
@@ -793,6 +791,7 @@ function Cabinet({
                     depthWrite={false}
                   />
                 </mesh>
+                <mesh geometry={resources.buttonHit} material={resources.hitMaterial} />
               </mesh>
             </group>
           );
@@ -834,35 +833,41 @@ function Cabinet({
           </group>
         )}
       </group>
-      {box('coin-door', [-0.27, 0.69, 0.553], [0.42, 0.49, 0.035], resources.black, 0.015)}
-      {box('slot-metal', [-0.27, 0.84, 0.58], [0.21, 0.075, 0.02], resources.metal, 0.007)}
-      {box('slot', [-0.27, 0.84, 0.594], [0.15, 0.015, 0.012], resources.black, 0.002)}
-      <mesh position={[-0.27, 0.67, 0.582]}>
-        <planeGeometry args={[0.17, 0.105]} />
-        <meshStandardMaterial
-          color="#e78d50"
-          emissive="#f78e36"
-          emissiveIntensity={0.4}
-          roughness={0.22}
-        />
-      </mesh>
-      <mesh position={[-0.27, 0.53, 0.582]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.026, 0.026, 0.02, 20]} />
-        <primitive object={resources.metal} attach="material" />
-      </mesh>
-      {Array.from({ length: 7 }, (_, i) =>
-        box(
-          `vent-${i}`,
-          [0.33, 0.91 - i * 0.047, 0.55],
-          [0.35, 0.015, 0.012],
-          resources.black,
-          0.004,
-        ),
+      {project.id === 'shoreline' ? (
+        <ResumeCabinetFinish />
+      ) : (
+        <>
+          {box('coin-door', [-0.27, 0.69, 0.553], [0.42, 0.49, 0.035], resources.black, 0.015)}
+          {box('slot-metal', [-0.27, 0.84, 0.58], [0.21, 0.075, 0.02], resources.metal, 0.007)}
+          {box('slot', [-0.27, 0.84, 0.594], [0.15, 0.015, 0.012], resources.black, 0.002)}
+          <mesh position={[-0.27, 0.67, 0.582]}>
+            <planeGeometry args={[0.17, 0.105]} />
+            <meshStandardMaterial
+              color="#e78d50"
+              emissive="#f78e36"
+              emissiveIntensity={0.4}
+              roughness={0.22}
+            />
+          </mesh>
+          <mesh position={[-0.27, 0.53, 0.582]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.026, 0.026, 0.02, 20]} />
+            <primitive object={resources.metal} attach="material" />
+          </mesh>
+          {Array.from({ length: 7 }, (_, i) =>
+            box(
+              `vent-${i}`,
+              [0.33, 0.91 - i * 0.047, 0.55],
+              [0.35, 0.015, 0.012],
+              resources.black,
+              0.004,
+            ),
+          )}
+          <mesh position={[0.31, 0.36, 0.548]}>
+            <planeGeometry args={[0.38, 0.095]} />
+            <meshStandardMaterial map={resources.badge} roughness={0.6} />
+          </mesh>
+        </>
       )}
-      <mesh position={[0.31, 0.36, 0.548]}>
-        <planeGeometry args={[0.38, 0.095]} />
-        <meshStandardMaterial map={resources.badge} roughness={0.6} />
-      </mesh>
       <mesh position={[0.65, 2.62, 0.43]}>
         <sphereGeometry args={[0.012, 12, 8]} />
         <meshBasicMaterial color={project.accent} />
