@@ -187,12 +187,21 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
   const [showUpgrades, setShowUpgrades] = useState(false);
   const [compact, setCompact] = useState(false);
   const gameElement = useRef<HTMLDivElement>(null);
+  const resultAction = useRef<HTMLButtonElement>(null);
+  const upgradeClose = useRef<HTMLButtonElement>(null);
   const stateRef = useRef(state);
   const position = useRef({ ...START, facing: 0 });
   const menuRef = useRef(false);
   const activeRef = useRef(active);
   const route = useRef<{ points: Point[]; station?: WarehouseStation } | null>(null);
   activeRef.current = active;
+
+  useEffect(() => {
+    if (!active) return;
+    if (showUpgrades) upgradeClose.current?.focus({ preventScroll: true });
+    else if (state.status !== 'working') resultAction.current?.focus({ preventScroll: true });
+    else gameElement.current?.closest<HTMLElement>('.arcade-room')?.focus({ preventScroll: true });
+  }, [state.status, showUpgrades, active]);
 
   useEffect(() => {
     const element = gameElement.current;
@@ -796,7 +805,11 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
                   Shop upgrades
                 </button>
               )}
-              <button onClick={state.status === 'failed' ? reset : continueDay} disabled={!active}>
+              <button
+                ref={resultAction}
+                onClick={state.status === 'failed' ? reset : continueDay}
+                disabled={!active}
+              >
                 {state.status === 'failed' ? 'Try again · Day 1' : `Start day ${state.day + 1}`}
               </button>
             </div>
@@ -816,7 +829,7 @@ export default function WarehouseShift({ input, active }: { input: ArcadeInput; 
                 <span>BETWEEN DAYS / UPGRADES SAVED</span>
                 <h3>Better tools. Bigger loads.</h3>
               </div>
-              <button onClick={toggleUpgrades} aria-label="Close upgrades">
+              <button ref={upgradeClose} onClick={toggleUpgrades} aria-label="Close upgrades">
                 ×
               </button>
             </div>

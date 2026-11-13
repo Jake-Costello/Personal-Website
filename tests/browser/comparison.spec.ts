@@ -274,3 +274,33 @@ test('malformed comparison and unknown explanation citations are rejected', asyn
   );
   await expect(page.locator('.protein-explanation-copy')).toHaveCount(0);
 });
+
+test('optional AI status cannot hold a completed comparison busy', async ({ page }) => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/api/ai/status', async (route) => {
+    await gate;
+    await route.fulfill({ json: { enabled: false } });
+  });
+  try {
+    await loadComparison(page);
+    await expect(page.getByRole('button', { name: 'Compare species', exact: true })).toBeEnabled();
+    await expect(page.locator('.protein-comparison-status')).toContainText('comparison ready');
+    await expect(
+      page.getByRole('button', { name: 'Explain this network', exact: true }),
+    ).toBeDisabled();
+  } finally {
+    release();
+  }
+});
+
+test('AI status timeout leaves measured comparison ready', async ({ page }) => {
+  await page.clock.install();
+  await page.route('**/api/ai/status', () => new Promise(() => {}));
+  await loadComparison(page);
+  await page.clock.fastForward(6000);
+  await expect(page.getByRole('button', { name: 'Compare species', exact: true })).toBeEnabled();
+  await expect(page.locator('.protein-ai-availability')).toContainText('could not be checked');
+});

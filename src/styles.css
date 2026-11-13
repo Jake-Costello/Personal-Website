@@ -20,6 +20,9 @@ html {
   scroll-behavior: smooth;
   scroll-padding-top: 100px;
 }
+html:has(.project-dialog[open]) {
+  scrollbar-gutter: stable;
+}
 body {
   margin: 0;
 }
@@ -758,6 +761,7 @@ article[id] {
   text-decoration: underline;
 }
 .project-dialog {
+  overscroll-behavior: contain;
   background: var(--paper);
   color: var(--ink);
   border: 1px solid var(--ink);

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { parseAiStatus, parseComparison, parseExplanation, rankSpecies } from '../lib/comparison';
 import type { NetworkExplanation, ProteinComparisonData } from '../lib/comparison';
 import { trackEvent } from '../lib/analytics';
+import { readBoundedText } from '../lib/boundedResponse';
 import './protein-comparison.css';
 
 interface Props {
@@ -11,8 +12,7 @@ interface Props {
 }
 
 async function boundedJson(response: Response): Promise<unknown> {
-  const body = await response.text();
-  if (body.length > 256_000) throw new Error('The response was too large. Please try again.');
+  const body = await readBoundedText(response, 256_000);
   try {
     return JSON.parse(body);
   } catch {
@@ -53,12 +53,15 @@ export default function ProteinComparison({ apiBase, query, disabled }: Props) {
   const [phase, setPhase] = useState<'comparison' | 'explanation' | null>(null);
   const [error, setError] = useState('');
   const request = useRef<AbortController | null>(null);
+  const statusRequest = useRef<AbortController | null>(null);
   const sequence = useRef(0);
   const unavailable = disabled || !query || !apiBase;
 
   function clearResults() {
     ++sequence.current;
     request.current?.abort();
+    statusRequest.current?.abort();
+    statusRequest.current = null;
     request.current = null;
     setComparison(null);
     setExplanation(null);
@@ -72,6 +75,7 @@ export default function ProteinComparison({ apiBase, query, disabled }: Props) {
     return () => {
       ++sequence.current;
       request.current?.abort();
+      statusRequest.current?.abort();
     };
   }, [disabled]);
 
@@ -91,14 +95,22 @@ export default function ProteinComparison({ apiBase, query, disabled }: Props) {
     }, 40_000);
     setPhase('comparison');
     const stillCurrent = () => current === sequence.current && !controller.signal.aborted;
-    const statusRequest = fetch(`${apiBase}/api/ai/status`, { signal: controller.signal })
+    const statusController = new AbortController();
+    statusRequest.current = statusController;
+    const statusTimer = window.setTimeout(() => statusController.abort(), 5000);
+    void fetch(`${apiBase}/api/ai/status`, { signal: statusController.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error('AI status unavailable');
         const enabled = parseAiStatus(await boundedJson(response));
-        if (stillCurrent()) setAvailability(enabled ? 'enabled' : 'disabled');
+        if (current === sequence.current && !statusController.signal.aborted)
+          setAvailability(enabled ? 'enabled' : 'disabled');
       })
       .catch(() => {
-        if (stillCurrent()) setAvailability('error');
+        if (current === sequence.current) setAvailability('error');
+      })
+      .finally(() => {
+        window.clearTimeout(statusTimer);
+        if (statusRequest.current === statusController) statusRequest.current = null;
       });
     try {
       const params = new URLSearchParams({ protein });
@@ -108,7 +120,6 @@ export default function ProteinComparison({ apiBase, query, disabled }: Props) {
       if (!response.ok) throw new Error(failureMessage(response.status, false));
       const result = parseComparison(await boundedJson(response), protein);
       if (stillCurrent()) setComparison(result);
-      await statusRequest;
     } catch (failure) {
       if (current !== sequence.current || (controller.signal.aborted && !timedOut)) return;
       setError(
@@ -124,7 +135,6 @@ export default function ProteinComparison({ apiBase, query, disabled }: Props) {
       if (current === sequence.current) {
         setPhase(null);
         request.current = null;
-        setAvailability((previous) => (previous === 'unknown' ? 'error' : previous));
       }
     }
   }

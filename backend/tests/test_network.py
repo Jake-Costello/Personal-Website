@@ -357,5 +357,50 @@ class NetworkRequestLimiterTests(unittest.TestCase):
         self.assertEqual(limiter.try_acquire(), 60)
 
 
+class StringResponseBoundsTests(unittest.IsolatedAsyncioTestCase):
+    async def test_chunked_response_stops_reading_at_size_bound_and_closes(self):
+        class Chunks(httpx.AsyncByteStream):
+            consumed = 0
+            closed = False
+            async def __aiter__(self):
+                for _ in range(64):
+                    self.consumed += 65_536
+                    yield b' ' * 65_536
+            async def aclose(self):
+                self.closed = True
+        stream = Chunks()
+        transport = httpx.MockTransport(lambda request: httpx.Response(200, stream=stream))
+        async with httpx.AsyncClient(transport=transport) as client:
+            with self.assertRaisesRegex(ValueError, 'too large'):
+                await api_module.string_request(client, 'network', {})
+        self.assertLessEqual(stream.consumed, 2_000_000 + 65_536)
+        self.assertTrue(stream.closed)
+
+    async def test_oversized_content_length_rejected_before_reading(self):
+        class NeverRead(httpx.AsyncByteStream):
+            async def __aiter__(self):
+                raise AssertionError('Oversized declared body must not be read')
+                yield b''
+        transport = httpx.MockTransport(lambda request: httpx.Response(
+            200, headers={'Content-Length': '4000000'}, stream=NeverRead()))
+        async with httpx.AsyncClient(transport=transport) as client:
+            with self.assertRaisesRegex(ValueError, 'too large'):
+                await api_module.string_request(client, 'network', {})
+
+    async def test_compressed_size_limit_uses_decoded_bytes_and_valid_json_still_works(self):
+        import gzip
+        for content, headers, oversized in [
+            (gzip.compress(b' ' * 3_000_000), {'Content-Encoding': 'gzip'}, True),
+            (b'[{"score":0.9}]', {}, False),
+        ]:
+            transport = httpx.MockTransport(lambda request: httpx.Response(200, content=content, headers=headers))
+            async with httpx.AsyncClient(transport=transport) as client:
+                if oversized:
+                    with self.assertRaisesRegex(ValueError, 'too large'):
+                        await api_module.string_request(client, 'network', {})
+                else:
+                    self.assertEqual(await api_module.string_request(client, 'network', {}), [{'score': 0.9}])
+
+
 if __name__ == "__main__":
     unittest.main()
