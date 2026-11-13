@@ -737,7 +737,7 @@ function Cabinet({
               moveCabinetJoystick(input, project.id, dx, dy);
             }}
             onPointerUp={(e: ThreeEvent<PointerEvent>) => {
-              if (grip.current) releaseStick(e);
+              if (grip.current?.pointerId === e.pointerId) releaseStick(e);
             }}
           />
         )}

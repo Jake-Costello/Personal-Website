@@ -71,7 +71,7 @@ async function point(control: Locator, id = 1) {
 
 async function touch(
   session: CDPSession,
-  type: 'touchStart' | 'touchEnd' | 'touchCancel',
+  type: 'touchStart' | 'touchMove' | 'touchEnd' | 'touchCancel',
   touchPoints: { id: number; x: number; y: number }[],
 ) {
   await session.send('Input.dispatchTouchEvent', { type, touchPoints });
@@ -904,7 +904,23 @@ test('physical steering and round action buttons support three touches without r
     await page.waitForTimeout(400);
     await touch(session, 'touchStart', [riding, pump, jump]);
     await expect(page.locator('.shoreline-game')).toHaveAttribute('data-jumps', '1');
-    await touch(session, 'touchEnd', [pump, jump]);
+    // Releasing an action finger must not release a separately captured stick.
+    await touch(session, 'touchEnd', [jump]);
+    await expect(panel.getByRole('button', { name: 'Move right', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(panel.getByRole('button', { name: 'Pump', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await touch(session, 'touchStart', [riding, pump, jump]);
+    await expect(panel.getByRole('button', { name: 'Jump', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    // CDP touchEnd lists the lifted fingers, not the remaining active touches.
+    await touch(session, 'touchEnd', [riding]);
     await expect(panel.getByRole('button', { name: 'Move right', exact: true })).toHaveAttribute(
       'aria-pressed',
       'false',
@@ -917,7 +933,7 @@ test('physical steering and round action buttons support three touches without r
       'aria-pressed',
       'true',
     );
-    await touch(session, 'touchEnd', [pump]);
+    await touch(session, 'touchEnd', [jump]);
     await expect(panel.getByRole('button', { name: 'Jump', exact: true })).toHaveAttribute(
       'aria-pressed',
       'false',
