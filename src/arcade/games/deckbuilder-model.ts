@@ -273,7 +273,7 @@ function finishEncounter(s: Run) {
   if (ENCOUNTERS[s.floor].boss) {
     s.phase = 'relic';
     s.hp = Math.min(s.maxHp, s.hp + 20);
-    note(s, 'Boss defeated. Recover 20 HP and choose a relic.');
+    note(s, 'Boss defeated. Recover up to 20 HP and choose a relic.');
     return;
   }
   s.phase = 'reward';

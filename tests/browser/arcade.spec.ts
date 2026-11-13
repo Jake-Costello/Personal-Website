@@ -115,7 +115,9 @@ test('the arcade loads and reloads three 3D machines with Sketch hidden and no A
     ).toHaveCount(0);
     await expectSelected(page, 'Resume Run');
     await expect(
-      page.locator('.protein-explorer, .shoreline-game, .sr-game, [data-game="warehouse-shift"]'),
+      page.locator(
+        '.protein-explorer, .shoreline-game, .sr-game, .db-game, [data-game="warehouse-shift"]',
+      ),
     ).toHaveCount(0);
   }
   expect(dataRequests).toEqual([]);

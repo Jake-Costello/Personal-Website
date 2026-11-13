@@ -121,7 +121,6 @@ function ProjectArt({ kind }: { kind: string }) {
           REVISION
           <br />
           <span>MARINE</span>
-          <i>↗</i>
         </span>
         <svg className="revision-water" viewBox="0 0 500 80">
           <path
@@ -540,7 +539,7 @@ function App() {
                 aria-label="A few experiments worth playing. Enter the arcade"
               >
                 <div className="project-art arcade-art" aria-hidden="true">
-                  <span className="art-corner">PROJECT ARCADE / PLAY, MAKE, REPEAT</span>
+                  <span className="art-corner">PROJECT ARCADE</span>
                   <span className="arcade-art-title">
                     A few experiments worth <em>playing.</em>
                   </span>

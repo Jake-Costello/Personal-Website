@@ -3,13 +3,14 @@ import type { Page } from '@playwright/test';
 import { CARDS } from '../../src/arcade/games/deckbuilder-model';
 import { installProteinApi } from './protein-fixtures';
 
-async function enter(page: Page) {
+async function enter(page: Page, beforeEnter?: () => void) {
   await page.goto('/arcade/?game=deckbuilder');
   await expect(page.locator('.arcade-page')).toHaveAttribute(
     'data-renderer',
     /^(three|fallback)$/,
     { timeout: 30000 },
   );
+  beforeEnter?.();
   if ((await page.locator('.arcade-page').getAttribute('data-renderer')) === 'fallback')
     await page.locator('.arcade-fallback-machines > button').filter({ hasText: 'Encore' }).click();
   else await page.getByRole('button', { name: 'Play Encore', exact: true }).click();
@@ -40,7 +41,17 @@ test('Encore cabinet plays cards, pauses, accepts physical controls and resets w
   page.on('request', (r) => {
     if (/\/api\/|api\.openai\.com|spotify\.com/.test(r.url())) external.push(r.url());
   });
-  await enter(page);
+  const gameRequests: string[] = [];
+  page.on('request', (request) => {
+    if (
+      /\/(?:src\/arcade\/games\/DeckbuilderGame\.tsx|assets\/DeckbuilderGame-[^/]+\.js)/.test(
+        request.url(),
+      )
+    )
+      gameRequests.push(request.url());
+  });
+  await enter(page, () => expect(gameRequests).toEqual([]));
+  expect(gameRequests).toHaveLength(1);
   const game = page.locator('.db-game');
   await expect(game).toHaveAttribute('data-phase', 'map');
   await expect(

@@ -122,9 +122,7 @@ test('every chapter is reachable without playing and appears in the readable tim
   }
   await page.getByRole('button', { name: 'Read as a timeline ↗' }).click();
   await expect(page.locator('.journey-overview > li')).toHaveCount(experience.length);
-  await expect(
-    page.getByRole('heading', { name: 'Good code starts with a real problem.' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Machine utilization at CRT.' })).toBeVisible();
   await expect(
     page.getByRole('heading', { name: 'An old payphone. Some new possibilities.' }),
   ).toBeVisible();
@@ -507,8 +505,8 @@ test('full screen preserves the chapter, focuses the ride, and offers an exit', 
 test('project details are accessible and the dialog closes with Escape', async ({ page }) => {
   await page.goto('/#work');
   await expect(page.locator('#work .project-card')).toHaveCount(4);
-  await expect(page.locator('#project-payphone')).toHaveCount(0);
-  await expect(page.locator('#work')).not.toContainText(/payphone/i);
+  await expect(page.locator('#project-payphone')).toHaveCount(1);
+  await expect(page.locator('#project-payphone')).toContainText('The Union Payphone');
   await page.getByRole('button', { name: 'Read about Revision Marine' }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();

@@ -381,10 +381,7 @@ export default function DeckbuilderGame({
                 </ol>
                 {run.floor === 0 ? (
                   <>
-                    <p>
-                      Play riffs, spend beats and block the next attack. Beat each world boss to
-                      earn a relic, then play the final set.
-                    </p>
+                    <p>Spend beats to play cards. Block the enemy’s next attack.</p>
                     <div className="db-seed">
                       <label>
                         Run seed{' '}
