@@ -17,9 +17,11 @@
   box-sizing: border-box;
 }
 html {
-  scrollbar-gutter: stable;
   scroll-behavior: smooth;
   scroll-padding-top: 100px;
+}
+html:has(.project-dialog[open]) {
+  scrollbar-gutter: stable;
 }
 body {
   margin: 0;

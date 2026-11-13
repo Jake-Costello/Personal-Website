@@ -80,7 +80,9 @@ test('project dialog contains scrolling and restores page scrolling on close', a
   page,
 }, testInfo) => {
   await page.goto('/#work');
+  await expect(page.locator('html')).toHaveCSS('scrollbar-gutter', 'auto');
   await page.getByRole('button', { name: 'Read about Revision Marine' }).click();
+  await expect(page.locator('html')).toHaveCSS('scrollbar-gutter', 'stable');
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await expect
@@ -98,6 +100,7 @@ test('project dialog contains scrolling and restores page scrolling on close', a
   await page.screenshot({ path: testInfo.outputPath('contained-dialog.png') });
   await page.keyboard.press('Escape');
   await expect.poll(() => page.evaluate(() => document.documentElement.style.overflow)).toBe('');
+  await expect(page.locator('html')).toHaveCSS('scrollbar-gutter', 'auto');
   await page.mouse.wheel(0, 400);
   await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(before);
 });
