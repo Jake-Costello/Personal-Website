@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { CDPSession, Locator, Page } from '@playwright/test';
 import { installProteinApi } from './protein-fixtures';
 import { arcadeProjects } from '../../src/arcade/projects';
-import { checkPhysicalButtonCaps } from './arcade-control-checks';
+import { checkPhysicalButtonCaps, deckProjector } from './arcade-control-checks';
 
 const machines = ['Resume Run', 'Sketch-to-Ride', 'Warehouse Warrior'] as const;
 const gameIds = ['shoreline', 'sketch', 'warehouse'] as const;
@@ -71,7 +71,7 @@ async function point(control: Locator, id = 1) {
 
 async function touch(
   session: CDPSession,
-  type: 'touchStart' | 'touchEnd' | 'touchCancel',
+  type: 'touchStart' | 'touchMove' | 'touchEnd' | 'touchCancel',
   touchPoints: { id: number; x: number; y: number }[],
 ) {
   await session.send('Input.dispatchTouchEvent', { type, touchPoints });
@@ -823,3 +823,131 @@ for (const [title, module] of [
     await play(page, title);
   });
 }
+
+test('the smaller physical joystick drags, captures outside its grip, and releases on mouse up or touch cancel', async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(90000);
+  await page.goto('/arcade/');
+  await play(page, 'Warehouse Warrior');
+  const project = await deckProjector(page);
+  const knob = project(-0.22, 0.083, 0.035);
+  const panel = controls(page);
+  const right = panel.getByRole('button', { name: 'Move right', exact: true });
+  await page.mouse.move(knob.x, knob.y);
+  await page.mouse.down();
+  await page.mouse.move(knob.x + 34, knob.y, { steps: 4 });
+  await expect(right).toHaveAttribute('aria-pressed', 'true');
+  await page.screenshot({ path: testInfo.outputPath('joystick-tilted.png') });
+  await page.mouse.up();
+  await expect(right).toHaveAttribute('aria-pressed', 'false');
+  const session = await page.context().newCDPSession(page);
+  try {
+    await session.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ id: 11, ...knob }],
+    });
+    await session.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [{ id: 11, x: knob.x + 28, y: knob.y - 28 }],
+    });
+    await expect(right).toHaveAttribute('aria-pressed', 'true');
+    await expect(panel.getByRole('button', { name: 'Move up', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await session.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+    for (const name of ['Move up', 'Move down', 'Move left', 'Move right'])
+      await expect(panel.getByRole('button', { name, exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'false',
+      );
+  } finally {
+    await session.detach();
+  }
+});
+
+test('the round Pump and Jump buttons keep their whole physical tops usable', async ({ page }) => {
+  test.setTimeout(120000);
+  await page.goto('/arcade/');
+  await play(page, 'Resume Run');
+  await checkPhysicalButtonCaps(page, 'shoreline');
+});
+test('physical steering and round action buttons support three touches without releasing each other', async ({
+  page,
+}) => {
+  test.setTimeout(90000);
+  await page.goto('/arcade/');
+  await play(page, 'Resume Run');
+  const project = await deckProjector(page);
+  const stick = { id: 1, ...project(-0.22, 0.083, 0.035) },
+    pump = { id: 2, ...project(0.15, 0.0156, -0.035) },
+    jump = { id: 3, ...project(0.225, 0.0156, -0.085) };
+  const riding = { ...stick, x: stick.x + 28 };
+  const panel = controls(page);
+  const session = await page.context().newCDPSession(page);
+  try {
+    await touch(session, 'touchStart', [stick]);
+    await touch(session, 'touchMove', [riding]);
+    await expect(panel.getByRole('button', { name: 'Move right', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect
+      .poll(() => numeric(page.locator('.shoreline-game'), 'data-position'))
+      .toBeGreaterThan(35);
+    await touch(session, 'touchStart', [riding, pump]);
+    await expect(panel.getByRole('button', { name: 'Pump', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await page.waitForTimeout(400);
+    await touch(session, 'touchStart', [riding, pump, jump]);
+    await expect(page.locator('.shoreline-game')).toHaveAttribute('data-jumps', '1');
+    // Releasing an action finger must not release a separately captured stick.
+    await touch(session, 'touchEnd', [jump]);
+    await expect(panel.getByRole('button', { name: 'Move right', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(panel.getByRole('button', { name: 'Pump', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await touch(session, 'touchStart', [riding, pump, jump]);
+    await expect(panel.getByRole('button', { name: 'Jump', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    // CDP touchEnd lists the lifted fingers, not the remaining active touches.
+    await touch(session, 'touchEnd', [riding]);
+    await expect(panel.getByRole('button', { name: 'Move right', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    await expect(panel.getByRole('button', { name: 'Pump', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(panel.getByRole('button', { name: 'Jump', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await touch(session, 'touchEnd', [jump]);
+    await expect(panel.getByRole('button', { name: 'Jump', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    await expect(panel.getByRole('button', { name: 'Pump', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await touch(session, 'touchCancel', []);
+    await expect(panel.getByRole('button', { name: 'Pump', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  } finally {
+    await session.detach();
+  }
+});
