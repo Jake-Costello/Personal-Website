@@ -541,3 +541,46 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+.db-card-art {
+  display: block;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+}
+@container (max-width:550px) {
+  .db-card-art {
+    display: none;
+  }
+}
+
+.db-panel {
+  justify-content: flex-start;
+}
+.db-panel > * {
+  flex-shrink: 0;
+}
+.db-game {
+  overscroll-behavior: contain;
+}
+
+.db-map {
+  overflow: hidden;
+}
+.db-map-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  flex-shrink: 1 !important;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.db-map-content > * {
+  flex-shrink: 0;
+}
+.db-map-content:focus-visible {
+  outline: 2px solid #e1b6a2;
+  outline-offset: 2px;
+}

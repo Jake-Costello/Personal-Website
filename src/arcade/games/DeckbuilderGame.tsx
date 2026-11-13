@@ -27,6 +27,37 @@ function confirm(run: Run, cursor: number, skip = false, seed = run.seed): Run {
   if (run.phase === 'relic') return skip ? run : chooseRelic(run, relicKeys[Math.min(cursor, 2)]);
   return run;
 }
+function CardMark({ kind }: { kind: 'attack' | 'block' | 'utility' }) {
+  return (
+    <svg
+      className="db-card-art"
+      viewBox="0 0 64 64"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {kind === 'attack' ? (
+        <>
+          <path d="M36 27 49 9l7 5-14 17M47 12l6 4M25 27c-8-5-17 2-15 11-8 8-1 21 10 18 10 2 18-7 14-15 8-2 10-10 3-14-3 5-7 6-12 0Z" />
+          <path d="m22 44 28-30M18 48l8 5M19 37l5 4" />
+        </>
+      ) : kind === 'block' ? (
+        <>
+          <ellipse cx="32" cy="30" rx="23" ry="8" />
+          <path d="M9 30v17c0 11 46 11 46 0V30M18 37v14m14-12v16m14-18v14M15 7l30 16M49 6 23 24" />
+        </>
+      ) : (
+        <>
+          <rect x="25" y="8" width="29" height="47" rx="3" />
+          <path d="M31 14h17v11H31zM32 32h2m7 0h2m-11 7h2m7 0h2m-11 7h2m7 0h2M17 14c-10 5-10 24 0 30l4-8-6-4v-6l6-4Z M17 45c-10 18 15 3 14 15" />
+        </>
+      )}
+    </svg>
+  );
+}
 export default function DeckbuilderGame({
   input,
   active,
@@ -154,7 +185,7 @@ export default function DeckbuilderGame({
                   Beats <b>{run.energy}</b>
                 </>
               ) : (
-                `${Math.min(run.floor, 9)}/10 battles`
+                `${Math.min(10, run.floor + (['reward', 'relic', 'won'].includes(run.phase) ? 1 : 0))}/10 battles`
               )}
             </span>
             {run.relics.length > 0 && (
@@ -214,11 +245,18 @@ export default function DeckbuilderGame({
                     >
                       <span className="db-card-cost">{card.cost}</span>
                       <b>{card.name}</b>
-                      <span className="db-card-art" aria-hidden="true">
-                        {card.effect.damage ? '↗' : card.effect.block ? '◇' : '✦'}
-                      </span>
+                      <CardMark
+                        kind={
+                          card.effect.damage ? 'attack' : card.effect.block ? 'block' : 'utility'
+                        }
+                      />
                       <strong>{card.mark}</strong>
-                      <span className="db-card-text">{card.text}</span>
+                      {card.effect.weaken && (
+                        <span className="db-card-text">Next attack deals 3 less.</span>
+                      )}
+                      {card.effect.strength && (
+                        <span className="db-card-text">For this battle.</span>
+                      )}
                       {card.exhaust && <small>Exhaust</small>}
                     </button>
                   );
@@ -296,61 +334,86 @@ export default function DeckbuilderGame({
             </div>
           ) : (
             <div className="db-panel db-map">
-              <h2 ref={heading} tabIndex={-1}>
-                {run.floor === 0
-                  ? 'Three venues. Four bosses.'
-                  : battle.final
-                    ? 'The final battle'
-                    : battle.name}
-              </h2>
-              <ol className="db-route" aria-label="Run route">
-                {ENCOUNTERS.map((e, i) => (
-                  <li
-                    key={i}
-                    aria-current={i === run.floor ? 'step' : undefined}
-                    data-cleared={i < run.floor}
-                    data-boss={e.boss}
-                    title={e.name}
-                  >
-                    <span>{i < run.floor ? '✓' : e.final ? 'IV' : e.boss ? 'B' : '·'}</span>
-                    <span className="arcade-sr-only">{e.name}</span>
-                  </li>
-                ))}
-              </ol>
-              {run.floor === 0 ? (
-                <>
+              <div
+                className="db-map-content"
+                role="group"
+                aria-label="Run details"
+                tabIndex={0}
+                data-arcade-native
+              >
+                <h2 ref={heading} tabIndex={-1}>
+                  {run.floor === 0
+                    ? 'Three venues. Four bosses.'
+                    : battle.final
+                      ? 'The final battle'
+                      : battle.name}
+                </h2>
+                <ol className="db-route" aria-label="Run route">
+                  {ENCOUNTERS.map((e, i) => (
+                    <li
+                      key={i}
+                      aria-current={i === run.floor ? 'step' : undefined}
+                      data-cleared={i < run.floor}
+                      data-boss={e.boss}
+                      title={e.name}
+                    >
+                      <span>
+                        {i < run.floor ? (
+                          <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true">
+                            <path
+                              d="m3 10 4 4 10-10"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            />
+                          </svg>
+                        ) : e.final ? (
+                          'IV'
+                        ) : e.boss ? (
+                          'B'
+                        ) : (
+                          '·'
+                        )}
+                      </span>
+                      <span className="arcade-sr-only">{e.name}</span>
+                    </li>
+                  ))}
+                </ol>
+                {run.floor === 0 ? (
+                  <>
+                    <p>
+                      Play riffs, spend beats and block the next attack. Beat each world boss to
+                      earn a relic, then play the final set.
+                    </p>
+                    <div className="db-seed">
+                      <label>
+                        Run seed{' '}
+                        <input
+                          value={seed}
+                          maxLength={64}
+                          disabled={!active}
+                          onChange={(e) => setSeed(e.target.value)}
+                        />
+                      </label>
+                      <button disabled={!active} onClick={nextSeed}>
+                        New seed
+                      </button>
+                    </div>
+                    <p className="db-note">
+                      <a href={`${import.meta.env.BASE_URL}#project-payphone`}>
+                        Payphone senior project
+                      </a>{' '}
+                      · Runs are not saved when you leave.
+                    </p>
+                  </>
+                ) : (
                   <p>
-                    Play riffs, spend beats and block the next attack. Beat each world boss to earn
-                    a relic, then play the final set.
+                    {battle.final
+                      ? 'All three world bosses are down.'
+                      : 'Health, cards and relics carry into the next battle.'}
                   </p>
-                  <div className="db-seed">
-                    <label>
-                      Run seed{' '}
-                      <input
-                        value={seed}
-                        maxLength={64}
-                        disabled={!active}
-                        onChange={(e) => setSeed(e.target.value)}
-                      />
-                    </label>
-                    <button disabled={!active} onClick={nextSeed}>
-                      New seed
-                    </button>
-                  </div>
-                  <p className="db-note">
-                    <a href={`${import.meta.env.BASE_URL}#project-payphone`}>
-                      Payphone senior project ↗
-                    </a>{' '}
-                    · Runs are not saved when you leave.
-                  </p>
-                </>
-              ) : (
-                <p>
-                  {battle.final
-                    ? 'All three world bosses are down.'
-                    : 'Health, cards and relics carry into the next battle.'}
-                </p>
-              )}
+                )}
+              </div>
               <button
                 className="db-primary"
                 disabled={!active}

@@ -43,6 +43,12 @@ test('Encore cabinet plays cards, pauses, accepts physical controls and resets w
   await enter(page);
   const game = page.locator('.db-game');
   await expect(game).toHaveAttribute('data-phase', 'map');
+  await expect(
+    game.getByRole('heading', { name: 'Three venues. Four bosses.', exact: true }),
+  ).toBeInViewport({ ratio: 1 });
+  await expect(game.getByRole('button', { name: 'Start battle', exact: true })).toBeInViewport({
+    ratio: 1,
+  });
   await page.screenshot({ path: info.outputPath('encore-cabinet.png') });
   await game.getByRole('button', { name: 'Start battle', exact: true }).click();
   await expect(game).toHaveAttribute('data-phase', 'combat');
@@ -150,6 +156,7 @@ test('a complete Encore run crosses all three world bosses and the final boss wi
     }
   }
   await expect(game).toHaveAttribute('data-phase', 'won');
+  await expect(game.locator('.db-status')).toContainText('10/10 battles');
   expect([...visited]).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
   await expect(
     game.getByRole('heading', { name: 'Final boss defeated', exact: true }),

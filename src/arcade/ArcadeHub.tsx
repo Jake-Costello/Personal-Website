@@ -166,7 +166,11 @@ export default function ArcadeHub() {
         exit();
         return;
       }
-      if ((event.target as Element)?.closest('input, select, textarea, [contenteditable="true"]'))
+      if (
+        (event.target as Element)?.closest(
+          'input, select, textarea, [contenteditable="true"], [data-arcade-native]',
+        )
+      )
         return;
       if (event.key === ' ' && (event.target as Element)?.closest('button, a')) return;
       if (!playing) {
