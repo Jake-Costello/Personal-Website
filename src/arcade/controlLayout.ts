@@ -20,7 +20,7 @@ export function physicalActions(project: ArcadeProject) {
 const steering = ['left', 'right'] as const;
 const fourWay = ['left', 'right', 'up', 'down'] as const;
 export function joystickAxes(id: ArcadeProject['id']) {
-  return id === 'shoreline' ? steering : fourWay;
+  return id === 'shoreline' || id === 'deckbuilder' ? steering : fourWay;
 }
 
 export function moveCabinetJoystick(

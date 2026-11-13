@@ -408,7 +408,7 @@ article[id] {
 }
 .project-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 32px;
 }
 .project-card {
@@ -1295,11 +1295,6 @@ article[id] {
   .project-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .arcade-card {
-    grid-column: 1 / -1;
-    justify-self: center;
-    width: calc((100% - 20px) / 2);
-  }
   .arcade-art-title {
     font-size: 32px;
   }
@@ -1348,4 +1343,19 @@ article[id] {
   .arcade-art-title {
     font-size: clamp(30px, 9vw, 42px);
   }
+}
+
+.payphone-art {
+  background: #a6424e;
+  color: #f3e5ce;
+}
+.payphone-illustration {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+}
+.payphone-art .art-corner,
+.payphone-art .art-bottom {
+  z-index: 1;
 }

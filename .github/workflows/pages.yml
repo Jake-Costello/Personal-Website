@@ -27,9 +27,9 @@ jobs:
       - run: npm test
       - run: npx playwright install --with-deps chromium
       - name: Check arcade on the software GPU
-        run: npx playwright test tests/browser/arcade.spec.ts --workers=1
+        run: npx playwright test tests/browser/arcade.spec.ts tests/browser/deckbuilder.spec.ts --workers=1
       - name: Check the rest of the portfolio
-        run: npx playwright test --grep-invert 'arcade\.spec\.ts' --workers=3
+        run: npx playwright test --grep-invert 'arcade\.spec\.ts|deckbuilder\.spec\.ts' --workers=3
       - run: npm run build
         env:
           VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || format('/{0}/', github.event.repository.name) }}

@@ -13,7 +13,13 @@ import {
   moveCabinetJoystick,
   releaseCabinetJoystick,
 } from './controlLayout';
-import { cabinetMarquee, cabinetDeckArt, buttonGlyph, warehouseSideArt } from './CabinetArtwork';
+import {
+  cabinetMarquee,
+  cabinetDeckArt,
+  buttonGlyph,
+  warehouseSideArt,
+  deckbuilderArtwork,
+} from './CabinetArtwork';
 import { createCabinetJoystick, poseCabinetJoystick } from './joystick';
 import ResumeCabinetFinish, {
   createCabinetProfile,
@@ -42,7 +48,7 @@ const SCREEN = {
   z: 0.47,
   tilt: THREE.MathUtils.degToRad(-8),
 };
-const DECK = { y: 1.43, z: 0.62, tilt: THREE.MathUtils.degToRad(8) };
+const DECK = { y: 1.43, z: 0.62, tilt: THREE.MathUtils.degToRad(14) };
 
 function switchTexture(label: string) {
   const canvas = document.createElement('canvas');
@@ -163,9 +169,9 @@ function sideTexture(project: ArcadeProject) {
   c.fillText(project.number, 44, 209);
   c.fillStyle = '#e1e7da';
   c.font = '18px monospace';
-  c.fillText('PLAY / MAKE / REPEAT', 45, 910);
+
   c.font = 'bold 32px Arial';
-  c.fillText('JC EXPERIMENTS', 45, 957);
+  c.fillText('JC', 45, 957);
   const t = new THREE.CanvasTexture(canvas);
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 4;
@@ -298,6 +304,27 @@ function attractTexture(project: ArcadeProject) {
     c.beginPath();
     c.arc(480, 265, 17, 0, 7);
     c.fill();
+  } else if (project.id === 'deckbuilder') {
+    c.fillStyle = '#201d2b';
+    c.fillRect(0, 0, 960, 600);
+    for (let i = 0; i < 5; i++) {
+      c.save();
+      c.translate(125 + i * 147, 310);
+      c.rotate((i - 2) * 0.08);
+      c.fillStyle = i % 2 ? '#354354' : '#594354';
+      c.fillRect(-62, -125, 124, 250);
+      c.strokeStyle = '#dbc3f4';
+      c.lineWidth = 3;
+      c.strokeRect(-55, -118, 110, 236);
+      c.beginPath();
+      c.moveTo(0, -55);
+      c.lineTo(35, 0);
+      c.lineTo(0, 55);
+      c.lineTo(-35, 0);
+      c.closePath();
+      c.stroke();
+      c.restore();
+    }
   } else {
     c.strokeStyle = '#314650';
     c.lineWidth = 2;
@@ -480,8 +507,12 @@ function Cabinet({
           : cabinetMarquee(project, invalidate),
       screen: attractTexture(project),
       deckArt: cabinetDeckArt(project, invalidate),
-      sideArt: project.id === 'warehouse' ? warehouseSideArt(invalidate) : sideTexture(project),
-      badge: refined ? null : labelTexture('JC', 'ORIGINAL EXPERIMENTS', '#c9d2c7', true),
+      sideArt:
+        project.id === 'deckbuilder'
+          ? deckbuilderArtwork('side', invalidate)
+          : project.id === 'warehouse'
+            ? warehouseSideArt(invalidate)
+            : sideTexture(project),
       joystick: createCabinetJoystick(black, metal, project.accent),
       buttonHit: new THREE.CylinderGeometry(0.033, 0.033, 0.012, 12),
       hitMaterial: new THREE.MeshBasicMaterial({ visible: false }),
@@ -623,6 +654,7 @@ function Cabinet({
   return (
     <group
       name={`cabinet-${project.id}`}
+      visible={!playing || active}
       ref={group}
       position={initialPosition.current}
       rotation={initialRotation.current}
@@ -833,41 +865,7 @@ function Cabinet({
           </group>
         )}
       </group>
-      {project.id === 'shoreline' ? (
-        <ResumeCabinetFinish />
-      ) : (
-        <>
-          {box('coin-door', [-0.27, 0.69, 0.553], [0.42, 0.49, 0.035], resources.black, 0.015)}
-          {box('slot-metal', [-0.27, 0.84, 0.58], [0.21, 0.075, 0.02], resources.metal, 0.007)}
-          {box('slot', [-0.27, 0.84, 0.594], [0.15, 0.015, 0.012], resources.black, 0.002)}
-          <mesh position={[-0.27, 0.67, 0.582]}>
-            <planeGeometry args={[0.17, 0.105]} />
-            <meshStandardMaterial
-              color="#e78d50"
-              emissive="#f78e36"
-              emissiveIntensity={0.4}
-              roughness={0.22}
-            />
-          </mesh>
-          <mesh position={[-0.27, 0.53, 0.582]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.026, 0.026, 0.02, 20]} />
-            <primitive object={resources.metal} attach="material" />
-          </mesh>
-          {Array.from({ length: 7 }, (_, i) =>
-            box(
-              `vent-${i}`,
-              [0.33, 0.91 - i * 0.047, 0.55],
-              [0.35, 0.015, 0.012],
-              resources.black,
-              0.004,
-            ),
-          )}
-          <mesh position={[0.31, 0.36, 0.548]}>
-            <planeGeometry args={[0.38, 0.095]} />
-            <meshStandardMaterial map={resources.badge} roughness={0.6} />
-          </mesh>
-        </>
-      )}
+      <ResumeCabinetFinish tone={project.id === 'sketch' ? 'shoreline' : project.id} />
       <mesh position={[0.65, 2.62, 0.43]}>
         <sphereGeometry args={[0.012, 12, 8]} />
         <meshBasicMaterial color={project.accent} />

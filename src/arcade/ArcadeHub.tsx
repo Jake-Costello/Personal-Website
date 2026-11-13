@@ -10,7 +10,13 @@ const ArcadeScene = lazy(() => import('./ArcadeScene'));
 const ShorelineGame = lazy(() => import('./games/ShorelineGame'));
 const SketchRide = lazy(() => import('./games/SketchRide'));
 const WarehouseShift = lazy(() => import('./games/WarehouseShift'));
-const games = { shoreline: ShorelineGame, sketch: SketchRide, warehouse: WarehouseShift };
+const DeckbuilderGame = lazy(() => import('./games/DeckbuilderGame'));
+const games = {
+  shoreline: ShorelineGame,
+  sketch: SketchRide,
+  warehouse: WarehouseShift,
+  deckbuilder: DeckbuilderGame,
+};
 
 class GameBoundary extends Component<
   { children: ReactNode; onExit: () => void },
@@ -66,7 +72,14 @@ function hasWebGL() {
 }
 
 export default function ArcadeHub() {
-  const [selected, setSelected] = useState(0);
+  const [selected, setSelected] = useState(() =>
+    Math.max(
+      0,
+      arcadeProjects.findIndex(
+        (p) => p.id === new URLSearchParams(window.location.search).get('game'),
+      ),
+    ),
+  );
   const [playing, setPlaying] = useState(false);
   const [ambiencePaused, setAmbiencePaused] = useState(false);
   const [gamePaused, setGamePaused] = useState(false);
@@ -141,8 +154,8 @@ export default function ArcadeHub() {
       ArrowDown: 'down',
       s: 'down',
       ' ': 'action',
-      e: project.id === 'warehouse' ? 'secondary' : 'action',
-      q: project.id === 'warehouse' ? 'action' : 'secondary',
+      e: project.id === 'warehouse' || project.id === 'deckbuilder' ? 'secondary' : 'action',
+      q: project.id === 'warehouse' || project.id === 'deckbuilder' ? 'action' : 'secondary',
       r: 'reset',
       ...(project.id === 'sketch' ? { c: 'mode-custom', l: 'mode-levels' } : {}),
     };
@@ -153,7 +166,11 @@ export default function ArcadeHub() {
         exit();
         return;
       }
-      if ((event.target as Element)?.closest('input, select, textarea, [contenteditable="true"]'))
+      if (
+        (event.target as Element)?.closest(
+          'input, select, textarea, [contenteditable="true"], [data-arcade-native]',
+        )
+      )
         return;
       if (event.key === ' ' && (event.target as Element)?.closest('button, a')) return;
       if (!playing) {
@@ -395,20 +412,40 @@ export default function ArcadeHub() {
                   ? 'Jump'
                   : project.id === 'sketch'
                     ? 'Draw up'
-                    : 'Move up',
+                    : project.id === 'deckbuilder'
+                      ? 'Previous option'
+                      : 'Move up',
                 '↑',
               )}
-              {control('left', project.id === 'sketch' ? 'Tilt back' : 'Move left', '←')}
+              {control(
+                'left',
+                project.id === 'deckbuilder'
+                  ? 'Previous card'
+                  : project.id === 'sketch'
+                    ? 'Tilt back'
+                    : 'Move left',
+                '←',
+              )}
               {control(
                 'down',
                 project.id === 'shoreline'
                   ? 'Pump'
                   : project.id === 'sketch'
                     ? 'Draw down'
-                    : 'Move down',
+                    : project.id === 'deckbuilder'
+                      ? 'Next option'
+                      : 'Move down',
                 '↓',
               )}
-              {control('right', project.id === 'sketch' ? 'Tilt forward' : 'Move right', '→')}
+              {control(
+                'right',
+                project.id === 'deckbuilder'
+                  ? 'Next card'
+                  : project.id === 'sketch'
+                    ? 'Tilt forward'
+                    : 'Move right',
+                '→',
+              )}
             </div>
             {project.id !== 'shoreline' && (
               <div className="arcade-game-actions">
@@ -425,16 +462,16 @@ export default function ArcadeHub() {
                 ? 'Hold Pump, then Jump.'
                 : project.id === 'sketch'
                   ? 'Joystick draws / tilts · Space / E pedal · Q brake'
-                  : 'Arrows / WASD move · Q pick up · E put down'}
+                  : project.id === 'deckbuilder'
+                    ? 'Arrows select · Q / Space confirm · E end turn · 1–9 play cards'
+                    : 'Arrows / WASD move · Q pick up · E put down'}
             </p>
           </div>
         )}
       </main>
       <footer className="arcade-footer">
-        <span>PLAY / MAKE / REPEAT</span>
-        <span>
-          {playing ? 'YOUR GAME. YOUR CONTROLS.' : 'CHOOSE A MACHINE. NO COINS REQUIRED.'}
-        </span>
+        <span>JAKE COSTELLO</span>
+        <span>{playing ? 'ESC TO RETURN' : 'ARROWS TO CHOOSE · ENTER TO PLAY'}</span>
       </footer>
     </div>
   );

@@ -1,5 +1,5 @@
 export type ArcadeProject = {
-  id: 'shoreline' | 'sketch' | 'warehouse';
+  id: 'shoreline' | 'sketch' | 'warehouse' | 'deckbuilder';
   title: string;
   shortTitle: string;
   number: string;
@@ -19,8 +19,8 @@ const arcadeCatalog: ArcadeProject[] = [
     number: '01',
     accent: '#80dff2',
     cabinetColor: '#132732',
-    genre: 'A LIFE ON THE LAKE',
-    tagline: 'A stand-up jetski. A Cleveland shoreline. My story.',
+    genre: 'INTERACTIVE RÉSUMÉ',
+    tagline: 'Explore my résumé along the Cleveland shoreline.',
     controls: [
       { action: 'up', label: 'Jump', key: '↑' },
       { action: 'left', label: 'Left', key: '←' },
@@ -50,11 +50,25 @@ const arcadeCatalog: ArcadeProject[] = [
     number: '03',
     accent: '#f7b478',
     cabinetColor: '#3d2c22',
-    genre: 'ONE BOX AT A TIME',
-    tagline: 'Beat the clock. Upgrade your warehouse. See how many days you last.',
+    genre: 'WAREHOUSE SIMULATION',
+    tagline: 'Run warehouse shifts, load trucks and buy upgrades.',
     controls: [
       { action: 'action', label: 'Pick up', key: 'Q' },
       { action: 'secondary', label: 'Put down', key: 'E' },
+    ],
+  },
+  {
+    id: 'deckbuilder',
+    title: 'Encore',
+    shortTitle: 'ENCORE',
+    number: '04',
+    accent: '#dcb2a7',
+    cabinetColor: '#2d2228',
+    genre: 'CARD ROGUELIKE PROTOTYPE',
+    tagline: 'Build a deck across three worlds, defeat their bosses, then face the final boss.',
+    controls: [
+      { action: 'action', label: 'Play / confirm', key: 'Q / Space' },
+      { action: 'secondary', label: 'End turn / skip', key: 'E' },
     ],
   },
 ];
