@@ -52,7 +52,7 @@ export const experience: ExperienceChapter[] = [
     year: '2021–22',
     date: 'August 2021 — January 2022',
     place: 'Component Repair Technologies',
-    title: 'Good code starts with a real problem.',
+    title: 'Machine utilization at CRT.',
     story:
       'At Component Repair Technologies, I built a Python tool connecting machine utilization with employee schedules. It revealed three multimillion-dollar machines running less than 20% of the week. The findings exposed a staffing gap and helped the team hire a qualified machinist. I also learned enterprise IT and backend development alongside senior engineers.',
     skills: ['Python', 'Data analysis', 'Azure Active Directory', 'SQL'],
@@ -107,7 +107,7 @@ export const experience: ExperienceChapter[] = [
     year: '2024–now',
     date: 'Picking carts · discovery and implementation',
     place: 'Sherwin-Williams · Cleveland → Wisconsin',
-    title: 'Own the problem. Build the whole solution.',
+    title: 'The picking-cart integration.',
     story:
       'I took responsibility for the picking-cart software from end to end. I traveled to Wisconsin to work with the cart manufacturer on specifications and project needs, then wrote the integration code: order creation, prioritization, pick tracking, replenishment, and error handling. The work connected warehouse requirements with hardware and backend workflows.',
     skills: ['Requirements', 'Vendor collaboration', 'PL/SQL', 'REST APIs'],
@@ -118,7 +118,7 @@ export const experience: ExperienceChapter[] = [
     year: '2024–now',
     date: 'Picking carts · pilot, training, and rollout',
     place: 'Sherwin-Williams · Statesville, North Carolina',
-    title: 'A rollout is more than a deployment.',
+    title: 'Training and rollout in Statesville.',
     story:
       'At the Statesville pilot site, I worked with the team on requirements and adjusted the software around their feedback. I returned to implement the system, train users, and document the setup for future carts. At full production it supports 1,000+ order lines a day, with rollout now underway to at least three additional sites.',
     skills: ['On-site delivery', 'User feedback', 'Training', 'Documentation'],
@@ -153,7 +153,7 @@ export const experience: ExperienceChapter[] = [
     place: `Revision Marine · ${revisionMarine.role}`,
     title: 'And that explains the jetski.',
     story:
-      'That shop on the shoreline is Revision Marine. As founding engineer, I built the technology stack behind our jetski parts company: the website, infrastructure, warehouse software, and internal apps. I also bring my creative side to merchandise design. The jetski makes a little more sense now. Keep riding—there’s more ahead.',
+      'That shop on the shoreline is Revision Marine. As founding engineer, I built the technology stack behind our jetski parts company: the website, infrastructure, warehouse software, and internal apps. I also bring my creative side to merchandise design. The jetski makes a little more sense now.',
     skills: ['Next.js', 'TypeScript', 'Medusa', 'Infrastructure', 'Internal tools'],
     link: { href: revisionMarine.url, label: 'Visit Revision Marine · private preview' },
   },
@@ -163,9 +163,9 @@ export const experience: ExperienceChapter[] = [
     year: 'Next',
     date: 'The story so far',
     place: 'Looking ahead',
-    title: 'Finish line. Next chapter.',
+    title: 'What I want to work on next.',
     story:
-      'That’s the journey so far. I want to keep working alongside people, turn real operational needs into useful software, and explore where practical AI can help. There are more systems to connect, more skills to learn, and more ideas to build. I’m looking forward to what comes next.',
+      'That’s the journey so far. I want to keep working alongside people, turn real operational needs into useful software, and explore where practical AI can help.',
     skills: ['Practical AI', 'Systems integration', 'Continued learning'],
     link: { href: '#contact', label: 'Let’s build what’s next' },
   },

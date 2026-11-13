@@ -506,7 +506,7 @@ test('full screen preserves the chapter, focuses the ride, and offers an exit', 
 
 test('project details are accessible and the dialog closes with Escape', async ({ page }) => {
   await page.goto('/#work');
-  await expect(page.locator('#work .project-card')).toHaveCount(3);
+  await expect(page.locator('#work .project-card')).toHaveCount(4);
   await expect(page.locator('#project-payphone')).toHaveCount(0);
   await expect(page.locator('#work')).not.toContainText(/payphone/i);
   await page.getByRole('button', { name: 'Read about Revision Marine' }).click();
@@ -515,9 +515,9 @@ test('project details are accessible and the dialog closes with Escape', async (
   await expect(dialog.getByRole('heading', { name: 'Revision Marine', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).not.toBeVisible();
-  await page.getByRole('button', { name: 'Read about Small things. Big connections.' }).click();
+  await page.getByRole('button', { name: 'Read about Protein Explorer' }).click();
   await expect(
-    dialog.getByRole('heading', { name: 'Small things. Big connections.', exact: true }),
+    dialog.getByRole('heading', { name: 'Protein Explorer', exact: true }),
   ).toBeVisible();
   await dialog.getByRole('link', { name: 'Explore the lab' }).click();
   await expect(dialog).not.toBeVisible();

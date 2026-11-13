@@ -103,7 +103,11 @@ function coinDoorFrame() {
   });
 }
 
-export default function ResumeCabinetFinish() {
+export default function ResumeCabinetFinish({
+  tone = 'shoreline',
+}: {
+  tone?: 'shoreline' | 'warehouse' | 'deckbuilder';
+}) {
   const r = useMemo(() => {
     const doorMap = canvasMap(256, 384, (c) => {
       c.fillStyle = '#22292b';
@@ -117,7 +121,7 @@ export default function ResumeCabinetFinish() {
       c.fillText('COIN ENTRY', 128, 36);
       c.font = '10px monospace';
       c.fillStyle = '#81908d';
-      c.fillText('JC / LAKE ERIE', 128, 342);
+
       for (const x of [13, 243])
         for (const y of [13, 371]) {
           c.fillStyle = '#788181';
@@ -152,9 +156,8 @@ export default function ResumeCabinetFinish() {
       c.fillStyle = '#182a30';
       c.font = 'bold 20px Arial';
       c.textAlign = 'center';
-      c.fillText('JC ORIGINAL', 128, 28);
+      c.fillText('JC', 128, 37);
       c.font = '10px monospace';
-      c.fillText('SERIES 01 / LAKE ERIE', 128, 47);
     });
     return {
       trim: perimeterGeometry(),
@@ -162,7 +165,11 @@ export default function ResumeCabinetFinish() {
       box: new RoundedBoxGeometry(1, 1, 1, 2, 0.018),
       plane: new THREE.PlaneGeometry(1, 1),
       lock: new THREE.CylinderGeometry(0.018, 0.018, 0.009, 12),
-      pvc: new THREE.MeshStandardMaterial({ color: '#35464a', roughness: 0.48, metalness: 0 }),
+      pvc: new THREE.MeshStandardMaterial({
+        color: tone === 'warehouse' ? '#564b3c' : tone === 'deckbuilder' ? '#51445f' : '#35464a',
+        roughness: 0.48,
+        metalness: 0,
+      }),
       shadow: new THREE.MeshStandardMaterial({ color: '#081116', roughness: 0.7, metalness: 0 }),
       steel: new THREE.MeshStandardMaterial({ color: '#7b8988', roughness: 0.4, metalness: 0.85 }),
       door: new THREE.MeshStandardMaterial({ map: doorMap, roughness: 0.58, metalness: 0.22 }),
@@ -178,7 +185,7 @@ export default function ResumeCabinetFinish() {
       grilleMap,
       badgeMap,
     };
-  }, []);
+  }, [tone]);
   useEffect(
     () => () => {
       Object.values(r).forEach((value) => value.dispose());

@@ -87,7 +87,7 @@ export async function deckProjector(page: Page) {
   camera.updateMatrixWorld();
   return (x: number, y: number, z: number) => {
     const point = new THREE.Vector3(x, y, z)
-      .applyAxisAngle(new THREE.Vector3(1, 0, 0), (8 * Math.PI) / 180)
+      .applyAxisAngle(new THREE.Vector3(1, 0, 0), (14 * Math.PI) / 180)
       .add(new THREE.Vector3(0, 1.43, 0.97))
       .project(camera);
     return {

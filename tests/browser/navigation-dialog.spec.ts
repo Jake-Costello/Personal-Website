@@ -70,7 +70,7 @@ test('project dialogs retain focus, dismissal, lab navigation and viewport fit',
   await close.click();
   await expect(dialog).not.toBeVisible();
   await expect(trigger).toBeFocused();
-  await page.getByRole('button', { name: 'Read about Small things. Big connections.' }).click();
+  await page.getByRole('button', { name: 'Read about Protein Explorer' }).click();
   await dialog.getByRole('link', { name: 'Explore the lab' }).click();
   await expect(dialog).not.toBeVisible();
   await expect(page).toHaveURL(/#lab$/);

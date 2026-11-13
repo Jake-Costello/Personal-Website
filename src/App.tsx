@@ -81,10 +81,10 @@ const projects: Project[] = [
   {
     id: 'protein',
     number: '02',
-    title: 'Small things. Big connections.',
+    title: 'Protein Explorer',
     category: 'DATA / VISUALIZATION / EXPLORATION',
     summary:
-      'Turning live public API data into an explorable protein network, measured species comparisons, and grounded AI explanations.',
+      'Explore protein associations, compare species, and read AI explanations based on retrieved data.',
     tags: ['Python / pandas', 'NetworkX', 'APIs / AI'],
     status: 'Live data explorer',
     problem:
@@ -93,6 +93,22 @@ const projects: Project[] = [
       'I built the interactive frontend and Python service. It retrieves STRING associations, cleans them with pandas, and computes communities with NetworkX. Ensembl supplies human-to-animal protein comparisons; the server calculates similarity rankings before AI explains the evidence.',
     decisions:
       'Source labels, retrieval times, and cache status remain visible. Validation, bounded queries, caching, and limits on paid AI requests keep the public workflow practical. The graph shows associations, not molecular structure, and AI explains measured results rather than inventing rankings.',
+  },
+  {
+    id: 'payphone',
+    number: '03',
+    title: 'The Union Payphone',
+    category: 'SENIOR PROJECT / HARDWARE & SOFTWARE',
+    summary:
+      'A payphone at The Union in Athens, connected to concert information, Spotify queues and recorded band messages.',
+    tags: ['Python', 'Asterisk', 'pytest'],
+    status: 'Senior project · 2023–24',
+    problem:
+      'Give an old payphone at The Union in Athens a new use for concert information and music requests.',
+    contribution:
+      'I led the senior-project team and connected concert information, Spotify queue additions and recorded band messages using Python and Asterisk.',
+    decisions:
+      'We used weekly code reviews, Agile iterations and pytest while bringing hardware, networking and software together. Encore, the arcade deckbuilder prototype, takes its payphone and rock-and-roll theme from this project.',
   },
 ];
 
@@ -116,6 +132,56 @@ function ProjectArt({ kind }: { kind: string }) {
           />
         </svg>
         <span className="art-bottom">BUILT FOR THE WATER.</span>
+      </div>
+    );
+  if (kind === 'payphone')
+    return (
+      <div className="project-art payphone-art" aria-hidden="true">
+        <span className="art-corner">THE UNION / ATHENS, OHIO</span>
+        <svg viewBox="0 0 410 280" className="payphone-illustration">
+          <g transform="translate(208 140) rotate(-8)">
+            <rect
+              x="-73"
+              y="-111"
+              width="146"
+              height="226"
+              rx="7"
+              fill="#42414a"
+              stroke="#24222b"
+              strokeWidth="6"
+            />
+            <rect x="-60" y="-97" width="120" height="188" rx="3" fill="#c4b8a0" />
+            <rect x="-43" y="-78" width="86" height="47" fill="#292b33" />
+            {[0, 1, 2, 3].flatMap((row) =>
+              [0, 1, 2].map((col) => (
+                <rect
+                  key={`${row}-${col}`}
+                  x={-36 + col * 27}
+                  y={-13 + row * 23}
+                  width="19"
+                  height="15"
+                  rx="2"
+                  fill="#5b5657"
+                />
+              )),
+            )}
+            <path
+              d="M-77-70Q-112-15-77 38"
+              fill="none"
+              stroke="#29232b"
+              strokeWidth="17"
+              strokeLinecap="round"
+            />
+            <path d="M-77 46C-105 132-21 85 3 132" fill="none" stroke="#35303a" strokeWidth="3" />
+            <path d="M-27 91h52" stroke="#38343b" strokeWidth="5" />
+          </g>
+          <path
+            d="M43 227l44-11m-42 20 44-11m238-178 38-9m-36 18 38-9"
+            stroke="#c4a386"
+            strokeWidth="3"
+          />
+        </svg>
+        <span className="art-bottom">PYTHON / ASTERISK</span>
       </div>
     );
   const nodes = [
@@ -158,7 +224,7 @@ function ProjectArt({ kind }: { kind: string }) {
   ];
   return (
     <div className="project-art network-art" aria-hidden="true">
-      <span className="art-corner">AN EXERCISE IN CONNECTION</span>
+      <span className="art-corner">PROTEIN NETWORK</span>
       <svg viewBox="0 0 410 280" className="network-illustration">
         <g stroke="#746398" strokeWidth="1.5">
           {edges.map(([a, b], i) => (
@@ -179,7 +245,7 @@ function ProjectArt({ kind }: { kind: string }) {
           </g>
         ))}
       </svg>
-      <span className="art-bottom">A LITTLE CURIOSITY GOES A LONG WAY.</span>
+      <span className="art-bottom">STRING / ENSEMBL</span>
     </div>
   );
 }
@@ -234,6 +300,11 @@ function ProjectDialog({ project, close }: { project: Project | null; close: () 
           {project.id === 'protein' && (
             <a className="button button-dark dialog-cta" href="#lab" onClick={close}>
               Explore the lab <Arrow />
+            </a>
+          )}
+          {project.id === 'payphone' && (
+            <a className="button button-dark dialog-cta" href={`${arcadeUrl}?game=deckbuilder`}>
+              See the Encore cabinet <Arrow />
             </a>
           )}
           {project.website && (
@@ -342,9 +413,8 @@ function App() {
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-topline">
             <p className="eyebrow">
-              <span className="status-dot" /> FULL-STACK ENGINEER. REAL-WORLD PROBLEM SOLVER.
+              <span className="status-dot" /> FULL-STACK ENGINEER · CLEVELAND, OHIO
             </p>
-            <span className="eyebrow hero-edition">PERSONAL FIELD NOTES / VOL. 01</span>
           </div>
           <div className="hero-title-row">
             <h1 id="hero-title">
@@ -373,8 +443,8 @@ function App() {
                 Curious mind.
               </h2>
               <p>
-                I build software that connects systems and makes real work easier. Here’s what I’ve
-                been up to, what I’m figuring out, and a little of the person behind it.
+                I build software for warehouse operations and commerce. This site also has a few
+                games and experiments.
               </p>
             </div>
             <div className="hero-actions">
@@ -388,7 +458,6 @@ function App() {
           </div>
           <div className="hero-footnote">
             <span>SCROLL TO EXPLORE</span>
-            <span className="hero-coordinate">CODE → CONNECTIONS → CURIOSITY</span>
             <span aria-hidden="true">↓</span>
           </div>
         </section>
@@ -483,7 +552,7 @@ function App() {
               </a>
               <div className="project-meta">
                 <span>GAMES / INTERACTION / EXPERIMENTS</span>
-                <span>03</span>
+                <span>04</span>
               </div>
               <h3>
                 <a
@@ -494,8 +563,8 @@ function App() {
                 </a>
               </h3>
               <p>
-                Games built to explore interactive systems, from a jetski resume tour to a warehouse
-                you run and improve.
+                Ride through my résumé, run a warehouse, or try Encore, a rock-and-roll card
+                roguelike inspired by my payphone senior project.
               </p>
               <div className="tag-list">
                 <span>Three.js</span>
@@ -515,9 +584,7 @@ function App() {
               </h2>
             </div>
             <p className="section-intro">
-              A small window into a complex world.
-              <br />
-              Explore a protein network, one connection at a time.
+              Search for a protein to explore its associations or compare it across species.
             </p>
           </div>
           <Suspense
@@ -543,10 +610,9 @@ function App() {
             </h2>
             <div className="about-copy">
               <p>
-                I’m Jake—a computer science graduate from Ohio University, a full-stack developer,
-                and the founding engineer at Revision Marine. I like making things that bring
-                engineering and creativity together. There’s a little more to me away from the
-                keyboard, too.
+                I’m Jake, a computer science graduate from Ohio University and a full-stack
+                developer. I’m also the founding engineer at Revision Marine. Outside work, I draw,
+                play golf and climb.
               </p>
             </div>
           </div>
@@ -563,7 +629,6 @@ function App() {
             <p className="eyebrow">
               <span className="status-dot" /> OPEN TO WHAT’S NEXT
             </p>
-            <p className="eyebrow">GOOD THINGS START WITH A CONVERSATION.</p>
           </div>
           <a
             className="contact-heading"
@@ -606,7 +671,6 @@ function App() {
       </main>
       <footer className="site-footer">
         <span>© {new Date().getFullYear()} JAKE COSTELLO</span>
-        <span>BUILT WITH INTENTION. AND A LITTLE PLAY.</span>
         <a href="#">BACK TO TOP ↑</a>
       </footer>
       <ProjectDialog project={selectedProject} close={() => setSelectedProject(null)} />

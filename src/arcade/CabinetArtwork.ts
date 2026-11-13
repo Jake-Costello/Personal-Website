@@ -45,6 +45,7 @@ function artwork(
 }
 
 export function cabinetMarquee(project: ArcadeProject, invalidate: () => void) {
+  if (project.id === 'deckbuilder') return deckbuilderArtwork('marquee', invalidate);
   return artwork(
     1024,
     256,
@@ -78,7 +79,6 @@ export function cabinetMarquee(project: ArcadeProject, invalidate: () => void) {
         c.strokeText('WARRIOR', 512, 186, 800);
         c.fillText('WARRIOR', 512, 186, 800);
         c.font = '500 15px "IBM Plex Mono", monospace';
-        c.fillText('OPERATIONS DIVISION / ONE BOX AT A TIME', 512, 232);
         c.fillStyle = '#8d754f';
         for (let x = 80; x < 200; x += 7) c.fillRect(x, 211, 3 + (x % 3), 23);
         c.strokeStyle = '#6d654c';
@@ -97,7 +97,6 @@ export function cabinetMarquee(project: ArcadeProject, invalidate: () => void) {
         c.textAlign = 'center';
         c.fillStyle = '#acd2c8';
         c.font = '500 15px "IBM Plex Mono", monospace';
-        c.fillText('JC / LAKE ERIE FIELD NOTES', 512, 31);
         c.save();
         c.translate(512, 0);
         c.transform(1, 0, -0.14, 1, 10, 0);
@@ -109,7 +108,6 @@ export function cabinetMarquee(project: ArcadeProject, invalidate: () => void) {
         c.restore();
         c.fillStyle = '#d1e7ab';
         c.font = '500 17px "IBM Plex Mono", monospace';
-        c.fillText('A LIFE ON THE LAKE', 512, 224);
         c.strokeStyle = '#719a9b';
         c.lineWidth = 2;
         c.strokeRect(13, 11, 998, 234);
@@ -120,6 +118,7 @@ export function cabinetMarquee(project: ArcadeProject, invalidate: () => void) {
 }
 
 export function cabinetDeckArt(project: ArcadeProject, invalidate: () => void) {
+  if (project.id === 'deckbuilder') return deckbuilderArtwork('deck', invalidate);
   return artwork(
     1024,
     346,
@@ -150,8 +149,6 @@ export function cabinetDeckArt(project: ArcadeProject, invalidate: () => void) {
         c.fillText('WAREHOUSE', 48, 75);
         c.fillText('WARRIOR', 48, 108);
         c.font = '500 13px "IBM Plex Mono", monospace';
-        c.fillText('STOCK / SORT / SHIP', 48, 148);
-        c.fillText('SHIFT 01  /  JC', 48, 178);
         c.fillStyle = '#92a18c';
         for (let x = 36; x < 232; x += 8) c.fillRect(x, 229, 3 + (x % 3), 30);
       } else {
@@ -168,7 +165,6 @@ export function cabinetDeckArt(project: ArcadeProject, invalidate: () => void) {
         c.fillText('RESUME RUN', 33, 44);
         c.fillStyle = '#9bbfba';
         c.font = '500 13px "IBM Plex Mono", monospace';
-        c.fillText('LAKE ERIE / KEEP MOVING', 33, 68);
         c.strokeStyle = '#b2ce9b';
         c.lineWidth = 3;
         c.beginPath();
@@ -233,7 +229,23 @@ export function buttonGlyph(project: ArcadeProject, action: string, invalidate: 
       c.lineWidth = 7;
       c.lineCap = 'round';
       c.lineJoin = 'round';
-      if (project.id === 'shoreline' && action === 'down') {
+      if (project.id === 'deckbuilder') {
+        c.strokeStyle = '#392d48';
+        if (action === 'action') {
+          c.beginPath();
+          c.moveTo(42, 30);
+          c.lineTo(94, 64);
+          c.lineTo(42, 98);
+          c.closePath();
+          c.stroke();
+        } else {
+          c.strokeRect(36, 32, 56, 64);
+          c.beginPath();
+          c.moveTo(27, 98);
+          c.lineTo(101, 98);
+          c.stroke();
+        }
+      } else if (project.id === 'shoreline' && action === 'down') {
         for (let y = 37; y < 106; y += 23) {
           c.beginPath();
           c.moveTo(24, y);
@@ -280,7 +292,6 @@ export function warehouseSideArt(invalidate: () => void) {
       c.strokeRect(19, 20, 474, 983);
       c.fillStyle = '#d7b77d';
       c.font = '500 22px "IBM Plex Mono", monospace';
-      c.fillText('WW / OPERATIONS', 43, 84);
       c.font = '500 69px "IBM Plex Mono", monospace';
       c.fillText('WAREHOUSE', 38, 192, 442);
       c.font = '500 86px "IBM Plex Mono", monospace';
@@ -307,10 +318,112 @@ export function warehouseSideArt(invalidate: () => void) {
       }
       c.fillStyle = '#d2b67a';
       c.font = '500 18px "IBM Plex Mono", monospace';
-      c.fillText('ONE BOX AT A TIME', 48, 860);
       for (let x = 46; x < 463; x += 11) c.fillRect(x, 892, 3 + (x % 4), 45);
       c.font = '500 15px "IBM Plex Mono", monospace';
-      c.fillText('JC ORIGINAL / SERIES 03', 48, 976);
+    },
+    invalidate,
+  );
+}
+
+export function deckbuilderArtwork(kind: 'marquee' | 'deck' | 'side', invalidate: () => void) {
+  const width = kind === 'side' ? 512 : 1024;
+  const height = kind === 'side' ? 1024 : kind === 'deck' ? 346 : 256;
+  return artwork(
+    width,
+    height,
+    (c) => {
+      c.fillStyle = '#241d23';
+      c.fillRect(0, 0, width, height);
+      c.strokeStyle = '#c9bdb1';
+      c.lineWidth = 3;
+      c.strokeRect(14, 13, width - 28, height - 26);
+      // Original gig-poster/checker motif, not a venue or museum logo.
+      c.fillStyle = '#a6424e';
+      for (let row = 0; row < (kind === 'side' ? 24 : 5); row++)
+        for (let col = 0; col < 3; col++) {
+          if ((row + col) % 2 === 0) c.fillRect(20 + col * 19, 20 + row * 19, 19, 19);
+        }
+      if (kind === 'marquee') {
+        c.save();
+        c.translate(520, 0);
+        c.transform(1, 0, -0.12, 1, 10, 0);
+        c.textAlign = 'center';
+        c.font = '700 151px "Space Grotesk Variable", sans-serif';
+        c.fillStyle = '#0f1118';
+        c.fillText('ENCORE', 6, 167);
+        c.fillStyle = '#eadfc9';
+        c.fillText('ENCORE', 0, 161);
+        c.restore();
+        c.font = '500 17px "IBM Plex Mono", monospace';
+        c.fillStyle = '#dfb1a3';
+        c.textAlign = 'center';
+        c.fillText('DECKBUILDER PROTOTYPE', 512, 224);
+      } else if (kind === 'deck') {
+        c.fillStyle = '#e2d7c5';
+        c.font = '700 36px "Space Grotesk Variable", sans-serif';
+        c.fillText('ENCORE', 92, 63);
+        const px = (x: number) => ((x + 0.695) / 1.39) * 1024,
+          py = (z: number) => ((z + 0.235) / 0.47) * 346;
+        c.strokeStyle = '#c4a7a8';
+        c.lineWidth = 2;
+        c.beginPath();
+        c.arc(px(controlLayout.joystick.x), py(controlLayout.joystick.z), 57, 0, Math.PI * 2);
+        c.stroke();
+        c.textAlign = 'center';
+        c.font = '500 14px "IBM Plex Mono", monospace';
+        c.fillText('SELECT', px(controlLayout.joystick.x), py(0.17));
+        controlLayout.buttons.forEach((p, i) => {
+          const x = px(p.x),
+            y = py(p.z);
+          c.beginPath();
+          c.arc(x, y, 28, 0, Math.PI * 2);
+          c.stroke();
+          c.fillText(i ? 'END TURN' : 'PLAY', x, y + 43);
+          c.font = '500 11px "IBM Plex Mono", monospace';
+          c.fillText(i ? 'E' : 'Q / SPACE', x, y + 59);
+          c.font = '500 14px "IBM Plex Mono", monospace';
+        });
+        for (let i = 0; i < 4; i++) {
+          c.beginPath();
+          c.moveTo(824, 66 + i * 11);
+          c.lineTo(956, 45 + i * 11);
+          c.stroke();
+        }
+      } else {
+        c.fillStyle = '#e8dcc6';
+        c.font = '700 82px "Space Grotesk Variable", sans-serif';
+        c.fillText('ENCORE', 45, 160, 420);
+        c.save();
+        c.translate(256, 490);
+        c.rotate(-0.12);
+        c.strokeStyle = '#ad4c58';
+        c.lineWidth = 9;
+        c.strokeRect(-130, -190, 260, 395);
+        c.fillStyle = '#4b4043';
+        c.fillRect(-111, -170, 222, 355);
+        c.fillStyle = '#c4b8a4';
+        c.fillRect(-75, -115, 150, 90);
+        for (let row = 0; row < 4; row++)
+          for (let col = 0; col < 3; col++) c.fillRect(-57 + col * 42, 12 + row * 34, 27, 22);
+        c.strokeStyle = '#eadfca';
+        c.lineCap = 'round';
+        c.lineWidth = 27;
+        c.beginPath();
+        c.moveTo(-104, -125);
+        c.quadraticCurveTo(-155, -30, -103, 60);
+        c.stroke();
+        c.strokeStyle = '#d7b8a4';
+        c.lineWidth = 4;
+        c.beginPath();
+        c.moveTo(-103, 75);
+        c.bezierCurveTo(-160, 230, -30, 130, 0, 215);
+        c.stroke();
+        c.restore();
+        c.font = '500 26px "IBM Plex Mono", monospace';
+        c.fillStyle = '#caa9a2';
+        c.textAlign = 'center';
+        c.fillText('CLEVELAND', 256, 876);
+      }
     },
     invalidate,
   );

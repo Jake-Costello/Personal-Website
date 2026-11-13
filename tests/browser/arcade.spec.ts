@@ -77,7 +77,7 @@ async function touch(
   await session.send('Input.dispatchTouchEvent', { type, touchPoints });
 }
 
-test('the arcade loads and reloads two 3D machines with Sketch hidden and no API requests', async ({
+test('the arcade loads and reloads three 3D machines with Sketch hidden and no API requests', async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -106,7 +106,7 @@ test('the arcade loads and reloads two 3D machines with Sketch hidden and no API
     await expect(page.locator('.arcade-backdrop canvas')).toHaveCount(0);
     await expect(
       page.getByRole('group', { name: 'Arcade machines', exact: true }).getByRole('button'),
-    ).toHaveCount(2);
+    ).toHaveCount(3);
     for (const title of visibleMachines) await expect(machine(page, title)).toBeAttached();
     await expect(machine(page, 'Sketch-to-Ride')).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Step up to play|^Choose / })).toHaveCount(0);
@@ -230,21 +230,23 @@ test('the optional backdrop waits for the cabinet and idle, and cancels pending 
   });
 });
 
-test('two-machine selection wraps and Enter plays locally while Escape returns to the room', async ({
+test('three-machine selection wraps and Enter plays locally while Escape returns to the room', async ({
   page,
 }) => {
   await page.goto('/arcade/');
   await expectRoomReady(page);
-  for (const title of ['Warehouse Warrior', 'Resume Run'] as const) {
+  for (const title of ['Warehouse Warrior', 'Encore', 'Resume Run'] as const) {
     await page.getByRole('button', { name: 'Next machine', exact: true }).click();
     await expectSelected(page, title);
   }
   await page.getByRole('button', { name: 'Previous machine', exact: true }).click();
-  await expectSelected(page, 'Warehouse Warrior');
+  await expectSelected(page, 'Encore');
   const room = page.getByRole('main', { name: 'Project arcade', exact: true });
   await room.focus();
   await page.keyboard.press('ArrowRight');
   await expectSelected(page, 'Resume Run');
+  await page.keyboard.press('ArrowLeft');
+  await expectSelected(page, 'Encore');
   await page.keyboard.press('ArrowLeft');
   await expectSelected(page, 'Warehouse Warrior');
   await page.keyboard.press('Enter');
@@ -741,7 +743,7 @@ test('both visible games remain playable and Sketch stays hidden without WebGL',
   await page.goto('/arcade/');
   await expect(page.locator('.arcade-page')).toHaveAttribute('data-renderer', 'fallback');
   await expect(machine(page, 'Sketch-to-Ride')).toHaveCount(0);
-  await expect(page.locator('.arcade-fallback-machines > button')).toHaveCount(2);
+  await expect(page.locator('.arcade-fallback-machines > button')).toHaveCount(3);
   for (const title of visibleMachines) {
     await play(page, title);
     if (title === 'Resume Run') {
@@ -772,7 +774,7 @@ test('the homepage links to the separate arcade and the arcade links back to the
 }) => {
   await installProteinApi(page);
   await page.goto('/#work');
-  await expect(page.locator('#work .project-card')).toHaveCount(3);
+  await expect(page.locator('#work .project-card')).toHaveCount(4);
   const invitation = page.getByRole('link', { name: /A few experiments worth playing/ });
   await expect(invitation).toHaveAttribute('href', '/arcade/');
   await invitation.click();
