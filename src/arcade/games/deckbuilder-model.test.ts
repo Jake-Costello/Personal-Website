@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   CARDS,
+  WORLDS,
+  chooseVenue,
+  encounterAt,
+  venueOptions,
   ENCOUNTERS,
   RELICS,
   beginEncounter,
@@ -14,6 +18,7 @@ import {
   playCard,
 } from './deckbuilder-model';
 import type { Run } from './deckbuilder-model';
+import { combatFeedback } from './deckbuilder-feedback';
 function invariant(s: Run) {
   if (s.phase !== 'combat') return;
   const ids = [...s.hand, ...s.draw, ...s.discard, ...s.exhaust];
@@ -25,14 +30,14 @@ function invariant(s: Run) {
   assert.ok(s.energy >= 0 && s.hp >= 0 && s.hp <= s.maxHp && s.enemyHp >= 0);
 }
 // A deterministic heuristic player is a rules probe, not evidence that balance is fun.
-export function botRun(seed: string, limit = 1500) {
+export function botRun(seed: string, limit = 1500, branch = 0) {
   let s = createRun(seed);
   const seen: number[] = [];
   for (let steps = 0; steps < limit && !['won', 'lost'].includes(s.phase); steps++) {
     invariant(s);
     if (s.phase === 'map') {
       seen.push(s.floor);
-      s = beginEncounter(s);
+      s = beginEncounter(chooseVenue(s, branch % venueOptions(s.floor).length));
     } else if (s.phase === 'reward') {
       const rank = ['power', 'heavy', 'brace', 'rush', 'reserve', 'feint'];
       const best = s.rewards
@@ -197,4 +202,74 @@ test('the default prototype seed is completable with the heuristic player', () =
   const { state, seen } = botRun('encore');
   assert.equal(state.phase, 'won');
   assert.deepEqual(seen, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+});
+
+test('town progresses from houses through garages and venues to Crown Hall, with sixteen distinct performers', () => {
+  assert.deepEqual(WORLDS, ['House Shows', 'Garage Circuit', 'Main Venues']);
+  const all = ENCOUNTERS.flatMap((_, floor) => venueOptions(floor));
+  assert.equal(all.length, 16);
+  assert.equal(new Set(all.map((e) => e.character)).size, 16);
+  assert.equal(new Set(all.map((e) => e.venue)).size, 16);
+  for (let floor = 0; floor < 10; floor++) {
+    const options = venueOptions(floor);
+    assert.equal(options.length, [2, 5, 8, 9].includes(floor) ? 1 : 2);
+    for (const e of options) assert.equal(e.world, ENCOUNTERS[floor].world);
+    if (options.length > 1) assert.notDeepEqual(options[0].intents, options[1].intents);
+  }
+  assert.equal(ENCOUNTERS[9].venue, 'Crown Hall');
+});
+
+test('choosing a venue is immutable, phase-checked and resolves that opponent rather than the default', () => {
+  const original = createRun('route');
+  const before = structuredClone(original);
+  const chosen = chooseVenue(original, 1);
+  assert.deepEqual(original, before);
+  assert.equal(encounterAt(chosen).name, 'Penny Dread');
+  assert.equal(chosen.route[0], 1);
+  const combat = beginEncounter(chosen);
+  assert.equal(combat.enemyHp, 24);
+  assert.deepEqual(currentIntent(combat), { damage: 3, block: 4 });
+  assert.equal(chooseVenue(combat, 0), combat);
+  for (const invalid of [-1, 2, 0.5, NaN, Infinity])
+    assert.equal(chooseVenue(original, invalid), original);
+  const boss = { ...original, floor: 2 };
+  assert.equal(chooseVenue(boss, 1), boss);
+  assert.equal(venueOptions(-1).length, 0);
+  assert.equal(venueOptions(10).length, 0);
+  const reward = { ...combat, phase: 'reward' as const, rewards: [] };
+  const next = chooseReward(reward, -1);
+  assert.equal(next.route[0], 1);
+  assert.equal(next.floor, 1);
+  assert.equal(encounterAt(next, 0).name, 'Penny Dread');
+  assert.deepEqual(createRun('route').route, Array(10).fill(0));
+});
+
+test('alternate routes replay deterministically and preserve card-zone invariants through all boss gates', () => {
+  assert.deepEqual(botRun('side-streets', 1500, 1), botRun('side-streets', 1500, 1));
+  for (let i = 0; i < 40; i++) {
+    const { state, seen } = botRun(`branch-${i}`, 1500, 1);
+    assert.ok(['won', 'lost'].includes(state.phase));
+    for (const floor of seen) assert.equal(state.route[floor], venueOptions(floor).length - 1);
+  }
+});
+
+test('combat feedback distinguishes enemy defense, absorbed attacks and player block without driving resolution', () => {
+  const initial = beginEncounter(chooseVenue({ ...createRun('feedback'), floor: 1 }, 1));
+  const afterAttack = endTurn(initial);
+  assert.deepEqual(combatFeedback(initial, afterAttack), { kind: 'enemy', text: '−8 HP' });
+  const afterGuard = endTurn(afterAttack);
+  assert.deepEqual(combatFeedback(afterAttack, afterGuard), {
+    kind: 'enemy-guard',
+    text: '+6 enemy block',
+  });
+  const defended = { ...initial, block: 8 };
+  assert.deepEqual(combatFeedback(defended, endTurn(defended)), { kind: 'enemy', text: 'Blocked' });
+  const strike = initial.deck.find((c) => c.key === 'strike')!.id;
+  const armored = { ...initial, hand: [strike], enemyBlock: 99 };
+  assert.deepEqual(combatFeedback(armored, playCard(armored, strike)), {
+    kind: 'attack',
+    text: '6 absorbed',
+  });
+  assert.equal(combatFeedback(initial, initial), null);
+  assert.equal(combatFeedback(initial, createRun('feedback')), null);
 });

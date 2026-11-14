@@ -3,7 +3,9 @@ import type { ArcadeInput } from '../input';
 import {
   CARDS,
   RELICS,
-  ENCOUNTERS,
+  encounterAt,
+  chooseVenue,
+  venueOptions,
   WORLDS,
   beginEncounter,
   cardFor,
@@ -15,12 +17,17 @@ import {
   playCard,
 } from './deckbuilder-model';
 import type { RelicKey, Run } from './deckbuilder-model';
+import { EnemyArt, ScoreBoardArt } from './EncoreArt';
+import EncoreTown from './EncoreTown';
+import { combatFeedback } from './deckbuilder-feedback';
 import './deckbuilder.css';
 
+function startBattle(run: Run, seed: string) {
+  return beginEncounter(run.floor === 0 ? chooseVenue(createRun(seed), run.route[0]) : run);
+}
 const relicKeys = Object.keys(RELICS) as RelicKey[];
 function confirm(run: Run, cursor: number, skip = false, seed = run.seed): Run {
-  if (run.phase === 'map')
-    return skip ? run : beginEncounter(run.floor === 0 ? createRun(seed) : run);
+  if (run.phase === 'map') return skip ? run : startBattle(run, seed);
   if (run.phase === 'combat')
     return skip ? endTurn(run) : playCard(run, run.hand[Math.min(cursor, run.hand.length - 1)]);
   if (run.phase === 'reward') return chooseReward(run, skip ? -1 : Math.min(cursor, 2));
@@ -74,7 +81,7 @@ export default function DeckbuilderGame({
   const heading = useRef<HTMLHeadingElement>(null);
   const cardButtons = useRef<(HTMLButtonElement | null)[]>([]);
   useEffect(() => {
-    setCursor(0);
+    setCursor(run.phase === 'map' ? run.route[run.floor] : 0);
     heading.current?.focus({ preventScroll: true });
   }, [run.phase, run.floor, showDeck]);
   useEffect(() => {
@@ -84,14 +91,21 @@ export default function DeckbuilderGame({
       previous = new Set(input.pressed);
       if (!active) return;
       for (const action of presses) {
+        if (showDeck && action !== 'reset') continue;
         if (action === 'reset') {
           setRun(createRun(current.current.run.seed));
           setShowDeck(false);
         } else if (['left', 'right', 'up', 'down'].includes(action)) {
-          const n = current.current.run.phase === 'combat' ? current.current.run.hand.length : 3;
+          const n =
+            current.current.run.phase === 'combat'
+              ? current.current.run.hand.length
+              : current.current.run.phase === 'map'
+                ? venueOptions(current.current.run.floor).length
+                : 3;
           const delta = action === 'left' || action === 'up' ? -1 : 1;
           const next = (current.current.cursor + delta + Math.max(1, n)) % Math.max(1, n);
           setCursor(next);
+          if (current.current.run.phase === 'map') setRun((s) => chooseVenue(s, next));
           queueMicrotask(() => cardButtons.current[next]?.focus({ preventScroll: true }));
         } else if (!showDeck && (action === 'action' || action === 'secondary')) {
           setRun((s) =>
@@ -120,7 +134,17 @@ export default function DeckbuilderGame({
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
   }, [active, showDeck]);
-  const battle = ENCOUNTERS[run.floor];
+  const battle = encounterAt(run);
+  const priorRun = useRef(run);
+  const feedbackId = useRef(0);
+  const [feedback, setFeedback] = useState<{ id: number; kind: string; text: string } | null>(null);
+  useEffect(() => {
+    const prior = priorRun.current;
+    priorRun.current = run;
+    if (run === prior) return;
+    const event = combatFeedback(prior, run);
+    setFeedback(event ? { id: ++feedbackId.current, ...event } : null);
+  }, [run]);
   const intent = currentIntent(run);
   const intentText = `${intent.damage ? `Attack ${intent.damage}` : ''}${intent.damage && intent.block ? ' + ' : ''}${intent.block ? `Block ${intent.block}` : ''}`;
   const newRun = () => {
@@ -137,6 +161,10 @@ export default function DeckbuilderGame({
       className="db-game"
       aria-label="Encore deckbuilder prototype"
       data-phase={run.phase}
+      data-world={battle.world}
+      data-final={Boolean(battle.final)}
+      data-active={active}
+      data-feedback={feedback?.kind}
       data-floor={run.floor}
       data-health={run.hp}
       data-enemy-health={run.enemyHp}
@@ -146,7 +174,7 @@ export default function DeckbuilderGame({
     >
       <header className="db-topbar">
         <b>
-          ENCORE <small>DECKBUILDER PROTOTYPE</small>
+          ENCORE <small>BELLWETHER TOUR</small>
         </b>
         <button onClick={() => setShowDeck((v) => !v)} disabled={!active} aria-expanded={showDeck}>
           {showDeck ? 'Close deck' : `Deck (${run.deck.length})`}
@@ -154,7 +182,9 @@ export default function DeckbuilderGame({
       </header>
       {showDeck ? (
         <div className="db-panel db-deck">
-          <h2>Current deck</h2>
+          <h2 ref={heading} tabIndex={-1}>
+            Current deck
+          </h2>
           <ul>
             {run.deck.map((c) => (
               <li key={c.id}>
@@ -177,7 +207,8 @@ export default function DeckbuilderGame({
               </b>
             </span>
             <span>
-              {WORLDS[battle.world - 1]} <b>{battle.world}/3</b>
+              {battle.final ? 'Crown Hall' : WORLDS[battle.world - 1]}{' '}
+              <b>{battle.final ? 'FINAL' : `${battle.world}/3`}</b>
             </span>
             <span>
               {run.phase === 'combat' ? (
@@ -199,31 +230,57 @@ export default function DeckbuilderGame({
           </div>
           {run.phase === 'combat' ? (
             <>
-              <div className="db-opponent">
-                <div
-                  className={`db-emblem db-world-${battle.world}${battle.final ? ' db-final' : ''}`}
-                  aria-hidden="true"
-                >
-                  <span>{battle.final ? 'IV' : battle.world}</span>
+              <div className="db-battlefield" role="group" aria-label="Guitar score battle board">
+                <ScoreBoardArt />
+                <div className="db-board-label" aria-hidden="true">
+                  {battle.venue} <span>{battle.boss ? 'BOSS SHOW' : 'LIVE'}</span>
                 </div>
-                <div>
-                  <h2 ref={heading} tabIndex={-1}>
-                    {battle.name}
-                  </h2>
-                  <div className="db-intent">
-                    Intent: <b>{intentText}</b>
-                    {run.weakened && <span> · weakened</span>}
+                <div className="db-stage-character" data-boss={battle.boss}>
+                  <div
+                    key={feedback?.id ?? 0}
+                    className="db-character-motion"
+                    data-motion={feedback?.kind}
+                  >
+                    <EnemyArt enemy={battle} />
                   </div>
-                  <meter aria-label="Enemy health" min={0} max={battle.hp} value={run.enemyHp} />
-                  <span className="db-enemy-stats">
-                    {run.enemyHp}/{battle.hp} HP
-                    {run.enemyBlock > 0 ? ` · ${run.enemyBlock} block` : ''}
-                  </span>
                 </div>
-                <div className="db-player-block">
-                  <b>{run.block}</b>
-                  <span>Block</span>
-                  {run.strength > 0 && <small>+{run.strength} attack</small>}
+                {feedback && (
+                  <div
+                    key={feedback.id}
+                    className={`db-feedback db-feedback-${feedback.kind}`}
+                    aria-hidden="true"
+                  >
+                    <span>{feedback.text}</span>
+                    <i />
+                    <i />
+                    <i />
+                  </div>
+                )}
+                <div className="db-opponent">
+                  <div>
+                    <h2 ref={heading} tabIndex={-1}>
+                      {battle.name}
+                    </h2>
+                    <div className="db-intent">
+                      Intent: <b>{intentText}</b>
+                      {run.weakened && <span> · weakened</span>}
+                    </div>
+                    <meter aria-label="Enemy health" min={0} max={battle.hp} value={run.enemyHp} />
+                    <span className="db-enemy-stats">
+                      {run.enemyHp}/{battle.hp} HP
+                      {run.enemyBlock > 0 ? ` · ${run.enemyBlock} block` : ''}
+                    </span>
+                  </div>
+                  <div className="db-player-block">
+                    <b>{run.block}</b>
+                    <span>Block</span>
+                    {run.strength > 0 && <small>+{run.strength} attack</small>}
+                  </div>
+                </div>
+                <div className="db-board-zones" aria-hidden="true">
+                  <span>DRAW / {run.draw.length}</span>
+                  <span>YOUR SET</span>
+                  <span>DISCARD / {run.discard.length}</span>
                 </div>
               </div>
               <div className="db-hand" role="group" aria-label="Your hand">
@@ -341,47 +398,27 @@ export default function DeckbuilderGame({
                 tabIndex={0}
                 data-arcade-native
               >
-                <h2 ref={heading} tabIndex={-1}>
-                  {run.floor === 0
-                    ? 'Three venues. Four bosses.'
-                    : battle.final
-                      ? 'The final battle'
-                      : battle.name}
-                </h2>
-                <ol className="db-route" aria-label="Run route">
-                  {ENCOUNTERS.map((e, i) => (
-                    <li
-                      key={i}
-                      aria-current={i === run.floor ? 'step' : undefined}
-                      data-cleared={i < run.floor}
-                      data-boss={e.boss}
-                      title={e.name}
-                    >
-                      <span>
-                        {i < run.floor ? (
-                          <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true">
-                            <path
-                              d="m3 10 4 4 10-10"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                            />
-                          </svg>
-                        ) : e.final ? (
-                          'IV'
-                        ) : e.boss ? (
-                          'B'
-                        ) : (
-                          '·'
-                        )}
-                      </span>
-                      <span className="arcade-sr-only">{e.name}</span>
-                    </li>
-                  ))}
-                </ol>
+                <div className="db-map-title">
+                  <h2 ref={heading} tabIndex={-1}>
+                    {battle.final ? 'Crown Hall' : 'Bellwether'}
+                  </h2>
+                  <span>{battle.final ? 'THE LAST SHOW' : 'TOWN TOUR'}</span>
+                </div>
+                <EncoreTown
+                  run={run}
+                  active={active}
+                  buttons={cardButtons}
+                  onChoose={(index) => {
+                    setCursor(index);
+                    setRun((s) => chooseVenue(s, index));
+                  }}
+                />
                 {run.floor === 0 ? (
                   <>
-                    <p>Spend beats to play cards. Block the enemy’s next attack.</p>
+                    <p>
+                      A fictional town, from house shows to the big stage. Spend beats to play
+                      cards; block the next attack.
+                    </p>
                     <div className="db-seed">
                       <label>
                         Run seed{' '}
@@ -414,7 +451,7 @@ export default function DeckbuilderGame({
               <button
                 className="db-primary"
                 disabled={!active}
-                onClick={() => setRun((s) => beginEncounter(s.floor === 0 ? createRun(seed) : s))}
+                onClick={() => setRun((s) => startBattle(s, seed))}
               >
                 {battle.final ? 'Challenge final boss' : 'Start battle'}
               </button>

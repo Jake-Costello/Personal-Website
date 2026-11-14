@@ -54,9 +54,9 @@ test('Encore cabinet plays cards, pauses, accepts physical controls and resets w
   expect(gameRequests).toHaveLength(1);
   const game = page.locator('.db-game');
   await expect(game).toHaveAttribute('data-phase', 'map');
-  await expect(
-    game.getByRole('heading', { name: 'Three venues. Four bosses.', exact: true }),
-  ).toBeInViewport({ ratio: 1 });
+  await expect(game.getByRole('heading', { name: 'Bellwether', exact: true })).toBeInViewport({
+    ratio: 1,
+  });
   await expect(game.getByRole('button', { name: 'Start battle', exact: true })).toBeInViewport({
     ratio: 1,
   });
@@ -114,6 +114,8 @@ test('a complete Encore run crosses all three world bosses and the final boss wi
     if (phase === 'won' || phase === 'lost') break;
     if (phase === 'map') {
       visited.add(floor);
+      if ([0, 3, 6, 9].includes(floor))
+        await page.screenshot({ path: info.outputPath(`town-${floor}.png`) });
       await game.getByRole('button', { name: /^(Start battle|Challenge final boss)$/ }).click();
       if ([2, 5, 8, 9].includes(floor))
         await page.screenshot({ path: info.outputPath(`boss-${floor}.png`) });
@@ -206,4 +208,73 @@ test('portfolio copy and payphone project lead to the themed cabinet without los
   await page.screenshot({ path: info.outputPath('payphone-details.png') });
   await dialog.getByRole('link', { name: 'See the Encore cabinet' }).click();
   await expect(page.locator('.arcade-page')).toHaveAttribute('data-selected', 'deckbuilder');
+});
+
+test('town buildings select a real alternate show and expose locked roads and keyboard choices', async ({
+  page,
+}, info) => {
+  await withoutWebGL(page);
+  await enter(page);
+  const game = page.locator('.db-game');
+  const town = game.getByRole('group', { name: 'House Shows street map' });
+  await expect(town.getByRole('button', { name: /The Last House/ })).toBeDisabled();
+  const alternate = town.getByRole('button', { name: /Basement 9/ });
+  await alternate.focus();
+  await page.keyboard.press('Enter');
+  await expect(alternate).toHaveAttribute('aria-pressed', 'true');
+  await expect(game.locator('.db-next-show')).toContainText(
+    'Penny Dread · 24 HP · First intent: Attack 3 + Block 4',
+  );
+  await page.screenshot({ path: info.outputPath('town-alternate.png') });
+  await game.getByRole('button', { name: /Deck \(/ }).click();
+  await expect(game.getByRole('heading', { name: 'Current deck', exact: true })).toBeFocused();
+  await page
+    .locator('.arcade-player-controls')
+    .getByRole('button', { name: 'Next card', exact: true })
+    .click();
+  await game.getByRole('button', { name: 'Back to run', exact: true }).click();
+  await expect(alternate).toHaveAttribute('aria-pressed', 'true');
+  await page
+    .locator('.arcade-player-controls')
+    .getByRole('button', { name: 'Play / confirm', exact: true })
+    .click();
+  await expect(game.getByRole('heading', { name: 'Penny Dread', exact: true })).toBeFocused();
+  await expect(game).toHaveAttribute('data-enemy-health', '24');
+  await expect(game.locator('.db-enemy-art')).toHaveAttribute('data-character', 'penny');
+  await expect(game.getByRole('img', { name: /Penny Dread: a white undercut/ })).toBeVisible();
+  await expect(game.getByRole('group', { name: 'Guitar score battle board' })).toBeVisible();
+  await expect(game.getByRole('button', { name: 'End turn', exact: true })).toBeInViewport({
+    ratio: 1,
+  });
+  await page.screenshot({ path: info.outputPath('alternate-board.png') });
+});
+
+test('combat feedback animates once, pauses and respects reduced motion without blocking input', async ({
+  page,
+}, info) => {
+  await withoutWebGL(page);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await enter(page);
+  const game = page.locator('.db-game');
+  await game.getByRole('button', { name: 'Start battle', exact: true }).click();
+  const strike = game.locator('.db-card[data-card="strike"]').first();
+  await strike.click();
+  await expect(game).toHaveAttribute('data-feedback', 'attack');
+  const motion = game.locator('.db-character-motion');
+  await expect(motion).toHaveCSS('animation-name', 'db-recoil');
+  await expect(game.locator('.db-feedback span')).toHaveText('−6');
+  await expect(game.getByRole('button', { name: 'End turn', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: 'Pause game', exact: true }).click();
+  await expect(motion).toHaveCSS('animation-play-state', 'paused');
+  await page
+    .locator('.arcade-play-tools')
+    .getByRole('button', { name: 'Resume game', exact: true })
+    .click();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await game.getByRole('button', { name: 'End turn', exact: true }).click();
+  await expect(game).toHaveAttribute('data-turn', '2');
+  await expect(game.locator('.db-character-motion')).toHaveCSS('animation-name', 'none');
+  await expect(game.locator('.db-feedback span')).toHaveCSS('animation-name', 'none');
+  await expect(game.locator('.db-announcement')).toContainText('Enemy dealt');
+  await page.screenshot({ path: info.outputPath('reduced-motion-board.png') });
 });
