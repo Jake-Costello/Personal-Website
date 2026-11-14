@@ -1204,3 +1204,399 @@
     font-size: 9px;
   }
 }
+
+/* Band cards share a readable face; rarity is a frame finish, never the only label. */
+.db-card-heading {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3px;
+}
+.db-game .db-card {
+  max-width: none;
+  border-color: #8f967e;
+  background: #dfd5b8;
+  box-shadow: inset 0 0 0 3px #eee5ce;
+}
+.db-card-heading small {
+  text-transform: capitalize;
+}
+.db-game .db-card[data-type='musician'] {
+  border-left-color: #9c4837;
+}
+.db-game .db-card[data-type='gear'] {
+  border-left-color: #2e676c;
+}
+.db-game [data-rarity='rare'] {
+  background: linear-gradient(
+    125deg,
+    #a4acb8,
+    #edf0e9 25%,
+    #c5cbd4 47%,
+    #929ba9 50%,
+    #e8eae2 74%,
+    #b4bfce
+  );
+  border-color: #dde5e8;
+  color: #202734;
+}
+.db-game [data-rarity='super-rare'] {
+  background: conic-gradient(
+    from 30deg at 35% 35%,
+    #c6ead9,
+    #bdc4ed,
+    #ecb7d5,
+    #f2d7a2,
+    #b7e3db,
+    #c6ead9
+  );
+  border-color: #f4dca3;
+  color: #202734;
+}
+.db-card[data-rarity]:is([data-rarity='rare'], [data-rarity='super-rare']) > b,
+.db-card[data-rarity]:is([data-rarity='rare'], [data-rarity='super-rare']) > strong {
+  background: #f5eddbe8;
+  width: 100%;
+  border-radius: 2px;
+  padding: 2px 1px;
+}
+.db-rarity {
+  font-weight: 700 !important;
+}
+.db-card-art {
+  width: 32px;
+  height: 40px;
+  object-fit: contain;
+}
+.db-stage-art {
+  width: 32px;
+  height: 40px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.db-game [data-rendering='pixel'] {
+  image-rendering: pixelated;
+}
+.db-venue-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.2;
+  pointer-events: none;
+}
+.db-band-summary {
+  flex-shrink: 0;
+  padding: 5px 3%;
+  font-size: 11px;
+  border-bottom: 1px solid var(--db-line);
+  background: #11172355;
+}
+.db-stage {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  padding: 5px 3%;
+  flex-shrink: 0;
+}
+.db-stage-slot,
+.db-game button.db-stage-slot {
+  display: flex;
+  align-items: center;
+  min-height: 62px;
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid var(--db-line);
+  border-radius: 3px;
+  font-size: 10px;
+  text-align: left;
+  min-width: 0;
+  background: #16272c77;
+}
+.db-stage-slot > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.db-stage-slot span,
+.db-stage-slot small {
+  display: block;
+  font-size: 9px;
+}
+.db-game button.db-stage-slot:not(:disabled) {
+  border: 2px solid #ffe2a5;
+  background: #35504d;
+}
+.db-empty {
+  flex-direction: column;
+  justify-content: center;
+  color: #d0cfbd;
+  border-style: dashed;
+}
+.db-target-prompt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 3%;
+  background: #3d3650;
+  border-block: 1px solid #ead8ab;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.db-target-prompt span {
+  flex: 1;
+}
+.db-target-prompt button {
+  min-height: 32px;
+  padding: 4px 7px;
+}
+.db-record-rack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  font-size: 11px;
+  align-items: center;
+}
+.db-record-rack > span {
+  border: 1px solid var(--db-line);
+  padding: 4px 6px;
+}
+.db-replace-record {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-width: 65ch;
+  font-size: 12px;
+}
+.db-game select {
+  font: inherit;
+  padding: 8px;
+  max-width: 100%;
+  color: var(--db-text);
+  background: var(--db-panel);
+  border: 1px solid var(--db-line);
+  border-radius: 3px;
+}
+.db-game select:focus-visible {
+  outline: 3px solid #fff3c5;
+  outline-offset: -3px;
+}
+.db-mystery {
+  border: 1px solid var(--db-line);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.db-upgrades {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.db-upgrades button {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  gap: 4px;
+  font-size: 12px;
+}
+.db-upgrades small {
+  font-weight: 400;
+}
+.db-panel h3 {
+  font-size: 15px;
+  margin: 0;
+}
+.db-catalog {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.db-catalog .db-card {
+  width: 100%;
+  min-width: 0;
+  min-height: 160px;
+  margin: 0;
+}
+.db-catalog .db-card-text {
+  display: block;
+  font-size: 11px;
+}
+.db-choices > .db-card {
+  min-width: 0;
+  align-items: center;
+  text-align: center;
+}
+@container (max-width: 550px) {
+  .db-stage {
+    gap: 3px;
+    padding: 3px 2%;
+  }
+  .db-stage-slot,
+  .db-game button.db-stage-slot {
+    min-height: 56px;
+    font-size: 9px;
+    padding: 4px;
+  }
+  .db-stage-slot span,
+  .db-stage-slot small {
+    font-size: 8px;
+  }
+  .db-stage-art {
+    display: none;
+  }
+  .db-band-summary {
+    font-size: 10px;
+    padding: 3px 2%;
+  }
+  .db-topbar small {
+    display: none;
+  }
+  .db-card-heading small {
+    font-size: 7px;
+  }
+  .db-card-heading {
+    gap: 1px;
+  }
+  .db-target-prompt {
+    font-size: 10px;
+  }
+  .db-catalog {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+  }
+  .db-upgrades {
+    grid-template-columns: 1fr;
+  }
+  .db-choices:has([data-shop]),
+  .db-shop-offers {
+    grid-template-columns: 1fr;
+  }
+  .db-game .db-catalog .db-card {
+    min-height: 178px;
+  }
+  .db-catalog .db-card-art {
+    display: block;
+  }
+}
+@container (min-height: 400px) {
+  .db-hand .db-card {
+    min-height: 156px;
+    min-width: 106px;
+  }
+  .db-hand .db-card-art {
+    display: block;
+    width: 32px;
+    height: 40px;
+  }
+  .db-hand .db-card-text {
+    display: block;
+    font-size: 10px;
+  }
+}
+@container (max-height: 310px) {
+  .db-band-summary {
+    font-size: 8px;
+    padding: 2px 2%;
+  }
+  .db-band-summary > span {
+    display: none;
+  }
+  .db-stage {
+    gap: 3px;
+    padding: 2px 2%;
+  }
+  .db-stage-art,
+  .db-stage-slot small {
+    display: none;
+  }
+  .db-stage-slot,
+  .db-game button.db-stage-slot {
+    min-height: 29px;
+    padding: 2px 3px;
+    font-size: 8px;
+  }
+  .db-stage-slot > div {
+    gap: 0;
+  }
+  .db-stage-slot span {
+    font-size: 7px;
+  }
+  .db-battlefield {
+    min-height: 44px;
+  }
+  .db-board-zones,
+  .db-player-block {
+    display: none;
+  }
+  .db-opponent {
+    top: 2%;
+    bottom: 3%;
+  }
+  .db-opponent h2 {
+    margin-bottom: 1px;
+  }
+  .db-opponent meter {
+    display: none;
+  }
+  .db-game .db-hand .db-card {
+    min-height: 58px;
+    gap: 1px;
+    padding-block: 2px;
+  }
+  .db-card .db-card-text,
+  .db-card .db-compatibility {
+    display: none;
+  }
+  .db-game .db-hand .db-card > b,
+  .db-game .db-hand .db-card > strong {
+    font-size: 8px;
+    padding: 0;
+  }
+  .db-target-prompt {
+    font-size: 8px;
+    padding: 2px 2%;
+  }
+  .db-target-prompt button {
+    min-height: 24px;
+    padding: 2px 5px;
+  }
+  .db-turnbar {
+    min-height: 26px;
+  }
+  .db-catalog {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .db-card[data-rarity='super-rare']:not(:disabled):hover {
+    background-size: 150% 150%;
+    transition: background-position 250ms ease-out;
+    background-position: 70% 30%;
+  }
+}
+@container (min-width: 551px) and (min-height: 400px) {
+  .db-hand .db-card-art {
+    width: 64px;
+    height: 80px;
+  }
+}
+/* Avoid repeating permanent rules on the small hand face; the full label and catalog retain them. */
+.db-hand .db-card:is([data-type='musician'], [data-type='gear']) .db-card-text {
+  display: none;
+}
+.db-game .db-hand .db-card:disabled {
+  opacity: 0.72;
+}
+@container (min-width: 551px) and (min-height: 400px) and (max-height: 700px) {
+  .db-board-label span {
+    display: none;
+  }
+  .db-opponent h2 {
+    font-size: 21px;
+    margin-bottom: 3px;
+  }
+}

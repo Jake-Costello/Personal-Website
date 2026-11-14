@@ -1,4 +1,6 @@
 import { useId } from 'react';
+import { ENEMY_ART } from './encore-art-registry';
+import { ReplaceableArtwork } from './CardArtwork';
 import type { CharacterKey, Encounter } from './deckbuilder-model';
 
 type Look = {
@@ -352,6 +354,16 @@ function Performer({
   );
 }
 export function EnemyArt({ enemy }: { enemy: Encounter }) {
+  return (
+    <ReplaceableArtwork
+      asset={ENEMY_ART[enemy.character]}
+      fallback={<VectorEnemyArt enemy={enemy} />}
+      className="db-enemy-art"
+      label={enemy.name}
+    />
+  );
+}
+function VectorEnemyArt({ enemy }: { enemy: Encounter }) {
   const id = useId();
   const look = LOOKS[enemy.character];
   return (

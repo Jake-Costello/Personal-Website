@@ -1,0 +1,3 @@
+# Local placeholder art
+
+`node tools/encore-art/build.mjs` writes thirteen original transparent 32×40 sprites under `public/art/encore/cards/`. The generator uses Node built-ins only, no external service or dependency. The PNG encoder is from pinned PixelFX (MIT); see `LICENSE.pixelfx.txt` and the source header. Generated characters and music icons were authored for Encore, not copied from PixelFX examples or commercial games. To replace placeholders manually, edit the art registry or the files; do not run the generator afterward unless you intend to restore placeholders. See `docs/encore-band-system/README.md` for the art/rules contract.

@@ -1,96 +1,8 @@
-export type CardKey =
-  'strike' | 'guard' | 'focus' | 'feint' | 'heavy' | 'brace' | 'rush' | 'reserve' | 'power';
-type Effect = {
-  damage?: number;
-  block?: number;
-  draw?: number;
-  energy?: number;
-  strength?: number;
-  weaken?: boolean;
-};
-export type CardDef = {
-  name: string;
-  cost: number;
-  text: string;
-  mark: string;
-  effect: Effect;
-  exhaust?: boolean;
-};
-export const CARDS: Record<CardKey, CardDef> = {
-  strike: {
-    name: 'Riff',
-    cost: 1,
-    text: 'Deal 6 damage.',
-    mark: '6 damage',
-    effect: { damage: 6 },
-  },
-  guard: {
-    name: 'Backbeat',
-    cost: 1,
-    text: 'Gain 5 block.',
-    mark: '5 block',
-    effect: { block: 5 },
-  },
-  focus: {
-    name: 'Dial in',
-    cost: 0,
-    text: 'Draw 2 cards. Exhaust.',
-    mark: 'Draw 2',
-    effect: { draw: 2 },
-    exhaust: true,
-  },
-  feint: {
-    name: 'Feedback',
-    cost: 1,
-    text: 'Deal 3 damage. Reduce the next enemy attack by 3.',
-    mark: '3 + weaken',
-    effect: { damage: 3, weaken: true },
-  },
-  heavy: {
-    name: 'Power chord',
-    cost: 2,
-    text: 'Deal 17 damage.',
-    mark: '17 damage',
-    effect: { damage: 17 },
-  },
-  brace: {
-    name: 'Drum fill',
-    cost: 1,
-    text: 'Gain 9 block.',
-    mark: '9 block',
-    effect: { block: 9 },
-  },
-  rush: {
-    name: 'Quick riff',
-    cost: 1,
-    text: 'Deal 5 damage. Draw 1 card.',
-    mark: '5 + draw 1',
-    effect: { damage: 5, draw: 1 },
-  },
-  reserve: {
-    name: 'Count-in',
-    cost: 0,
-    text: 'Gain 2 beats. Exhaust.',
-    mark: '+2 beats',
-    effect: { energy: 2 },
-    exhaust: true,
-  },
-  power: {
-    name: 'Turn it up',
-    cost: 1,
-    text: 'Attacks deal 2 more damage this battle. Exhaust.',
-    mark: '+2 strength',
-    effect: { strength: 2 },
-    exhaust: true,
-  },
-};
-export const RELICS = {
-  edge: { name: 'Hot pickup', text: 'Attacks deal 1 more damage.' },
-  plating: { name: 'Road case', text: 'Block cards give 2 more block.' },
-  charge: { name: 'Spare battery', text: 'Start each battle with 1 extra beat.' },
-} as const;
-export type RelicKey = keyof typeof RELICS;
-export type CardInstance = { id: number; key: CardKey };
+import { CARDS, RECORDS, TATTOOS, SHOP_PRICES, rarityForTicket } from './band-cards';
+import type { CardDef, CardKey, RecordKey, Rarity, TattooKey } from './band-cards';
+export { CARDS, RECORDS, TATTOOS, SHOP_PRICES, rarityForTicket } from './band-cards';
+export type { CardDef, CardKey, RecordKey, Rarity, TattooKey } from './band-cards';
+export type CardInstance = { id: number; key: CardKey; level: number };
 export type Intent = { damage: number; block: number };
 export type CharacterKey =
   | 'moth'
@@ -292,17 +204,24 @@ export function chooseVenue(state: Run, index: number): Run {
   s.route[s.floor] = index;
   return s;
 }
+export type ShopKind = 'record' | 'tattoo' | 'music';
+export type ShopOffer = {
+  id: string;
+  kind: 'record' | 'card';
+  key: RecordKey | CardKey;
+  price: number;
+  sold: boolean;
+};
 export type Run = {
   seed: string;
   rng: number;
-  phase: 'map' | 'combat' | 'reward' | 'relic' | 'won' | 'lost';
+  phase: 'map' | 'combat' | 'reward' | 'record' | 'stop' | 'shop' | 'won' | 'lost';
   floor: number;
   route: number[];
   hp: number;
   maxHp: number;
   energy: number;
   block: number;
-  strength: number;
   turn: number;
   enemyHp: number;
   enemyBlock: number;
@@ -312,21 +231,47 @@ export type Run = {
   hand: number[];
   discard: number[];
   exhaust: number[];
-  relics: RelicKey[];
+  stage: number[];
+  attachments: { musician: number; gear: number }[];
+  records: RecordKey[];
+  recordRewards: RecordKey[];
   rewards: CardKey[];
+  tattoo: TattooKey | null;
+  musiciansPlayed: number;
+  crewPlayed: number;
+  crewAttackUsed: boolean;
+  revivesUsed: number;
+  cash: number;
+  cashEarned: number;
+  cashSpent: number;
+  shopVisits: number;
+  shop: ShopKind | null;
+  offers: ShopOffer[];
+  shopRng: number;
+  mysteryUsed: boolean;
   log: string[];
 };
-function hashSeed(text: string) {
+export function hashSeed(text: string) {
   let h = 2166136261;
-  for (const ch of text) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  for (const c of text) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
   return h >>> 0;
 }
-function random(s: Run) {
-  s.rng = (s.rng + 0x6d2b79f5) >>> 0;
-  let t = s.rng;
+function nextRandom(value: number) {
+  let t = (value + 0x6d2b79f5) >>> 0;
+  const next = t;
   t = Math.imul(t ^ (t >>> 15), t | 1);
   t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  return { state: next, value: ((t ^ (t >>> 14)) >>> 0) / 4294967296 };
+}
+function random(s: Run) {
+  const r = nextRandom(s.rng);
+  s.rng = r.state;
+  return r.value;
+}
+function shopRandom(s: Run) {
+  const r = nextRandom(s.shopRng);
+  s.shopRng = r.state;
+  return r.value;
 }
 function shuffled<T>(s: Run, values: T[]) {
   const a = [...values];
@@ -340,13 +285,17 @@ function copy(s: Run): Run {
   return {
     ...s,
     route: [...s.route],
-    deck: [...s.deck],
+    deck: s.deck.map((c) => ({ ...c })),
     draw: [...s.draw],
     hand: [...s.hand],
     discard: [...s.discard],
     exhaust: [...s.exhaust],
-    relics: [...s.relics],
+    stage: [...s.stage],
+    attachments: s.attachments.map((a) => ({ ...a })),
+    records: [...s.records],
+    recordRewards: [...s.recordRewards],
     rewards: [...s.rewards],
+    offers: s.offers.map((o) => ({ ...o })),
     log: [...s.log],
   };
 }
@@ -364,27 +313,51 @@ function drawCards(s: Run, n: number) {
     (s.hand.length < 10 ? s.hand : s.discard).push(id);
   }
 }
-export function cardFor(s: Run, id: number) {
-  return CARDS[s.deck.find((c) => c.id === id)!.key];
+const count = (s: Run, key: RecordKey) => s.records.filter((k) => k === key).length;
+export function cardFor(s: Run, id: number): CardDef {
+  const instance = s.deck.find((c) => c.id === id)!;
+  const base = CARDS[instance.key];
+  const level = instance.level;
+  if (!level) return base;
+  const power = (base.power ?? 0) + ((base.power ?? 0) > 0 ? level : 0),
+    guard = (base.guard ?? 0) + ((base.guard ?? 0) > 0 ? level : 0);
+  return {
+    ...base,
+    power,
+    guard,
+    mark: `${power} power · ${guard} guard`,
+    text:
+      base.type === 'gear'
+        ? `Equip: +${power} power, +${guard} guard. One Gear per musician.${base.compatibleRoles ? ` For ${base.compatibleRoles.join('/')}.` : ''}`
+        : `Stays on stage. ${power} power, ${guard} guard. ${base.effect.draw ? 'Entrance: draw 1.' : base.effect.block ? 'Entrance: gain 3 guard.' : instance.key === 'conductor' ? 'Other musicians gain 1 power.' : ''}`,
+  };
 }
-const count = (s: Run, relic: RelicKey) => s.relics.filter((r) => r === relic).length;
+export function cardCost(s: Run, id: number) {
+  const c = cardFor(s, id);
+  return Math.max(
+    0,
+    c.cost - (c.type === 'musician' && s.tattoo === 'quick' && s.musiciansPlayed === 0 ? 1 : 0),
+  );
+}
 export function createRun(seed: string): Run {
   const keys: CardKey[] = [
-    'strike',
-    'strike',
-    'strike',
-    'strike',
-    'guard',
-    'guard',
-    'guard',
-    'guard',
-    'focus',
-    'feint',
+    'guitarist',
+    'singer',
+    'drummer',
+    'guitarist',
+    'singer',
+    'drummer',
+    'riff',
+    'riff',
+    'roadie',
+    'soundcheck',
+    'amp',
+    'kit',
   ];
-  const cleanSeed = seed.trim().slice(0, 64) || 'encore';
+  const clean = seed.trim().slice(0, 64) || 'encore';
   return {
-    seed: cleanSeed,
-    rng: hashSeed(cleanSeed),
+    seed: clean,
+    rng: hashSeed(clean),
     phase: 'map',
     floor: 0,
     route: Array(ENCOUNTERS.length).fill(0),
@@ -392,19 +365,34 @@ export function createRun(seed: string): Run {
     maxHp: 80,
     energy: 0,
     block: 0,
-    strength: 0,
     turn: 0,
     enemyHp: 0,
     enemyBlock: 0,
     weakened: false,
-    deck: keys.map((key, id) => ({ id, key })),
+    deck: keys.map((key, id) => ({ id, key, level: 0 })),
     draw: [],
     hand: [],
     discard: [],
     exhaust: [],
-    relics: [],
+    stage: [],
+    attachments: [],
+    records: [],
+    recordRewards: [],
     rewards: [],
-    log: ['Run started.'],
+    tattoo: null,
+    musiciansPlayed: 0,
+    crewPlayed: 0,
+    crewAttackUsed: false,
+    revivesUsed: 0,
+    cash: 20,
+    cashEarned: 0,
+    cashSpent: 0,
+    shopVisits: 0,
+    shop: null,
+    offers: [],
+    shopRng: hashSeed(clean + ':shops'),
+    mysteryUsed: false,
+    log: ['Choose a show. Stage musicians, then use Crew and Gear.'],
   };
 }
 export function beginEncounter(state: Run): Run {
@@ -415,7 +403,6 @@ export function beginEncounter(state: Run): Run {
     phase: 'combat',
     energy: 3 + count(s, 'charge'),
     block: 0,
-    strength: count(s, 'edge'),
     turn: 1,
     enemyHp: enemy.hp,
     enemyBlock: 0,
@@ -423,14 +410,29 @@ export function beginEncounter(state: Run): Run {
     hand: [],
     discard: [],
     exhaust: [],
+    stage: [],
+    attachments: [],
     rewards: [],
+    recordRewards: [],
+    musiciansPlayed: 0,
+    crewPlayed: 0,
+    crewAttackUsed: false,
   });
   s.draw = shuffled(
     s,
     s.deck.map((c) => c.id),
   );
-  drawCards(s, 5);
-  note(s, `${enemy.name}. Draw 5 cards.`);
+  drawCards(s, 5 + (s.tattoo === 'night' ? 1 : 0));
+  // A usable opening is guaranteed without duplicating a card or rerolling the deck.
+  if (!s.hand.some((id) => cardFor(s, id).type === 'musician')) {
+    const i = s.draw.findIndex((id) => cardFor(s, id).type === 'musician');
+    if (i >= 0) {
+      const replaced = s.hand[0];
+      s.hand[0] = s.draw[i];
+      s.draw[i] = replaced;
+    }
+  }
+  note(s, `${enemy.name} at ${enemy.venue}. Stage your band.`);
   return s;
 }
 export function currentIntent(s: Run): Intent {
@@ -438,78 +440,176 @@ export function currentIntent(s: Run): Intent {
   const intent = list[Math.max(0, s.turn - 1) % list.length];
   return { ...intent, damage: Math.max(0, intent.damage - (s.weakened ? 3 : 0)) };
 }
+export function performance(s: Run) {
+  const diverse =
+    s.stage.length === 3 && new Set(s.stage.map((id) => cardFor(s, id).role)).size === 3;
+  const leaders = s.stage.filter(
+    (id) => s.deck.find((c) => c.id === id)?.key === 'conductor',
+  ).length;
+  let power = 0,
+    guard = s.tattoo === 'plated' ? 2 : 0;
+  for (const id of s.stage) {
+    const unit = cardFor(s, id);
+    const attachment = s.attachments.find((a) => a.musician === id);
+    const gear = attachment ? cardFor(s, attachment.gear) : null;
+    power +=
+      (unit.power ?? 0) +
+      count(s, 'edge') +
+      (diverse ? 2 * count(s, 'spotlight') : 0) +
+      leaders -
+      (s.deck.find((c) => c.id === id)?.key === 'conductor' ? 1 : 0) +
+      (gear ? (gear.power ?? 0) + count(s, 'backline') : 0);
+    guard += (unit.guard ?? 0) + (gear ? (gear.guard ?? 0) + count(s, 'backline') : 0);
+  }
+  return { power, guard };
+}
+function damageEnemy(s: Run, amount: number) {
+  const absorbed = Math.min(s.enemyBlock, amount);
+  s.enemyBlock -= absorbed;
+  s.enemyHp = Math.max(0, s.enemyHp - (amount - absorbed));
+}
+function rewardCards(s: Run) {
+  const all = Object.keys(CARDS) as CardKey[];
+  const picked: CardKey[] = [];
+  while (picked.length < 3) {
+    const rarity = rarityForTicket(Math.floor(random(s) * 100));
+    let pool = all.filter((k) => CARDS[k].rarity === rarity && !picked.includes(k));
+    if (!pool.length) pool = all.filter((k) => !picked.includes(k));
+    picked.push(pool[Math.floor(random(s) * pool.length)]);
+  }
+  return picked;
+}
+function recordPool(rarity: Rarity) {
+  return (Object.keys(RECORDS) as RecordKey[]).filter((k) => RECORDS[k].rarity === rarity);
+}
 function finishEncounter(s: Run) {
+  s.hp = Math.min(s.maxHp, s.hp + 3 * count(s, 'live'));
   if (encounterAt(s).final) {
     s.phase = 'won';
-    note(s, 'Final boss defeated. Run complete.');
+    note(s, 'Crown Hall is cleared. Tour complete.');
     return;
   }
+  const earnings = encounterAt(s).boss ? 30 : 20;
+  s.cash += earnings;
+  s.cashEarned += earnings;
   if (encounterAt(s).boss) {
-    s.phase = 'relic';
+    s.phase = 'record';
     s.hp = Math.min(s.maxHp, s.hp + 20);
-    note(s, 'Boss defeated. Recover up to 20 HP and choose a relic.');
-    return;
+    s.recordRewards = shuffled(s, recordPool('common')).slice(0, 2);
+    const rare = recordPool(random(s) < 0.03 ? 'super-rare' : 'rare');
+    s.recordRewards.push(rare[Math.floor(random(s) * rare.length)]);
+    note(s, `Boss show cleared. Earned ${earnings} cash, recovered up to 20 HP. Choose a Record.`);
+  } else {
+    s.phase = 'reward';
+    s.rewards = rewardCards(s);
+    note(s, `Show cleared. Earned ${earnings} cash. Choose a card or skip.`);
   }
-  s.phase = 'reward';
-  s.rewards = shuffled(s, [
-    'heavy',
-    'brace',
-    'rush',
-    'reserve',
-    'power',
-    'feint',
-  ] as CardKey[]).slice(0, 3);
-  note(s, 'Battle won. Choose a card or skip.');
 }
-export function playCard(state: Run, id: number): Run {
+export function legalTargets(s: Run, id: number): number[] {
+  const c = cardFor(s, id);
+  if (c.type === 'musician') return s.stage.length >= 3 ? [...s.stage] : [];
+  if (c.type !== 'gear') return [];
+  return s.stage.filter(
+    (target) => !c.compatibleRoles || c.compatibleRoles.includes(cardFor(s, target).role!),
+  );
+}
+export function playCard(state: Run, id: number, target?: number): Run {
   if (state.phase !== 'combat' || !state.hand.includes(id)) return state;
-  const card = cardFor(state, id);
-  if (card.cost > state.energy) return state;
+  const card = cardFor(state, id),
+    cost = cardCost(state, id);
+  if (cost > state.energy) return state;
+  if (card.type === 'gear' && (target === undefined || !legalTargets(state, id).includes(target)))
+    return state;
+  if (
+    card.type === 'musician' &&
+    state.stage.length >= 3 &&
+    (target === undefined || !state.stage.includes(target))
+  )
+    return state;
   const s = copy(state);
   s.hand.splice(s.hand.indexOf(id), 1);
-  s.energy -= card.cost;
-  // The resolving card is held outside the discard pile until all its effects finish.
+  s.energy -= cost;
+  if (card.type === 'musician') {
+    if (s.stage.length === 3) {
+      const slot = s.stage.indexOf(target!);
+      const old = s.stage[slot];
+      s.discard.push(old);
+      const gear = s.attachments.find((a) => a.musician === old);
+      if (gear) s.discard.push(gear.gear);
+      s.attachments = s.attachments.filter((a) => a.musician !== old);
+      s.stage[slot] = id;
+    } else s.stage.push(id);
+    s.musiciansPlayed++;
+  } else if (card.type === 'gear') {
+    const old = s.attachments.find((a) => a.musician === target);
+    if (old) s.discard.push(old.gear);
+    s.attachments = s.attachments.filter((a) => a.musician !== target);
+    s.attachments.push({ musician: target!, gear: id });
+  }
   const fx = card.effect;
   if (fx.damage) {
-    const damage = fx.damage + s.strength;
-    const absorbed = Math.min(s.enemyBlock, damage);
-    s.enemyBlock -= absorbed;
-    s.enemyHp = Math.max(0, s.enemyHp - (damage - absorbed));
+    damageEnemy(
+      s,
+      fx.damage * (card.type === 'crew' && !s.crewAttackUsed ? 1 + count(s, 'double') : 1),
+    );
+    if (card.type === 'crew') s.crewAttackUsed = true;
   }
-  if (fx.block) s.block += fx.block + 2 * count(s, 'plating');
-  if (fx.strength) s.strength += fx.strength;
+  if (fx.block) s.block += fx.block + (card.type === 'crew' ? 2 * count(s, 'plating') : 0);
   if (fx.weaken) s.weakened = true;
   if (fx.energy) s.energy += fx.energy;
   if (fx.draw) drawCards(s, fx.draw);
-  (card.exhaust ? s.exhaust : s.discard).push(id);
-  note(s, `Played ${card.name}.`);
+  if (card.type === 'crew') {
+    if (!s.crewPlayed) drawCards(s, count(s, 'groove'));
+    s.crewPlayed++;
+    (card.exhaust ? s.exhaust : s.discard).push(id);
+  }
+  note(
+    s,
+    card.type === 'musician'
+      ? `Staged ${card.name}.`
+      : card.type === 'gear'
+        ? `Equipped ${card.name} to ${cardFor(s, target!).name}.`
+        : `Played ${card.name}.`,
+  );
   if (!s.enemyHp) finishEncounter(s);
   return s;
 }
 export function endTurn(state: Run): Run {
   if (state.phase !== 'combat') return state;
   const s = copy(state);
+  const band = performance(s);
+  const priorHp = s.enemyHp;
+  damageEnemy(s, band.power);
+  s.block += band.guard;
+  if (!s.enemyHp) {
+    finishEncounter(s);
+    return s;
+  }
   const intent = currentIntent(s);
   const damage = Math.max(0, intent.damage - s.block);
   s.hp = Math.max(0, s.hp - damage);
   s.enemyBlock = intent.block;
-  if (
-    intent.damage > 0 ||
-    encounterAt(s).intents[(s.turn - 1) % encounterAt(s).intents.length].damage > 0
-  )
+  if (encounterAt(s).intents[(s.turn - 1) % encounterAt(s).intents.length].damage > 0)
     s.weakened = false;
   s.discard.push(...s.hand);
   s.hand = [];
   s.block = 0;
   s.energy = 3;
   s.turn++;
+  s.crewPlayed = 0;
+  s.crewAttackUsed = false;
   note(
     s,
-    `Enemy dealt ${damage} damage${intent.block ? ` and gained ${intent.block} block` : ''}.`,
+    `Band dealt ${priorHp - s.enemyHp} damage and made ${band.guard} guard. Enemy dealt ${damage}${intent.block ? ` and gained ${intent.block} guard` : ''}.`,
   );
+  if (!s.hp && s.revivesUsed < count(s, 'encore')) {
+    s.hp = 1;
+    s.revivesUsed++;
+    note(s, 'One more song kept the band at 1 HP.');
+  }
   if (!s.hp) {
     s.phase = 'lost';
-    note(s, 'Run ended. Start a new run to try again.');
+    note(s, 'The tour ended. Start a new run with a fresh band.');
   } else drawCards(s, 5);
   return s;
 }
@@ -524,20 +624,180 @@ export function chooseReward(state: Run, index: number): Run {
   const s = copy(state);
   const key = s.rewards[index];
   if (key) {
-    s.deck.push({ id: Math.max(...s.deck.map((c) => c.id)) + 1, key });
+    s.deck.push({ id: Math.max(...s.deck.map((c) => c.id)) + 1, key, level: 0 });
     note(s, `Added ${CARDS[key].name}.`);
   } else note(s, 'Skipped card reward.');
   s.floor++;
-  s.phase = 'map';
+  s.phase = 'stop';
   s.rewards = [];
+  s.shop = null;
+  s.offers = [];
   return s;
 }
-export function chooseRelic(state: Run, relic: RelicKey): Run {
-  if (state.phase !== 'relic' || !Object.hasOwn(RELICS, relic)) return state;
+function replaceRecord(s: Run, key: RecordKey, slot?: number) {
+  if (s.records.length < 3) {
+    s.records.push(key);
+    return true;
+  }
+  if (slot === undefined || !Number.isInteger(slot) || slot < 0 || slot >= 3) return false;
+  s.records[slot] = key;
+  return true;
+}
+export function chooseRecord(state: Run, key: RecordKey | null, slot?: number): Run {
+  if (state.phase !== 'record' || (key !== null && !state.recordRewards.includes(key)))
+    return state;
   const s = copy(state);
-  s.relics.push(relic);
+  if (key && !replaceRecord(s, key, slot)) return state;
   s.floor++;
   s.phase = 'map';
-  note(s, `Gained ${RELICS[relic].name}.`);
+  s.recordRewards = [];
+  note(s, key ? `Kept ${RECORDS[key].name}.` : 'Kept the current Records.');
+  return s;
+}
+export function skipStop(state: Run): Run {
+  if (state.phase !== 'stop') return state;
+  const s = copy(state);
+  s.phase = 'map';
+  note(s, 'Headed straight to the next show.');
+  return s;
+}
+export function enterShop(state: Run, kind: ShopKind): Run {
+  if (state.phase !== 'stop' || !['record', 'tattoo', 'music'].includes(kind)) return state;
+  const s = copy(state);
+  s.phase = 'shop';
+  s.shop = kind;
+  s.shopVisits++;
+  s.mysteryUsed = false;
+  s.offers = [];
+  s.shopRng = hashSeed(`${s.seed}:shop:${s.floor}:${kind}`);
+  const offer = (key: RecordKey | CardKey, type: 'record' | 'card') => {
+    const rarity =
+      type === 'record' ? RECORDS[key as RecordKey].rarity : CARDS[key as CardKey].rarity;
+    s.offers.push({
+      id: `${s.floor}-${kind}-${s.offers.length}`,
+      key,
+      kind: type,
+      price: SHOP_PRICES[rarity],
+      sold: false,
+    });
+  };
+  if (kind === 'record') {
+    const pool = recordPool('common');
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(shopRandom(s) * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    pool.forEach((k) => offer(k, 'record'));
+    const ticket = Math.floor(shopRandom(s) * 100);
+    if (ticket < 30) {
+      const rare = recordPool(ticket < 2 ? 'super-rare' : 'rare');
+      offer(rare[Math.floor(shopRandom(s) * rare.length)], 'record');
+    }
+  } else if (kind === 'music') {
+    (['amp', 'kit', 'mic'] as CardKey[]).forEach((k) => offer(k, 'card'));
+  }
+  note(
+    s,
+    kind === 'record'
+      ? 'Record House. Three Record slots; copies stack.'
+      : kind === 'music'
+        ? 'Backline. Buy Gear or upgrade a musician or instrument.'
+        : 'Tattoo Parlor. One tattoo for this tour, with a health tradeoff.',
+  );
+  return s;
+}
+export function leaveShop(state: Run): Run {
+  if (state.phase !== 'shop') return state;
+  const s = copy(state);
+  s.phase = 'map';
+  s.shop = null;
+  note(s, 'Next show. Cash, deck, Records and tattoo carry on.');
+  return s;
+}
+export function buyOffer(state: Run, offerId: string, recordSlot?: number): Run {
+  if (state.phase !== 'shop') return state;
+  const offer = state.offers.find((o) => o.id === offerId);
+  if (!offer || offer.sold || state.cash < offer.price) return state;
+  const s = copy(state);
+  if (offer.kind === 'record') {
+    if (!replaceRecord(s, offer.key as RecordKey, recordSlot)) return state;
+  } else
+    s.deck.push({
+      id: Math.max(...s.deck.map((c) => c.id)) + 1,
+      key: offer.key as CardKey,
+      level: 0,
+    });
+  s.cash -= offer.price;
+  s.cashSpent += offer.price;
+  s.offers.find((o) => o.id === offerId)!.sold = true;
+  note(
+    s,
+    `Bought ${offer.kind === 'record' ? RECORDS[offer.key as RecordKey].name : CARDS[offer.key as CardKey].name} for ${offer.price} cash.`,
+  );
+  return s;
+}
+export function buyMystery(state: Run, recordSlot?: number): Run {
+  if (
+    state.phase !== 'shop' ||
+    state.shop !== 'record' ||
+    state.mysteryUsed ||
+    state.cash < SHOP_PRICES.mystery ||
+    (state.records.length >= 3 &&
+      (recordSlot === undefined ||
+        !Number.isInteger(recordSlot) ||
+        recordSlot < 0 ||
+        recordSlot >= 3))
+  )
+    return state;
+  const s = copy(state),
+    rarity = rarityForTicket(Math.floor(shopRandom(s) * 100));
+  const pool = recordPool(rarity),
+    key = pool[Math.floor(shopRandom(s) * pool.length)];
+  replaceRecord(s, key, recordSlot);
+  s.cash -= SHOP_PRICES.mystery;
+  s.cashSpent += SHOP_PRICES.mystery;
+  s.mysteryUsed = true;
+  note(s, `Mystery pull: ${RECORDS[key].name} (${rarity}). Spent ${SHOP_PRICES.mystery} cash.`);
+  return s;
+}
+export function buyTattoo(state: Run, key: TattooKey): Run {
+  if (
+    state.phase !== 'shop' ||
+    state.shop !== 'tattoo' ||
+    state.tattoo ||
+    !Object.hasOwn(TATTOOS, key) ||
+    state.cash < SHOP_PRICES.tattoo
+  )
+    return state;
+  const s = copy(state);
+  s.cash -= SHOP_PRICES.tattoo;
+  s.cashSpent += SHOP_PRICES.tattoo;
+  s.tattoo = key;
+  s.maxHp -= TATTOOS[key].hpCost;
+  s.hp = Math.min(s.hp, s.maxHp);
+  note(s, `${TATTOOS[key].name}: maximum HP is now ${s.maxHp}.`);
+  return s;
+}
+export function upgradeCost(s: Run, id: number) {
+  const card = s.deck.find((c) => c.id === id);
+  return card?.level === 0 ? SHOP_PRICES.upgrade : SHOP_PRICES.secondUpgrade;
+}
+export function buyUpgrade(state: Run, id: number): Run {
+  const card = state.deck.find((c) => c.id === id);
+  if (
+    state.phase !== 'shop' ||
+    state.shop !== 'music' ||
+    !card ||
+    CARDS[card.key].type === 'crew' ||
+    card.level >= 2 ||
+    state.cash < upgradeCost(state, id)
+  )
+    return state;
+  const s = copy(state),
+    cost = upgradeCost(s, id);
+  s.deck.find((c) => c.id === id)!.level++;
+  s.cash -= cost;
+  s.cashSpent += cost;
+  note(s, `Upgraded ${CARDS[card.key].name} to +${card.level + 1}.`);
   return s;
 }
