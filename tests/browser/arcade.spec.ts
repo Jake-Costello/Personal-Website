@@ -183,7 +183,13 @@ test('the optional backdrop waits for the cabinet and idle, and cancels pending 
       timeout: 15_000,
     });
     await expect(page.locator('.arcade-backdrop__fallback')).toBeVisible();
-    await expect.poll(pending).toBeGreaterThan(0);
+    await expect
+      .poll(pending, {
+        timeout: 15_000,
+        message:
+          'Schedule the optional backdrop after two cabinet paint frames on the software GPU',
+      })
+      .toBeGreaterThan(0);
     expect(shaderRequests).toEqual([]);
   });
 
@@ -193,7 +199,13 @@ test('the optional backdrop waits for the cabinet and idle, and cancels pending 
     await flush();
     expect(shaderRequests).toEqual([]);
     await page.getByRole('button', { name: 'Resume ambience', exact: true }).click();
-    await expect.poll(pending).toBeGreaterThan(0);
+    await expect
+      .poll(pending, {
+        timeout: 15_000,
+        message:
+          'Schedule the optional backdrop after two cabinet paint frames on the software GPU',
+      })
+      .toBeGreaterThan(0);
   });
 
   await test.step('entering a game cancels startup before any shader download', async () => {
@@ -206,7 +218,13 @@ test('the optional backdrop waits for the cabinet and idle, and cancels pending 
 
   await test.step('returning to the room starts the shader after readiness and idle', async () => {
     await page.getByRole('button', { name: /Back to machines/ }).click();
-    await expect.poll(pending).toBeGreaterThan(0);
+    await expect
+      .poll(pending, {
+        timeout: 15_000,
+        message:
+          'Schedule the optional backdrop after two cabinet paint frames on the software GPU',
+      })
+      .toBeGreaterThan(0);
     await flush();
     await expect(page.locator('.arcade-backdrop')).toHaveAttribute('data-renderer', 'shader', {
       timeout: 30_000,
