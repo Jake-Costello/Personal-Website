@@ -18,16 +18,25 @@ import {
   currentIntent,
   chooseReward,
   chooseRecord,
-  skipStop,
-  enterShop,
   leaveShop,
   buyOffer,
   buyMystery,
   buyTattoo,
   buyUpgrade,
   rarityForTicket,
+  TOUR_NODES,
+  visitNode,
+  mapChoices,
+  selectNode,
+  hitChance,
+  hitChanceForPressure,
+  openingPressure,
+  pressureGrowth,
+  buyPromotion,
+  chooseRehearsal,
+  PROMOTIONS,
 } from './deckbuilder-model';
-import type { Run, CardKey } from './deckbuilder-model';
+import type { Run, CardKey, ShopKind } from './deckbuilder-model';
 import type { Policy } from '../../../tools/encore-balance/policy';
 import { invariant, botRun } from '../../../tools/encore-balance/policy';
 import { combatFeedback } from './deckbuilder-feedback';
@@ -41,23 +50,30 @@ function ready(keys: CardKey[], seed = 'rules'): Run {
   s.stage = [];
   s.attachments = [];
   s.energy = 30;
+  s.pressure = 0;
   return s;
 }
-test('three card types and all three finishes have an original eighteen-card pool', () => {
-  assert.equal(Object.keys(CARDS).length, 18);
+function enterShop(state: Run, kind: ShopKind): Run {
+  if (state.phase !== 'map' || state.currentNode) return state;
+  const node = TOUR_NODES.find((n) => n.shop === kind)!,
+    parent = TOUR_NODES.find((n) => n.next.includes(node.id))!;
+  return visitNode(
+    { ...state, currentNode: parent.id, selectedNode: node.id, visited: [parent.id] },
+    node.id,
+  );
+}
+test('three card types and all three finishes have a twenty-card pool with pressure control', () => {
+  assert.equal(Object.keys(CARDS).length, 20);
   for (const type of ['musician', 'crew', 'gear']) {
     const pool = Object.values(CARDS).filter((c) => c.type === type);
-    assert.equal(pool.length, 6);
-    assert.deepEqual(pool.map((c) => c.rarity).sort(), [
-      'common',
-      'common',
-      'common',
-      'rare',
-      'rare',
-      'super-rare',
-    ]);
+    assert.equal(pool.length, type === 'crew' ? 8 : 6);
+    assert.ok(
+      pool.some((c) => c.rarity === 'common') &&
+        pool.some((c) => c.rarity === 'rare') &&
+        pool.some((c) => c.rarity === 'super-rare'),
+    );
   }
-  assert.equal(Object.keys(RECORDS).length, 9);
+  assert.equal(Object.keys(RECORDS).length, 11);
 });
 test('town retains three world bosses and a separate Crown Hall final with sixteen opponents', () => {
   assert.deepEqual(WORLDS, ['House Shows', 'Garage Circuit', 'Main Venues']);
@@ -170,7 +186,7 @@ test('a killing performance earns one show payout and cannot resolve an enemy re
   assert.equal(won.cashEarned, 20);
   assert.equal(endTurn(won), won);
 });
-test('card rewards create unique identities then offer one town-stop choice', () => {
+test('card rewards keep identities and return to roads, without an interstitial stop', () => {
   const s = {
     ...ready(['riff']),
     phase: 'reward' as const,
@@ -181,9 +197,8 @@ test('card rewards create unique identities then offer one town-stop choice', ()
   const next = chooseReward(s, 0);
   assert.equal(next.deck.length, 2);
   assert.equal(new Set(next.deck.map((c) => c.id)).size, 2);
-  assert.equal(next.phase, 'stop');
-  assert.equal(next.floor, 1);
-  assert.equal(skipStop(next).phase, 'map');
+  assert.equal(next.phase, 'map');
+  assert.equal(next.floor, s.floor);
 });
 test('world boss Records/recovery lead onward; only the separate final boss wins the tour', () => {
   for (const floor of [2, 5, 8]) {
@@ -198,7 +213,7 @@ test('world boss Records/recovery lead onward; only the separate final boss wins
     assert.equal(s.recordRewards.length, 3);
     s = chooseRecord(s, s.recordRewards[0]);
     assert.equal(s.phase, 'map');
-    assert.equal(s.floor, floor + 1);
+    assert.equal(s.floor, floor);
   }
   let s = { ...ready(['guitarist']), floor: 9 };
   s = playCard(s, 0);
@@ -229,7 +244,7 @@ test('Record effects compose with the visible band; each bandleader buffs only o
   invariant(s);
 });
 test('Record House stock is seeded, bounded and separate from combat randomness', () => {
-  const stop = { ...createRun('shop'), phase: 'stop' as const, floor: 1 };
+  const stop = { ...createRun('shop'), phase: 'map' as const, floor: 1 };
   const one = enterShop(stop, 'record'),
     two = enterShop(stop, 'record');
   assert.deepEqual(one, two);
@@ -243,7 +258,7 @@ test('Record House stock is seeded, bounded and separate from combat randomness'
   assert.equal(enterShop(leaveShop(one), 'record').phase, 'map');
 });
 test('shop purchases check price and identity atomically and cannot buy a sold offer twice', () => {
-  const s = enterShop({ ...createRun('cash'), phase: 'stop' }, 'record');
+  const s = enterShop({ ...createRun('cash'), phase: 'map' }, 'record');
   const old = structuredClone(s);
   assert.equal(buyOffer(s, 'missing'), s);
   assert.equal(buyOffer({ ...s, cash: 0 }, s.offers[0].id).records.length, 0);
@@ -260,7 +275,7 @@ test('mystery pulls have exact 70/27/3 tier boundaries, cost 30 and are limited 
   assert.deepEqual(counts, { common: 70, rare: 27, 'super-rare': 3 });
   for (const n of [-1, 0.5, 100, NaN]) assert.throws(() => rarityForTicket(n));
   const s = enterShop(
-    { ...createRun('mystery'), phase: 'stop', cash: 80, cashEarned: 60 },
+    { ...createRun('mystery'), phase: 'map', cash: 80, cashEarned: 60 },
     'record',
   );
   const old = structuredClone(s);
@@ -277,7 +292,7 @@ test('mystery pulls have exact 70/27/3 tier boundaries, cost 30 and are limited 
   assert.equal(full.shopRng, s.shopRng);
 });
 test('Backline upgrades only musicians/Gear, keeps IDs and caps levels without negative cash', () => {
-  let s = enterShop({ ...createRun('upgrade'), phase: 'stop', cash: 100, cashEarned: 80 }, 'music');
+  let s = enterShop({ ...createRun('upgrade'), phase: 'map', cash: 100, cashEarned: 80 }, 'music');
   const old = structuredClone(s);
   assert.equal(buyUpgrade(s, 6), s);
   assert.equal(buyUpgrade(s, -1), s);
@@ -293,7 +308,7 @@ test('Backline upgrades only musicians/Gear, keeps IDs and caps levels without n
   assert.equal(old.deck[0].level, 0);
 });
 test('tattoos are one per tour with shown HP tradeoffs; quick starts discount only one musician', () => {
-  let s = enterShop({ ...createRun('ink'), phase: 'stop', cash: 80, cashEarned: 60 }, 'tattoo');
+  let s = enterShop({ ...createRun('ink'), phase: 'map', cash: 80, cashEarned: 60 }, 'tattoo');
   s = buyTattoo(s, 'quick');
   assert.equal(s.maxHp, 72);
   assert.equal(s.hp, 72);
@@ -358,7 +373,8 @@ test('seeded legal runs preserve stage/attachment zones and terminate for varied
 test('the default band tour crosses every show and the distinct final boss', () => {
   const { state, seen } = botRun('encore');
   assert.equal(state.phase, 'won');
-  assert.deepEqual(seen, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  assert.ok([2, 5, 8, 9].every((f) => seen.includes(f)));
+  assert.equal(state.showsWon, 10);
 });
 
 test('not staging a band has a real loss condition and cannot farm cash', () => {
@@ -368,4 +384,218 @@ test('not staging a band has a real loss condition and cannot farm cash', () => 
   assert.equal(s.floor, 0);
   assert.equal(s.cashEarned, 0);
   assert.equal(s.cash, 20);
+});
+
+test('pressure odds have exact ticket boundaries and stay between 60 and 100 percent', () => {
+  for (const [pressure, chance] of [
+    [0, 100],
+    [25, 90],
+    [50, 80],
+    [75, 70],
+    [100, 60],
+  ]) {
+    assert.equal(hitChanceForPressure(pressure), chance);
+    assert.equal(
+      Array.from({ length: 100 }, (_, roll) => roll < chance).filter(Boolean).length,
+      chance,
+    );
+  }
+  assert.equal(hitChanceForPressure(-20), 100);
+  assert.equal(hitChanceForPressure(300), 60);
+});
+test('attack rolls are seeded, independent of draw RNG and absent on invalid or support actions', () => {
+  const s = ready(['riff', 'warmup']);
+  s.pressure = 100;
+  const old = structuredClone(s);
+  const hit = playCard(s, 0);
+  assert.deepEqual(playCard(s, 0), hit);
+  assert.deepEqual(s, old);
+  assert.equal(hit.rng, s.rng);
+  assert.equal(hit.lastAttacks.length, 1);
+  assert.equal(hit.lastAttacks[0].chance, 60);
+  assert.equal(playCard({ ...s, energy: 0 }, 0).hitRng, s.hitRng);
+  const calm = playCard(s, 1);
+  assert.equal(calm.pressure, 80);
+  assert.equal(calm.hitRng, s.hitRng);
+  assert.equal(calm.energy, s.energy - 1);
+});
+test('missed damage never suppresses guard, pressure reduction or other card effects', () => {
+  let miss: Run | undefined;
+  for (let i = 0; i < 100 && !miss; i++) {
+    const s = ready(['ovation'], 'miss-' + i);
+    s.pressure = 100;
+    const n = playCard(s, 0);
+    if (!n.lastAttacks[0].hit) {
+      miss = n;
+      assert.equal(n.enemyHp, s.enemyHp);
+      assert.equal(n.block, 8);
+    }
+  }
+  assert.ok(miss);
+  assert.equal(miss.misses, 1);
+  const s = ready(['focus']);
+  s.pressure = 80;
+  const n = playCard(s, 0);
+  assert.equal(n.pressure, 45);
+  assert.equal(n.block, 3);
+  assert.equal(n.lastAttacks.length, 0);
+});
+test('each staged musician rolls separately while guard remains reliable', () => {
+  let s = ready(['guitarist', 'singer', 'drummer']);
+  for (let i = 0; i < 3; i++) s = playCard(s, i);
+  s.pressure = 100;
+  const n = endTurn(s);
+  assert.equal(n.lastAttacks.length, 3);
+  assert.equal(n.hits + n.misses, 3);
+  assert.equal(n.hp, s.hp);
+  assert.equal(n.pressure, 100);
+  invariant(n);
+});
+test('rehearsal Records and room tone reduce opening and rising pressure without negative values', () => {
+  const s = createRun('calm');
+  s.records = ['rehearsal', 'rehearsal', 'room'];
+  assert.equal(openingPressure(s), 0);
+  const b = beginEncounter(s);
+  assert.equal(b.pressure, 0);
+  assert.equal(pressureGrowth(b), 3);
+  b.records = ['room', 'room', 'room'];
+  assert.equal(pressureGrowth(b), 0);
+  assert.equal(hitChance(b), 100);
+});
+test('roads allow only outgoing neighbours and never permit hopping, replay or skipping world bosses', () => {
+  let s = createRun('roads');
+  assert.equal(mapChoices(s).length, 3);
+  assert.equal(selectNode(s, 'w3-boss'), s);
+  assert.equal(visitNode(s, 'crown-show'), s);
+  s = visitNode(s, 'w1-show-left');
+  assert.deepEqual(s.visited, ['w1-show-left']);
+  s = { ...s, phase: 'map' };
+  assert.deepEqual(
+    mapChoices(s).map((n) => n.id),
+    ['w1-record', 'w1-extra-show'],
+  );
+  assert.equal(visitNode(s, 'w1-rehearsal'), s);
+  assert.equal(visitNode(s, 'w1-show-left'), s);
+  s = visitNode(s, 'w1-record');
+  assert.equal(s.phase, 'shop');
+  s = leaveShop(s);
+  assert.deepEqual(
+    mapChoices(s).map((n) => n.id),
+    ['w1-tattoo'],
+  );
+  assert.equal(visitNode(s, 'w1-music'), s);
+});
+test('all paths cross one boss per district, with two crossovers and real utility nodes', () => {
+  assert.equal(TOUR_NODES.length, 34);
+  assert.ok(TOUR_NODES.every((n) => n.next.every((id) => TOUR_NODES.some((t) => t.id === id))));
+  for (let w = 1; w <= 3; w++) {
+    const nodes = TOUR_NODES.filter((n) => n.world === w);
+    assert.equal(nodes.filter((n) => n.kind === 'show').length, 5);
+    assert.equal(nodes.filter((n) => n.kind === 'shop').length, 4);
+    assert.equal(nodes.filter((n) => n.kind === 'event').length, 1);
+    assert.ok(
+      nodes
+        .filter((n) => n.column === 2)
+        .every((n) => n.next.length === 1 && n.next[0] === `w${w}-boss`),
+    );
+  }
+  const finalPrep = TOUR_NODES.filter((n) => n.world === 4 && n.kind !== 'show');
+  assert.equal(finalPrep.length, 3);
+  assert.ok(finalPrep.every((n) => n.shop !== 'studio' && n.next[0] === 'crown-show'));
+});
+test('Studio charges once, increases crowd/pressure only, and pays its bonus only on a win', () => {
+  let s = enterShop({ ...createRun('promo'), cash: 100, cashEarned: 80 }, 'studio');
+  const rng = s.rng;
+  const n = buyPromotion(s, 'billboard');
+  assert.equal(n.cash, 65);
+  assert.equal(n.cashSpent, 35);
+  assert.equal(n.rng, rng);
+  assert.equal(buyPromotion(n, 'flyers'), n);
+  assert.equal(buyPromotion({ ...s, cash: 0 }, 'flyers').promotion, null);
+  const b = beginEncounter(leaveShop(n));
+  assert.equal(b.enemyHp, encounterAt(b).hp);
+  assert.ok(b.pressure >= 50);
+  b.stage = [0];
+  b.hand = b.hand.filter((id) => id !== 0);
+  b.draw = b.draw.filter((id) => id !== 0);
+  b.pressure = 0;
+  b.enemyHp = 1;
+  const won = endTurn(b);
+  assert.equal(won.promotion, null);
+  assert.equal(won.cashEarned, 80 + 20 + PROMOTIONS.billboard.bonus);
+  assert.equal(endTurn(won), won);
+});
+test('rehearsal is a once-per-node route location, not a replayable heal menu', () => {
+  const base = createRun('event');
+  let s = visitNode(
+    { ...base, currentNode: 'w1-show-right', visited: ['w1-show-right'], hp: 40 },
+    'w1-rehearsal',
+  );
+  assert.equal(s.phase, 'event');
+  s = chooseRehearsal(s, 'rest');
+  assert.equal(s.hp, 50);
+  assert.equal(chooseRehearsal(s, 'rest'), s);
+  assert.equal(visitNode(s, 'w1-rehearsal'), s);
+  const e = visitNode(
+    { ...base, currentNode: 'w1-show-right', visited: ['w1-show-right'] },
+    'w1-rehearsal',
+  );
+  const focus = chooseRehearsal(e, 'focus');
+  assert.equal(focus.nextShowRelief, 20);
+});
+
+test('every complete road path reaches all four bosses and contains seven to ten shows', () => {
+  const byId = Object.fromEntries(TOUR_NODES.map((n) => [n.id, n]));
+  const reached = new Set<string>();
+  const lengths = new Set<number>();
+  let completed = 0;
+  function walk(id: string, path: string[]) {
+    assert.ok(!path.includes(id), 'road graph must be acyclic');
+    const node = byId[id];
+    assert.ok(node);
+    reached.add(id);
+    const next = [...path, id];
+    if (!node.next.length) {
+      assert.equal(id, 'crown-show');
+      const shows = next.map((n) => byId[n]).filter((n) => n.kind === 'show');
+      assert.deepEqual(
+        shows.filter((n) => [2, 5, 8, 9].includes(n.floor!)).map((n) => n.floor),
+        [2, 5, 8, 9],
+      );
+      assert.ok(shows.length >= 7 && shows.length <= 10);
+      lengths.add(shows.length);
+      completed++;
+    } else for (const to of node.next) walk(to, next);
+  }
+  for (const n of mapChoices(createRun('roads'))) walk(n.id, []);
+  assert.equal(reached.size, TOUR_NODES.length);
+  assert.ok(completed > 100);
+  assert.deepEqual(
+    [...lengths].sort((a, b) => a - b),
+    [7, 8, 9, 10],
+  );
+});
+
+test('pressure misses receive explicit feedback while support can lower pressure independently', () => {
+  const before = ready(['riff']);
+  before.pressure = 100;
+  let after = endTurn(before);
+  // Find one deterministic missed Crew attack without relying on a particular lucky seed.
+  let missed: Run | undefined;
+  for (let i = 0; i < 20; i++) {
+    const s = ready(['riff'], `miss-feedback-${i}`);
+    s.pressure = 100;
+    const v = playCard(s, 0);
+    if (v.lastAttacks[0] && !v.lastAttacks[0].hit) {
+      missed = v;
+      assert.equal(combatFeedback(s, v)?.kind, 'miss');
+      break;
+    }
+  }
+  assert.ok(missed);
+  const calm = ready(['warmup']);
+  calm.pressure = 40;
+  after = playCard(calm, 0);
+  assert.equal(after.pressure, 20);
+  assert.equal(combatFeedback(calm, after)?.kind, 'utility');
 });

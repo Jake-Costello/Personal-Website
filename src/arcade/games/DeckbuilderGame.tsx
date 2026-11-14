@@ -1,43 +1,52 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ArcadeInput } from '../input';
+import { CARDS, RECORDS, TATTOOS, RARITY_LABEL } from './band-cards';
 import {
-  CARDS,
-  RECORDS,
+  createRun,
+  visitNode,
+  selectNode,
+  mapWorld,
+  NODE_BY_ID,
+  nodeName,
+  encounterForNode,
+  openingPressure,
+  hitChanceForPressure,
+  audience,
+  mapChoices,
   encounterAt,
-  chooseVenue,
-  WORLDS,
-  beginEncounter,
   cardFor,
   cardCost,
-  chooseRecord,
-  chooseReward,
-  createRun,
-  currentIntent,
-  endTurn,
-  playCard,
   performance,
+  currentIntent,
   legalTargets,
-  enterShop,
-  skipStop,
+  playCard,
+  endTurn,
+  chooseReward,
+  chooseRecord,
+  chooseRehearsal,
   leaveShop,
+  hitChance,
+  SHOP_NAMES,
 } from './deckbuilder-model';
-import { RARITY_LABEL } from './band-cards';
-import type { Run, ShopKind } from './deckbuilder-model';
+import type { Run } from './deckbuilder-model';
 import { EnemyArt, ScoreBoardArt } from './EncoreArt';
 import EncoreTown from './EncoreTown';
 import { combatFeedback } from './deckbuilder-feedback';
 import CardArtwork, { ReplaceableArtwork } from './CardArtwork';
 import { VENUE_ART } from './encore-art-registry';
-import { CardFace, RecordRack, RecordSlot, ShopPanel, SHOP_NAMES } from './BandPanels';
+import { CardFace, Pages, RecordSlot, ShopPanel } from './BandPanels';
 import './deckbuilder.css';
-
 function focusChoice(button: HTMLButtonElement | null | undefined) {
   if (!button) return;
   button.focus({ preventScroll: true });
   button.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
 }
-function startBattle(run: Run, seed: string) {
-  return beginEncounter(run.floor === 0 ? chooseVenue(createRun(seed), run.route[0]) : run);
+function startLocation(s: Run, seed: string) {
+  if (!s.visited.length) {
+    const fresh = createRun(seed);
+    return visitNode(selectNode(fresh, s.selectedNode));
+  }
+  return visitNode(s);
 }
 export default function DeckbuilderGame({
   input,
@@ -46,19 +55,29 @@ export default function DeckbuilderGame({
   input: ArcadeInput;
   active: boolean;
 }) {
-  const [seed, setSeed] = useState('encore');
-  const [run, setRun] = useState(() => createRun('encore'));
-  const [cursor, setCursor] = useState(0);
-  const [showDeck, setShowDeck] = useState(false);
-  const [catalog, setCatalog] = useState(false);
-  const [targetCard, setTargetCard] = useState<number | null>(null);
-  const [recordSlot, setRecordSlot] = useState(0);
-  const section = useRef<HTMLElement>(null);
-  const focusedChoice = useRef<HTMLButtonElement | null>(null);
-  const heading = useRef<HTMLHeadingElement>(null);
-  const cardButtons = useRef<(HTMLButtonElement | null)[]>([]);
-  const current = useRef({ run, cursor, seed, targetCard });
-  current.current = { run, cursor, seed, targetCard };
+  const [seed, setSeed] = useState('encore'),
+    [run, setRun] = useState(() => createRun('encore')),
+    [showDeck, setShowDeck] = useState(false),
+    [tab, setTab] = useState<'deck' | 'catalog' | 'perks' | 'rules'>('deck'),
+    [targetCard, setTargetCard] = useState<number | null>(null),
+    [recordSlot, setRecordSlot] = useState(0),
+    [size, setSize] = useState({ width: 960, height: 600 });
+  const section = useRef<HTMLElement>(null),
+    heading = useRef<HTMLHeadingElement>(null),
+    focused = useRef<HTMLButtonElement | null>(null),
+    current = useRef({ run, seed, targetCard });
+  current.current = { run, seed, targetCard };
+  useEffect(() => {
+    if (!section.current) return;
+    const observer = new ResizeObserver(([entry]) =>
+      setSize({ width: entry.contentRect.width, height: entry.contentRect.height }),
+    );
+    observer.observe(section.current);
+    return () => observer.disconnect();
+  }, []);
+  const compact = size.height < 360,
+    pageSize = compact ? 3 : size.width < 550 ? 4 : 6,
+    columns = compact ? 3 : size.width < 550 ? 2 : 3;
   const chooseCard = (id: number | undefined) => {
     const s = current.current.run;
     if (
@@ -70,10 +89,7 @@ export default function DeckbuilderGame({
       return;
     const c = cardFor(s, id);
     if (c.type === 'gear' || (c.type === 'musician' && s.stage.length >= 3)) {
-      if (legalTargets(s, id).length) {
-        setTargetCard(id);
-        setCursor(0);
-      }
+      if (legalTargets(s, id).length) setTargetCard(id);
     } else setRun((v) => playCard(v, id));
   };
   const cancelTarget = () => {
@@ -84,11 +100,10 @@ export default function DeckbuilderGame({
     );
   };
   useEffect(() => {
-    setCursor(0);
-    focusedChoice.current = null;
+    focused.current = null;
     setTargetCard(null);
     heading.current?.focus({ preventScroll: true });
-  }, [run.phase, run.floor, showDeck, catalog]);
+  }, [run.phase, run.currentNode, showDeck, tab]);
   useEffect(() => {
     if (targetCard !== null)
       focusChoice(
@@ -103,7 +118,7 @@ export default function DeckbuilderGame({
       if (!active) return;
       for (const action of presses) {
         if (showDeck && action !== 'reset') continue;
-        const { run: s, seed: currentSeed, targetCard: pending } = current.current;
+        const { run: s, seed: value, targetCard: pending } = current.current;
         if (action === 'reset') {
           setRun(createRun(s.seed));
           setShowDeck(false);
@@ -113,13 +128,10 @@ export default function DeckbuilderGame({
             section.current?.querySelectorAll<HTMLButtonElement>('[data-choice]:not(:disabled)') ??
               [],
           );
-          const selected = Math.max(0, options.indexOf(focusedChoice.current!));
-          const next =
-            (selected +
-              (action === 'left' || action === 'up' ? -1 : 1) +
-              Math.max(1, options.length)) %
-            Math.max(1, options.length);
-          setCursor(next);
+          const at = Math.max(0, options.indexOf(focused.current!)),
+            next =
+              (at + (action === 'left' || action === 'up' ? -1 : 1) + Math.max(1, options.length)) %
+              Math.max(1, options.length);
           focusChoice(options[next]);
           if (s.phase === 'map') options[next]?.click();
         } else if (action === 'secondary') {
@@ -127,23 +139,18 @@ export default function DeckbuilderGame({
           else if (s.phase === 'combat') setRun(endTurn);
           else if (s.phase === 'reward') setRun((v) => chooseReward(v, -1));
           else if (s.phase === 'record') setRun((v) => chooseRecord(v, null));
-          else if (s.phase === 'stop') setRun(skipStop);
           else if (s.phase === 'shop') setRun(leaveShop);
+          else if (s.phase === 'event') setRun((v) => chooseRehearsal(v, 'leave'));
         } else if (action === 'action') {
-          if (s.phase === 'map') setRun((v) => startBattle(v, currentSeed));
+          if (s.phase === 'map') setRun((v) => startLocation(v, value));
           else {
-            const options = section.current?.querySelectorAll<HTMLButtonElement>(
-              '[data-choice]:not(:disabled)',
+            const options = Array.from(
+              section.current?.querySelectorAll<HTMLButtonElement>(
+                '[data-choice]:not(:disabled)',
+              ) ?? [],
             );
-            const focused = document.activeElement as HTMLButtonElement | null;
-            if (focused?.matches('[data-choice]') && section.current?.contains(focused))
-              focused.click();
-            else if (
-              focusedChoice.current &&
-              Array.from(options ?? []).includes(focusedChoice.current)
-            )
-              focusedChoice.current.click();
-            else options?.[0]?.click();
+            const choice = options.includes(focused.current!) ? focused.current : options[0];
+            choice?.click();
           }
         }
       }
@@ -179,532 +186,580 @@ export default function DeckbuilderGame({
       run.phase === 'combat' &&
       targetCard === null &&
       document.activeElement === document.body
-    ) {
-      const next = section.current?.querySelector<HTMLButtonElement>(
-        '.db-hand button:not(:disabled), .db-turnbar button:not(:disabled)',
+    )
+      focusChoice(
+        section.current?.querySelector<HTMLButtonElement>(
+          '.db-hand button:not(:disabled),.db-perform:not(:disabled)',
+        ),
       );
-      focusChoice(next);
-    }
   }, [run, targetCard, active]);
   const battle = encounterAt(run),
     band = performance(run),
-    intent = currentIntent(run);
-  const targets = targetCard === null ? [] : legalTargets(run, targetCard);
-  const pending = targetCard === null ? null : cardFor(run, targetCard);
-  const intentText = [
-    intent.damage ? `Attack ${intent.damage}` : '',
-    intent.block ? `Block ${intent.block}` : '',
-  ]
-    .filter(Boolean)
-    .join(' + ');
-  const priorRun = useRef(run),
-    feedbackId = useRef(0);
-  const [feedback, setFeedback] = useState<{ id: number; kind: string; text: string } | null>(null);
+    intent = currentIntent(run),
+    pending = targetCard === null ? null : cardFor(run, targetCard),
+    targets = targetCard === null ? [] : legalTargets(run, targetCard),
+    selected = NODE_BY_ID[run.selectedNode],
+    world =
+      run.phase === 'map'
+        ? mapWorld(run)
+        : (NODE_BY_ID[run.currentNode ?? '']?.world ?? battle.world);
+  const prior = useRef(run),
+    feedbackId = useRef(0),
+    [feedback, setFeedback] = useState<{ id: number; kind: string; text: string } | null>(null);
   useEffect(() => {
-    const prior = priorRun.current;
-    priorRun.current = run;
-    if (run === prior) return;
-    const event = combatFeedback(prior, run);
-    setFeedback(event ? { id: ++feedbackId.current, ...event } : null);
+    const before = prior.current;
+    prior.current = run;
+    if (before === run) return;
+    const e = combatFeedback(before, run);
+    setFeedback(e ? { ...e, id: ++feedbackId.current } : null);
   }, [run]);
   const newRun = () => {
     setRun(createRun(seed));
     setShowDeck(false);
     setTargetCard(null);
-    setCursor(0);
   };
-  const nextSeed = () => setSeed(crypto.getRandomValues(new Uint32Array(1))[0].toString(36));
-  const inspector = catalog
-    ? Object.entries(CARDS).map(([key, card]) => ({ key, card, level: 0 }))
-    : run.deck.map((c) => ({ key: String(c.id), card: cardFor(run, c.id), level: c.level }));
+  const deckItems =
+    tab === 'catalog'
+      ? Object.values(CARDS).map((card, i) => ({ id: i, card, level: 0 }))
+      : run.deck.map((c) => ({ id: c.id, card: cardFor(run, c.id), level: c.level }));
+  const title =
+    run.phase === 'map'
+      ? world === 4
+        ? 'Crown Hall'
+        : ['House Shows', 'Garage Circuit', 'Main Venues'][world - 1]
+      : run.phase === 'shop'
+        ? SHOP_NAMES[run.shop!]
+        : run.phase === 'event'
+          ? 'Rehearsal'
+          : run.phase === 'reward'
+            ? 'Choose a card'
+            : run.phase === 'record'
+              ? 'Choose a Record'
+              : run.phase === 'won'
+                ? 'Tour complete'
+                : 'Run ended';
+  const preview = selected?.kind === 'show' ? encounterForNode(selected) : null;
   return (
     <section
       ref={section}
-      onFocusCapture={(e) => {
-        const target = e.target as HTMLButtonElement;
-        if (target.matches('button[data-choice]')) focusedChoice.current = target;
-      }}
       className="db-game"
       aria-label="Encore deckbuilder prototype"
+      onFocusCapture={(e) => {
+        const t = e.target as HTMLButtonElement;
+        if (t.matches('button[data-choice]')) focused.current = t;
+      }}
       data-phase={run.phase}
-      data-world={battle.world}
-      data-final={Boolean(battle.final)}
+      data-world={Math.min(3, world)}
+      data-final={world === 4}
       data-active={active}
+      data-compact={compact}
       data-feedback={feedback?.kind}
       data-floor={run.floor}
       data-health={run.hp}
       data-enemy-health={run.enemyHp}
       data-energy={run.energy}
+      data-block={run.block}
       data-turn={run.turn}
       data-seed={run.seed}
       data-cash={run.cash}
+      data-pressure={run.pressure}
+      data-hit-chance={hitChance(run)}
+      data-current-node={run.currentNode ?? ''}
       data-targeting={targetCard !== null}
     >
       <header className="db-topbar">
-        <b>
-          ENCORE <small>BELLWETHER TOUR</small>
-        </b>
+        <b>ENCORE</b>
         <button
-          onClick={() => {
-            setShowDeck((v) => !v);
-            setCatalog(false);
-          }}
           disabled={!active}
           aria-expanded={showDeck}
+          onClick={() => {
+            setShowDeck((v) => !v);
+            setTab('deck');
+          }}
         >
-          {showDeck ? 'Close deck' : `Deck (${run.deck.length})`}
+          {showDeck ? 'Close' : `Deck (${run.deck.length})`}
         </button>
       </header>
+      <div className="db-status">
+        <span>
+          HP{' '}
+          <b>
+            {run.hp}/{run.maxHp}
+          </b>
+        </span>
+        <span>
+          Cash <b>{run.cash}</b>
+        </span>
+        <span>
+          {run.phase === 'combat' ? (
+            <>
+              Beats <b>{run.energy}</b>
+            </>
+          ) : (
+            <>
+              Shows <b>{run.showsWon}</b>
+            </>
+          )}
+        </span>
+        <span>{world === 4 ? 'Crown Hall' : `${world}/3`}</span>
+      </div>
       {showDeck ? (
-        <div className="db-panel db-deck">
-          <h2 ref={heading} tabIndex={-1}>
-            {catalog ? 'Card catalog' : 'Current deck'}
+        <div className="db-panel db-inspector">
+          <nav className="db-tabs" aria-label="Inspector">
+            <button disabled={!active} aria-pressed={tab === 'deck'} onClick={() => setTab('deck')}>
+              Deck
+            </button>
+            <button
+              disabled={!active}
+              aria-pressed={tab === 'catalog'}
+              onClick={() => setTab('catalog')}
+            >
+              Catalog
+            </button>
+            <button
+              disabled={!active}
+              aria-pressed={tab === 'perks'}
+              onClick={() => setTab('perks')}
+            >
+              Perks
+            </button>
+            <button
+              disabled={!active}
+              aria-pressed={tab === 'rules'}
+              onClick={() => setTab('rules')}
+            >
+              Rules
+            </button>
+          </nav>
+          <h2 tabIndex={-1} ref={heading}>
+            {tab === 'deck'
+              ? 'Current deck'
+              : tab === 'catalog'
+                ? 'Card catalog'
+                : tab === 'perks'
+                  ? 'Tour perks'
+                  : 'How to play'}
           </h2>
-          <p>
-            {catalog
-              ? 'All 18 prototype cards, including cards not in your deck. No permanent collection yet.'
-              : 'Cards and upgrades last this tour. Musicians and equipped Gear stay on stage between turns.'}
-          </p>
-          <button disabled={!active} onClick={() => setCatalog((v) => !v)}>
-            {catalog ? 'Show owned deck' : 'Browse card catalog'}
-          </button>
-          <RecordRack run={run} />
-          <ul className="db-owned-perks" aria-label="Owned Record effects">
-            {run.records.map((key, i) => (
-              <li key={i}>
-                <b>{RECORDS[key].name}</b> {RECORDS[key].text}
-              </li>
-            ))}
-          </ul>
-          <div className="db-catalog">
-            {inspector.map((c) => (
-              <article
-                key={c.key}
-                className="db-card"
-                data-rarity={c.card.rarity}
-                data-type={c.card.type}
-              >
-                <CardFace card={c.card} level={c.level} />
-              </article>
-            ))}
-          </div>
-          <button disabled={!active} onClick={() => setShowDeck(false)}>
+          {tab === 'deck' || tab === 'catalog' ? (
+            <Pages
+              pageSize={pageSize}
+              columns={columns}
+              label={tab === 'deck' ? 'Owned cards' : 'Card catalog'}
+              resetKey={tab}
+            >
+              {deckItems.map((c) => (
+                <article
+                  className="db-page-card db-card"
+                  key={c.id}
+                  data-rarity={c.card.rarity}
+                  data-type={c.card.type}
+                  aria-label={`${c.card.name}. ${c.card.text}`}
+                >
+                  <CardFace card={c.card} level={c.level} />
+                </article>
+              ))}
+            </Pages>
+          ) : tab === 'perks' ? (
+            <Pages pageSize={pageSize} columns={columns} label="Tour perks" resetKey="perks">
+              {[
+                ...run.records.map((key, i) => (
+                  <article
+                    className="db-page-card db-offer"
+                    key={i}
+                    data-rarity={RECORDS[key].rarity}
+                  >
+                    <small>Record</small>
+                    <b>{RECORDS[key].name}</b>
+                    <span>{RECORDS[key].text}</span>
+                  </article>
+                )),
+                ...(run.tattoo
+                  ? [
+                      <article className="db-page-card db-offer" key="tattoo">
+                        <small>Tattoo</small>
+                        <b>{TATTOOS[run.tattoo].name}</b>
+                        <span>{TATTOOS[run.tattoo].text}</span>
+                      </article>,
+                    ]
+                  : []),
+                ...(!run.records.length && !run.tattoo ? [<p key="none">No perks yet.</p>] : []),
+              ]}
+            </Pages>
+          ) : (
+            <div className="db-rules">
+              <p>
+                Stage 3 musicians; attach 1 compatible Gear each. Crew plays once. Perform attacks,
+                adds guard, then the enemy responds.
+              </p>
+              <p>
+                Crowds raise pressure; hit chance falls from 100% to 60%. Musicians roll separately.
+                Guard and support always work.
+              </p>
+              <p>Crew and Records calm pressure. New show resets it. No saves.</p>
+              <div className="db-seed">
+                <label>
+                  Run seed{' '}
+                  <input
+                    disabled={!active}
+                    value={seed}
+                    maxLength={64}
+                    onChange={(e) => setSeed(e.target.value)}
+                  />
+                </label>
+                <button disabled={!active} onClick={newRun}>
+                  Restart seed
+                </button>
+              </div>
+            </div>
+          )}
+          <button
+            className="db-primary db-leave"
+            disabled={!active}
+            onClick={() => setShowDeck(false)}
+          >
             Back to run
           </button>
         </div>
-      ) : (
-        <>
-          <div className="db-status">
+      ) : run.phase === 'combat' ? (
+        <div className="db-combat">
+          <div className="db-battlefield" role="group" aria-label="Guitar score battle board">
+            <ReplaceableArtwork
+              asset={
+                VENUE_ART[battle.final ? 'crown' : ['house', 'garage', 'venue'][battle.world - 1]]
+              }
+              className="db-venue-art"
+              fallback={<ScoreBoardArt />}
+            />
+            <div className="db-stage-character">
+              <div
+                key={feedback?.id ?? 0}
+                className="db-character-motion"
+                data-motion={feedback?.kind}
+              >
+                <EnemyArt enemy={battle} />
+              </div>
+            </div>
+            <div className="db-opponent">
+              <h2 ref={heading} tabIndex={-1}>
+                {battle.name}
+              </h2>
+              <div className="db-intent">
+                {[
+                  intent.damage ? `Attack ${intent.damage}` : '',
+                  intent.block ? `Guard ${intent.block}` : '',
+                ]
+                  .filter(Boolean)
+                  .join(' + ')}
+              </div>
+              <meter aria-label="Enemy health" min={0} max={battle.hp} value={run.enemyHp} />
+              <span className="db-enemy-stats">
+                {run.enemyHp}/{battle.hp} HP{run.enemyBlock ? ` · ${run.enemyBlock} guard` : ''}
+              </span>
+            </div>
+            {feedback && (
+              <span
+                key={feedback.id}
+                className={`db-feedback db-feedback-${feedback.kind}`}
+                aria-hidden="true"
+              >
+                {feedback.text}
+              </span>
+            )}
+          </div>
+          <div className="db-band-summary">
             <span>
-              HP{' '}
-              <b>
-                {run.hp}/{run.maxHp}
-              </b>
+              <b data-band-power={band.power}>{band.power} power</b> ·{' '}
+              <b data-band-guard={band.guard}>{run.block + band.guard} guard</b>
             </span>
-            <span>
-              {battle.final ? 'Crown Hall' : WORLDS[battle.world - 1]}{' '}
-              <b>{battle.final ? 'FINAL' : `${battle.world}/3`}</b>
-            </span>
-            <span>
-              {run.phase === 'combat' ? (
+            <button
+              disabled={!active}
+              className="db-pressure-info"
+              onClick={() => {
+                setShowDeck(true);
+                setTab('rules');
+              }}
+              aria-label={`Band pressure ${run.pressure} of 100. Hit chance ${hitChance(run)} percent. View rules.`}
+            >
+              Pressure <b>{run.pressure}</b> · Hit <b>{hitChance(run)}%</b>
+            </button>
+          </div>
+          <div className="db-stage" role="group" aria-label="Your three musician slots">
+            {[0, 1, 2].map((i) => {
+              const id = run.stage[i],
+                unit = id === undefined ? null : cardFor(run, id),
+                attachment = run.attachments.find((a) => a.musician === id),
+                gear = attachment ? cardFor(run, attachment.gear) : null,
+                last = run.lastAttacks.find((a) => a.id === id),
+                selectedUnit = pending?.type === 'musician' && id !== undefined,
+                selectGear = pending?.type === 'gear' && id !== undefined;
+              const unitContent = unit ? (
                 <>
-                  Beats <b>{run.energy}</b>
+                  <b>{unit.name}</b>
+                  {last && !last.hit && <em className="db-stage-result">Miss</em>}
+                  <CardArtwork artKey={unit.artKey} className="db-stage-art" />
+                  <span>
+                    {unit.power} P · {unit.guard} G
+                  </span>
                 </>
               ) : (
-                `${Math.min(10, run.floor + (['reward', 'record', 'won'].includes(run.phase) ? 1 : 0))}/10 battles`
-              )}
-            </span>
-            <span>
-              Cash <b>{run.cash}</b>
-            </span>
-          </div>
-          {run.phase === 'combat' ? (
-            <>
-              <div className="db-battlefield" role="group" aria-label="Guitar score battle board">
-                <ReplaceableArtwork
-                  asset={
-                    VENUE_ART[
-                      battle.final ? 'crown' : ['house', 'garage', 'venue'][battle.world - 1]
-                    ]
-                  }
-                  className="db-venue-art"
-                  fallback={<ScoreBoardArt />}
-                />
-                <div className="db-board-label" aria-hidden="true">
-                  {battle.venue}
-                  <span>{battle.boss ? 'BOSS SHOW' : 'LIVE'}</span>
-                </div>
-                <div className="db-stage-character" data-boss={battle.boss}>
-                  <div
-                    key={feedback?.id ?? 0}
-                    className="db-character-motion"
-                    data-motion={feedback?.kind}
-                  >
-                    <EnemyArt enemy={battle} />
-                  </div>
-                </div>
-                {feedback && (
-                  <div
-                    key={feedback.id}
-                    className={`db-feedback db-feedback-${feedback.kind}`}
-                    aria-hidden="true"
-                  >
-                    <span>{feedback.text}</span>
-                    <i />
-                    <i />
-                    <i />
-                  </div>
-                )}
-                <div className="db-opponent">
-                  <div>
-                    <h2 ref={heading} tabIndex={-1}>
-                      {battle.name}
-                    </h2>
-                    <div className="db-intent">
-                      Intent: <b>{intentText}</b>
-                      {run.weakened && <span> · weakened</span>}
-                    </div>
-                    <meter aria-label="Enemy health" min={0} max={battle.hp} value={run.enemyHp} />
-                    <span className="db-enemy-stats">
-                      {run.enemyHp}/{battle.hp} HP
-                      {run.enemyBlock > 0 ? ` · ${run.enemyBlock} block` : ''}
-                    </span>
-                  </div>
-                  <div className="db-player-block">
-                    <b>{run.block}</b>
-                    <span>Guard now</span>
-                  </div>
-                </div>
-              </div>
-              <div className="db-band-summary">
-                Your band · <b data-band-power={band.power}>{band.power} power</b> ·{' '}
-                <b data-band-guard={band.guard}>{band.guard} guard</b>
-                <span> each performance</span>
-              </div>
-              {pending && (
-                <div className="db-target-prompt" role="status">
+                <>
+                  <span>Musician</span>
+                  <i aria-hidden="true">＋</i>
+                </>
+              );
+              const gearContent = gear ? (
+                <>
+                  <b>{gear.name}</b>
+                  <CardArtwork artKey={gear.artKey} className="db-gear-art" />
                   <span>
-                    {pending.type === 'gear' ? 'Equip' : 'Replace a musician with'}{' '}
-                    <b>{pending.name}</b>. Choose a highlighted musician. Replaced cards go to
-                    discard.
+                    +{gear.power} P · +{gear.guard} G
                   </span>
-                  <button disabled={!active} onClick={cancelTarget}>
-                    Cancel target
-                  </button>
-                </div>
-              )}
-              <div className="db-stage" role="group" aria-label="Your three musician slots">
-                {[0, 1, 2].map((i) => {
-                  const id = run.stage[i];
-                  if (id === undefined)
-                    return (
-                      <div key={i} className="db-stage-slot db-empty">
-                        Slot {i + 1}
-                        <span>Stage a musician</span>
-                      </div>
-                    );
-                  const unit = cardFor(run, id),
-                    attachment = run.attachments.find((a) => a.musician === id),
-                    gear = attachment ? cardFor(run, attachment.gear) : null;
-                  const content = (
-                    <>
-                      <CardArtwork artKey={unit.artKey} className="db-stage-art" />
-                      <div>
-                        <b>{unit.name}</b>
-                        <span>
-                          {unit.role} · {unit.power} power · {unit.guard} guard
-                        </span>
-                        <small>
-                          {gear
-                            ? `${gear.name}: +${gear.power} power / +${gear.guard} guard`
-                            : 'No Gear'}
-                        </small>
-                      </div>
-                    </>
-                  );
-                  return pending ? (
+                </>
+              ) : (
+                <>
+                  <span>Gear</span>
+                  <i aria-hidden="true">＋</i>
+                </>
+              );
+              const data = {
+                className: 'db-stage-slot',
+                'data-stage-id': id,
+                'data-role': unit?.role,
+                'data-key': id === undefined ? undefined : run.deck.find((c) => c.id === id)!.key,
+                'data-power': unit?.power,
+                'data-guard': unit?.guard,
+                'data-gear-power': gear?.power ?? 0,
+                'data-gear-guard': gear?.guard ?? 0,
+                'data-outcome': last ? (last.hit ? 'hit' : 'miss') : undefined,
+              };
+              const choose = () => {
+                setRun((s) => playCard(s, targetCard!, id));
+                setTargetCard(null);
+              };
+              return (
+                <div className="db-band-lane" key={i}>
+                  {selectedUnit ? (
                     <button
-                      key={i}
-                      className="db-stage-slot"
+                      {...data}
                       data-choice
-                      data-stage-id={id}
-                      data-role={unit.role}
-                      data-key={run.deck.find((c) => c.id === id)!.key}
-                      data-power={unit.power}
-                      data-guard={unit.guard}
-                      data-gear-power={gear?.power ?? 0}
-                      data-gear-guard={gear?.guard ?? 0}
-                      disabled={!active || !targets.includes(id)}
-                      onClick={() => {
-                        setRun((s) => playCard(s, targetCard!, id));
-                        setTargetCard(null);
-                      }}
+                      aria-label={`Replace slot ${i + 1}: ${unit!.name}. ${gear ? `Attached ${gear.name}.` : 'No Gear.'}`}
+                      disabled={!active || !targets.includes(id!)}
+                      onClick={choose}
                     >
-                      {content}
+                      {unitContent}
                     </button>
                   ) : (
-                    <div
-                      key={i}
-                      className="db-stage-slot"
-                      data-stage-id={id}
-                      data-role={unit.role}
-                      data-key={run.deck.find((c) => c.id === id)!.key}
-                      data-power={unit.power}
-                      data-guard={unit.guard}
-                      data-gear-power={gear?.power ?? 0}
-                      data-gear-guard={gear?.guard ?? 0}
-                    >
-                      {content}
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="db-hand" role="group" aria-label="Your hand">
-                {run.hand.map((id, i) => {
-                  const card = cardFor(run, id),
-                    instance = run.deck.find((c) => c.id === id)!,
-                    noTarget = card.type === 'gear' && !legalTargets(run, id).length;
-                  return (
+                    <div {...data}>{unitContent}</div>
+                  )}
+                  {selectGear ? (
                     <button
-                      key={id}
-                      className="db-card"
-                      data-choice={pending ? undefined : ''}
-                      data-id={id}
-                      data-card={instance.key}
-                      data-level={instance.level}
-                      data-type={card.type}
-                      data-rarity={card.rarity}
-                      data-selected={i === Math.min(cursor, run.hand.length - 1)}
-                      disabled={
-                        !active || pending !== null || cardCost(run, id) > run.energy || noTarget
-                      }
-                      aria-label={`${card.name}${instance.level ? ` +${instance.level}` : ''}. ${card.type}. ${RARITY_LABEL[card.rarity]}. ${cardCost(run, id)} beats. ${card.text}${noTarget ? ' Stage a compatible musician first.' : ''}`}
-                      onFocus={() => setCursor(i)}
-                      onClick={() => chooseCard(id)}
+                      className="db-gear-slot"
+                      data-choice
+                      data-stage-id={id}
+                      data-role={unit?.role}
+                      aria-label={`Equip ${pending!.name} to slot ${i + 1}: ${unit!.name} (${unit!.role}). ${gear ? `Replace ${gear.name}.` : 'Empty Gear slot.'}`}
+                      disabled={!active || !targets.includes(id!)}
+                      onClick={choose}
                     >
-                      <CardFace card={card} level={instance.level} cost={cardCost(run, id)} />
-                      {card.compatibleRoles && (
-                        <small className="db-compatibility">{card.compatibleRoles.join('/')}</small>
-                      )}
+                      {gearContent}
                     </button>
-                  );
-                })}
-              </div>
-              <div className="db-turnbar">
-                <span>
-                  Turn {run.turn} · Draw {run.draw.length} · Discard {run.discard.length}
-                  {run.exhaust.length ? ` · Exhaust ${run.exhaust.length}` : ''}
-                </span>
+                  ) : (
+                    <div className="db-gear-slot">{gearContent}</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="db-hand" role="group" aria-label="Your hand">
+            {run.hand.map((id) => {
+              const c = cardFor(run, id),
+                instance = run.deck.find((x) => x.id === id)!;
+              return (
+                <button
+                  key={id}
+                  className="db-card"
+                  data-choice={pending ? undefined : ''}
+                  data-id={id}
+                  data-card={instance.key}
+                  data-level={instance.level}
+                  data-type={c.type}
+                  data-rarity={c.rarity}
+                  disabled={
+                    !active ||
+                    Boolean(pending) ||
+                    cardCost(run, id) > run.energy ||
+                    (c.type === 'gear' && !legalTargets(run, id).length)
+                  }
+                  title={c.text}
+                  aria-label={`${c.name}. ${cardCost(run, id)} beats. ${c.text}${c.effect.damage ? ` Hit chance ${hitChance(run)} percent.` : ''}`}
+                  onClick={() => chooseCard(id)}
+                >
+                  <CardFace card={c} level={instance.level} cost={cardCost(run, id)} />
+                </button>
+              );
+            })}
+          </div>
+          <div className="db-turnbar">
+            {pending ? (
+              <>
+                <b className="db-target-prompt">
+                  {pending.type === 'gear' ? 'Choose Gear slot' : 'Replace musician'}
+                </b>
+                <button className="db-primary" disabled={!active} onClick={cancelTarget}>
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                className="db-primary db-perform"
+                disabled={!active}
+                onClick={() => setRun(endTurn)}
+              >
+                Perform
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className={`db-panel db-${run.phase}`}>
+          <h2 ref={heading} tabIndex={-1}>
+            {title}
+          </h2>
+          {run.phase === 'map' ? (
+            <>
+              <EncoreTown
+                run={run}
+                active={active}
+                onChoose={(id) => setRun((s) => selectNode(s, id))}
+              />
+              <div className="db-map-footer">
+                <div>
+                  <b>{nodeName(selected)}</b>
+                  {preview && (
+                    <span>
+                      {preview.hp} HP · {audience(run, selected)} crowd · Hit{' '}
+                      {hitChanceForPressure(openingPressure(run, selected))}%
+                    </span>
+                  )}
+                </div>
                 <button
                   className="db-primary"
-                  disabled={!active || pending !== null}
-                  onClick={() => setRun(endTurn)}
+                  disabled={!active || !mapChoices(run).length}
+                  onClick={() => setRun((s) => startLocation(s, seed))}
                 >
-                  Perform / end turn
+                  {selected.kind === 'show' ? 'Play show' : 'Visit'}
                 </button>
               </div>
             </>
-          ) : run.phase === 'reward' || run.phase === 'record' ? (
-            <div className="db-panel db-rewards">
-              <h2 ref={heading} tabIndex={-1}>
-                {run.phase === 'record' ? 'Choose a Record' : 'Choose a card'}
-              </h2>
-              <p>
-                {run.phase === 'record'
-                  ? 'Boss defeated. Recovered up to 20 HP. Records are tour-long perks.'
-                  : 'Add one card, or skip to keep the deck small.'}
-              </p>
-              {run.phase === 'record' && (
-                <>
-                  <RecordRack run={run} />
-                  <RecordSlot
-                    active={active}
-                    run={run}
-                    slot={recordSlot}
-                    onChange={setRecordSlot}
-                  />
-                </>
-              )}
-              <div className="db-choices">
-                {run.phase === 'record'
-                  ? run.recordRewards.map((key) => (
-                      <button
-                        key={key}
-                        data-choice
-                        data-record={key}
-                        data-rarity={RECORDS[key].rarity}
-                        disabled={!active}
-                        onClick={() => setRun((s) => chooseRecord(s, key, recordSlot))}
-                      >
-                        <b>{RECORDS[key].name}</b>
-                        <small>{RARITY_LABEL[RECORDS[key].rarity]} Record</small>
-                        <span>{RECORDS[key].text}</span>
-                      </button>
-                    ))
-                  : run.rewards.map((key, i) => (
-                      <button
-                        key={key}
-                        data-choice
-                        className="db-card"
-                        data-rarity={CARDS[key].rarity}
-                        data-reward={key}
-                        disabled={!active}
-                        onClick={() => setRun((s) => chooseReward(s, i))}
-                      >
-                        <CardFace card={CARDS[key]} />
-                      </button>
-                    ))}
+          ) : run.phase === 'shop' ? (
+            <ShopPanel
+              run={run}
+              active={active}
+              setRun={setRun}
+              slot={recordSlot}
+              setSlot={setRecordSlot}
+              pageSize={pageSize}
+              columns={columns}
+            />
+          ) : run.phase === 'event' ? (
+            <>
+              <div className="db-event-choices">
+                <button
+                  data-choice
+                  disabled={!active}
+                  onClick={() => setRun((s) => chooseRehearsal(s, 'rest'))}
+                >
+                  <b>Rest</b>
+                  <span>Recover 10 HP</span>
+                </button>
+                <button
+                  data-choice
+                  disabled={!active}
+                  onClick={() => setRun((s) => chooseRehearsal(s, 'focus'))}
+                >
+                  <b>Rehearse</b>
+                  <span>Next show: −20 pressure</span>
+                </button>
               </div>
               <button
+                className="db-primary db-leave"
                 disabled={!active}
-                onClick={() =>
-                  setRun((s) =>
-                    s.phase === 'record' ? chooseRecord(s, null) : chooseReward(s, -1),
-                  )
-                }
+                onClick={() => setRun((s) => chooseRehearsal(s, 'leave'))}
               >
-                {run.phase === 'record' ? 'Keep current Records' : 'Skip card'}
+                Leave
               </button>
-            </div>
-          ) : run.phase === 'stop' ? (
-            <div className="db-panel db-stop">
-              <h2 ref={heading} tabIndex={-1}>
-                Between shows
-              </h2>
-              <p>Choose one stop, or head straight to the next show. Cash: {run.cash}.</p>
-              <RecordRack run={run} />
-              <div className="db-choices">
-                {(['record', 'tattoo', 'music'] as ShopKind[]).map((key) => (
+            </>
+          ) : run.phase === 'reward' ? (
+            <>
+              <Pages pageSize={3} columns={3} label="Card rewards" resetKey="reward">
+                {run.rewards.map((key, i) => (
+                  <button
+                    key={key}
+                    className="db-page-card db-card"
+                    data-choice
+                    data-reward={key}
+                    data-rarity={CARDS[key].rarity}
+                    disabled={!active}
+                    onClick={() => setRun((s) => chooseReward(s, i))}
+                  >
+                    <CardFace card={CARDS[key]} />
+                  </button>
+                ))}
+              </Pages>
+              <button
+                className="db-primary db-leave"
+                disabled={!active}
+                onClick={() => setRun((s) => chooseReward(s, -1))}
+              >
+                Skip
+              </button>
+            </>
+          ) : run.phase === 'record' ? (
+            <>
+              <RecordSlot active={active} run={run} slot={recordSlot} onChange={setRecordSlot} />
+              <Pages pageSize={3} columns={3} label="Record rewards" resetKey="record">
+                {run.recordRewards.map((key) => (
                   <button
                     key={key}
                     data-choice
-                    data-shop={key}
+                    className="db-page-card db-offer"
+                    data-record={key}
+                    data-rarity={RECORDS[key].rarity}
                     disabled={!active}
-                    onClick={() => setRun((s) => enterShop(s, key))}
+                    onClick={() => setRun((s) => chooseRecord(s, key, recordSlot))}
                   >
-                    <b>{SHOP_NAMES[key]}</b>
-                    <span>
-                      {key === 'record'
-                        ? 'Tour perks and one mystery pull.'
-                        : key === 'tattoo'
-                          ? 'One lasting bonus with a maximum-HP tradeoff.'
-                          : 'Buy Gear. Upgrade musicians and instruments.'}
-                    </span>
+                    <small>{RARITY_LABEL[RECORDS[key].rarity]}</small>
+                    <b>{RECORDS[key].name}</b>
+                    <span>{RECORDS[key].text}</span>
                   </button>
                 ))}
-              </div>
-              <button disabled={!active} onClick={() => setRun(skipStop)}>
-                Head to next show
+              </Pages>
+              <button
+                className="db-primary db-leave"
+                disabled={!active}
+                onClick={() => setRun((s) => chooseRecord(s, null))}
+              >
+                Keep current
               </button>
-            </div>
-          ) : run.phase === 'shop' ? (
-            <div className="db-panel db-shop">
-              <h2 ref={heading} tabIndex={-1}>
-                {SHOP_NAMES[run.shop!]}
-              </h2>
-              <ShopPanel
-                run={run}
-                active={active}
-                setRun={setRun}
-                slot={recordSlot}
-                setSlot={setRecordSlot}
-              />
-            </div>
-          ) : run.phase === 'won' || run.phase === 'lost' ? (
-            <div className="db-panel db-ending">
-              <h2 ref={heading} tabIndex={-1}>
-                {run.phase === 'won' ? 'Final boss defeated' : 'Run ended'}
-              </h2>
-              <p>
-                {run.phase === 'won'
-                  ? 'You completed all three worlds and the final battle.'
-                  : `You reached ${battle.name}. Start again with a fresh band.`}
-              </p>
-              <RecordRack run={run} />
-              <p>
-                Seed: {run.seed} · Cash earned {run.cashEarned} · Spent {run.cashSpent}
-              </p>
-              <button className="db-primary" disabled={!active} onClick={newRun}>
+            </>
+          ) : (
+            <>
+              <div className="db-ending-mark" aria-hidden="true">
+                {run.phase === 'won' ? '★' : '◌'}
+              </div>
+              <b>
+                {run.showsWon} shows · {run.cashEarned} cash earned
+              </b>
+              <button className="db-primary db-leave" disabled={!active} onClick={newRun}>
                 New run
               </button>
-            </div>
-          ) : (
-            <div className="db-panel db-map">
-              <div
-                className="db-map-content"
-                role="group"
-                aria-label="Run details"
-                tabIndex={0}
-                data-arcade-native
-              >
-                <div className="db-map-title">
-                  <h2 ref={heading} tabIndex={-1}>
-                    {battle.final ? 'Crown Hall' : 'Bellwether'}
-                  </h2>
-                  <span>{battle.final ? 'THE LAST SHOW' : 'TOWN TOUR'}</span>
-                </div>
-                <EncoreTown
-                  run={run}
-                  active={active}
-                  buttons={cardButtons}
-                  onChoose={(index) => {
-                    setCursor(index);
-                    setRun((s) => chooseVenue(s, index));
-                  }}
-                />
-                {run.floor === 0 ? (
-                  <>
-                    <p>
-                      Stage up to three Musicians. Crew plays once; Gear equips to a musician.
-                      Perform deals your band’s power, adds its guard, then the enemy responds.
-                      Unspent beats and guard reset each turn.
-                    </p>
-                    <div className="db-seed">
-                      <label>
-                        Run seed{' '}
-                        <input
-                          value={seed}
-                          maxLength={64}
-                          disabled={!active}
-                          onChange={(e) => setSeed(e.target.value)}
-                        />
-                      </label>
-                      <button disabled={!active} onClick={nextSeed}>
-                        New seed
-                      </button>
-                    </div>
-                    <p className="db-note">
-                      <a href={`${import.meta.env.BASE_URL}#project-payphone`}>
-                        Payphone senior project
-                      </a>{' '}
-                      · Runs are not saved when you leave.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <RecordRack run={run} />
-                    <p>
-                      {battle.final
-                        ? 'All three world bosses are down.'
-                        : 'Health, cards, Records and tattoos carry into the next show.'}
-                    </p>
-                  </>
-                )}
-              </div>
-              <button
-                className="db-primary"
-                disabled={!active}
-                onClick={() => setRun((s) => startBattle(s, seed))}
-              >
-                {battle.final ? 'Challenge final boss' : 'Start battle'}
-              </button>
-            </div>
+            </>
           )}
-          <p className="db-announcement" role="status" aria-live="polite">
-            {run.log.at(-1)}
-          </p>
-        </>
+        </div>
       )}
+      <p className="arcade-sr-only" role="status" aria-live="polite">
+        {run.log.at(-1)}
+      </p>
     </section>
   );
 }

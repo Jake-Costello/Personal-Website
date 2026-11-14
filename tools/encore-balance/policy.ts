@@ -2,9 +2,6 @@ import assert from 'node:assert/strict';
 import {
   CARDS,
   createRun,
-  beginEncounter,
-  chooseVenue,
-  venueOptions,
   cardFor,
   cardCost,
   performance,
@@ -14,7 +11,10 @@ import {
   endTurn,
   chooseReward,
   chooseRecord,
-  enterShop,
+  mapChoices,
+  visitNode,
+  chooseRehearsal,
+  buyPromotion,
   leaveShop,
   buyOffer,
   buyTattoo,
@@ -25,6 +25,7 @@ import type { Run } from '../../src/arcade/games/deckbuilder-model';
 export function invariant(s: Run) {
   assert.equal(s.cash, 20 + s.cashEarned - s.cashSpent);
   assert.ok(s.cash >= 0 && s.records.length <= 3 && s.hp >= 0 && s.hp <= s.maxHp);
+  assert.ok(s.pressure >= 0 && s.pressure <= 100 && new Set(s.visited).size === s.visited.length);
   if (s.phase !== 'combat') return;
   const ids = [
     ...s.hand,
@@ -102,6 +103,8 @@ export function selectAction(s: Run, policy: Policy = 'setup') {
           value +=
             weight *
             Math.min(deficit, f.block + 2 * s.records.filter((r) => r === 'plating').length);
+        if (f.pressure && s.pressure > 0)
+          value += ((Math.min(s.pressure, -f.pressure) * 0.4) / 100) * Math.max(6, band.power) * 3;
         if (f.weaken && !s.weakened) value += Math.min(3, deficit);
       }
       return { id, target, value };
@@ -110,15 +113,40 @@ export function selectAction(s: Run, policy: Policy = 'setup') {
     .sort((a, b) => b.value - a.value);
   return options[0] ?? null;
 }
-export function botRun(seed: string, policy: Policy = 'setup', limit = 1800, branch = 0) {
+export function botRun(
+  seed: string,
+  policy: Policy = 'setup',
+  limit = 1800,
+  branch = 0,
+  promote = true,
+) {
   let s = createRun(seed);
   const seen: number[] = [];
   let steps = 0;
   for (; steps < limit && !['won', 'lost'].includes(s.phase); steps++) {
     invariant(s);
     if (s.phase === 'map') {
-      seen.push(s.floor);
-      s = beginEncounter(chooseVenue(s, branch % venueOptions(s.floor).length));
+      const options = mapChoices(s);
+      const desired =
+        branch % 4 === 0
+          ? (options.find((n) => n.id.endsWith('show-middle')) ??
+            options.find((n) => n.shop === 'music') ??
+            options.find((n) => n.kind === 'show'))
+          : branch % 4 === 1
+            ? (options.find((n) => n.id.endsWith('show-left')) ??
+              options.find((n) => n.shop === 'record') ??
+              options.find((n) => n.shop === 'tattoo'))
+            : branch % 4 === 2
+              ? (options.find((n) => n.id.endsWith('show-right')) ??
+                options.find((n) => n.kind === 'event') ??
+                options.find((n) => n.shop === 'music'))
+              : (options.find((n) => n.id.endsWith('show-middle')) ??
+                options.find((n) => n.shop === 'studio') ??
+                options.find((n) => n.kind === 'show'));
+      const n = desired ?? options[0];
+      if (!n) throw new Error('No outgoing road');
+      s = visitNode(s, n.id);
+      if (s.phase === 'combat') seen.push(s.floor);
     } else if (s.phase === 'reward') {
       const scores = s.rewards
         .map((key, i) => {
@@ -139,6 +167,8 @@ export function botRun(seed: string, policy: Policy = 'setup', limit = 1800, bra
       s = chooseReward(s, scores[0].i);
     } else if (s.phase === 'record') {
       const preferred = [
+        'rehearsal',
+        'room',
         'edge',
         'spotlight',
         'double',
@@ -153,12 +183,15 @@ export function botRun(seed: string, policy: Policy = 'setup', limit = 1800, bra
         (a, b) => preferred.indexOf(a) - preferred.indexOf(b),
       )[0];
       s = chooseRecord(s, best, s.records.length >= 3 ? 0 : undefined);
-    } else if (s.phase === 'stop') {
-      const stop = (s.floor % 3 === 1 ? (s.floor === 1 ? 'record' : 'tattoo') : 'music') as
-        'record' | 'tattoo' | 'music';
-      s = enterShop(s, stop);
     } else if (s.phase === 'shop') {
-      if (s.shop === 'record') {
+      if (s.shop === 'studio') {
+        s =
+          !promote || s.promotion
+            ? leaveShop(s)
+            : s.cash >= 5
+              ? buyPromotion(s, 'flyers')
+              : leaveShop(s);
+      } else if (s.shop === 'record') {
         const offer = s.offers.find((o) => !o.sold && o.key === 'edge' && o.price <= s.cash);
         if (offer) s = buyOffer(s, offer.id, s.records.length >= 3 ? 0 : undefined);
         else s = leaveShop(s);
@@ -173,7 +206,8 @@ export function botRun(seed: string, policy: Policy = 'setup', limit = 1800, bra
         if (upgrade) s = buyUpgrade(s, upgrade.id);
         else s = leaveShop(s);
       } else s = leaveShop(s);
-    } else {
+    } else if (s.phase === 'event') s = chooseRehearsal(s, s.hp < s.maxHp - 10 ? 'rest' : 'focus');
+    else {
       const next = selectAction(s, policy);
       s = next ? playCard(s, next.id, next.target) : endTurn(s);
     }

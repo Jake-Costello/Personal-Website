@@ -519,7 +519,7 @@ export function ScoreBoardArt() {
       fill="none"
       stroke="currentColor"
     >
-      {/* Six guitar strings form the staff; outlined slots evoke a physical card mat. */}
+      {/* Six guitar strings form the staff behind the live card slots. */}
       {[135, 151, 167, 183, 199, 215].map((y, i) => (
         <path key={y} d={`M0 ${y}H900`} strokeWidth={i < 3 ? '1' : '2'} />
       ))}
@@ -534,9 +534,6 @@ export function ScoreBoardArt() {
         d="m630 47 145 0m-145 7h145m-145 7h145m-145 7h145m-145 7h145M652 45v31m75-29v28m-62-13c-13-13-8-29 0-26 11 2-9 37-4 42 8 7 16-2 8-11-12-10-17 5-7 9m33-14 8-3v-14m39 20 8-3v-14"
         strokeWidth="2"
       />
-      <rect x="217" y="94" width="111" height="156" rx="9" strokeDasharray="6 7" />
-      <rect x="352" y="94" width="111" height="156" rx="9" strokeDasharray="6 7" />
-      <rect x="487" y="94" width="111" height="156" rx="9" strokeDasharray="6 7" />
       <path d="m19 323 862 0m-842-7v14m822-14v14" />
     </svg>
   );

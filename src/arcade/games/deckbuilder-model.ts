@@ -1,3 +1,9 @@
+import { TOUR_NODES, NODE_BY_ID, ENTRY_NODES, SHOP_NAMES } from './tour-map';
+import type { TourNode, ShopKind } from './tour-map';
+import { PROMOTIONS } from './tour-promotions';
+import type { PromotionKey } from './tour-promotions';
+export { TOUR_NODES, NODE_BY_ID, SHOP_NAMES, PROMOTIONS };
+export type { TourNode, ShopKind, PromotionKey };
 import { CARDS, RECORDS, TATTOOS, SHOP_PRICES, rarityForTicket } from './band-cards';
 import type { CardDef, CardKey, RecordKey, Rarity, TattooKey } from './band-cards';
 export { CARDS, RECORDS, TATTOOS, SHOP_PRICES, rarityForTicket } from './band-cards';
@@ -204,7 +210,7 @@ export function chooseVenue(state: Run, index: number): Run {
   s.route[s.floor] = index;
   return s;
 }
-export type ShopKind = 'record' | 'tattoo' | 'music';
+
 export type ShopOffer = {
   id: string;
   kind: 'record' | 'card';
@@ -212,10 +218,33 @@ export type ShopOffer = {
   price: number;
   sold: boolean;
 };
+export type AttackResult = {
+  id: number;
+  name: string;
+  chance: number;
+  roll: number;
+  hit: boolean;
+  damage: number;
+  absorbed: number;
+};
 export type Run = {
+  currentNode: string | null;
+  selectedNode: string;
+  visited: string[];
+  showsWon: number;
+  pressure: number;
+  hitRng: number;
+  attackSerial: number;
+  lastAttacks: AttackResult[];
+  hits: number;
+  misses: number;
+  missStreak: number;
+  maxMissStreak: number;
+  promotion: PromotionKey | null;
+  nextShowRelief: number;
   seed: string;
   rng: number;
-  phase: 'map' | 'combat' | 'reward' | 'record' | 'stop' | 'shop' | 'won' | 'lost';
+  phase: 'map' | 'combat' | 'reward' | 'record' | 'shop' | 'event' | 'won' | 'lost';
   floor: number;
   route: number[];
   hp: number;
@@ -285,6 +314,8 @@ function copy(s: Run): Run {
   return {
     ...s,
     route: [...s.route],
+    visited: [...s.visited],
+    lastAttacks: s.lastAttacks.map((a) => ({ ...a })),
     deck: s.deck.map((c) => ({ ...c })),
     draw: [...s.draw],
     hand: [...s.hand],
@@ -348,7 +379,7 @@ export function createRun(seed: string): Run {
     'singer',
     'drummer',
     'riff',
-    'riff',
+    'warmup',
     'roadie',
     'soundcheck',
     'amp',
@@ -357,6 +388,20 @@ export function createRun(seed: string): Run {
   const clean = seed.trim().slice(0, 64) || 'encore';
   return {
     seed: clean,
+    currentNode: null,
+    selectedNode: ENTRY_NODES[0],
+    visited: [],
+    showsWon: 0,
+    pressure: 0,
+    hitRng: hashSeed(clean + ':hits'),
+    attackSerial: 0,
+    lastAttacks: [],
+    hits: 0,
+    misses: 0,
+    missStreak: 0,
+    maxMissStreak: 0,
+    promotion: null,
+    nextShowRelief: 0,
     rng: hashSeed(clean),
     phase: 'map',
     floor: 0,
@@ -399,8 +444,13 @@ export function beginEncounter(state: Run): Run {
   if (state.phase !== 'map' || !ENCOUNTERS[state.floor]) return state;
   const s = copy(state);
   const enemy = encounterAt(s);
+  const initialPressure = openingPressure(s);
   Object.assign(s, {
     phase: 'combat',
+    pressure: initialPressure,
+    nextShowRelief: 0,
+    hitRng: hashSeed(`${s.seed}:hits:${s.currentNode ?? `${s.floor}:${s.route[s.floor]}`}`),
+    lastAttacks: [],
     energy: 3 + count(s, 'charge'),
     block: 0,
     turn: 1,
@@ -440,28 +490,97 @@ export function currentIntent(s: Run): Intent {
   const intent = list[Math.max(0, s.turn - 1) % list.length];
   return { ...intent, damage: Math.max(0, intent.damage - (s.weakened ? 3 : 0)) };
 }
-export function performance(s: Run) {
+export function stageStats(s: Run) {
   const diverse =
     s.stage.length === 3 && new Set(s.stage.map((id) => cardFor(s, id).role)).size === 3;
   const leaders = s.stage.filter(
     (id) => s.deck.find((c) => c.id === id)?.key === 'conductor',
   ).length;
-  let power = 0,
-    guard = s.tattoo === 'plated' ? 2 : 0;
+  const units: { id: number; power: number; guard: number }[] = [];
   for (const id of s.stage) {
     const unit = cardFor(s, id);
     const attachment = s.attachments.find((a) => a.musician === id);
     const gear = attachment ? cardFor(s, attachment.gear) : null;
-    power +=
+    const power =
       (unit.power ?? 0) +
       count(s, 'edge') +
       (diverse ? 2 * count(s, 'spotlight') : 0) +
       leaders -
       (s.deck.find((c) => c.id === id)?.key === 'conductor' ? 1 : 0) +
       (gear ? (gear.power ?? 0) + count(s, 'backline') : 0);
-    guard += (unit.guard ?? 0) + (gear ? (gear.guard ?? 0) + count(s, 'backline') : 0);
+    const guard = (unit.guard ?? 0) + (gear ? (gear.guard ?? 0) + count(s, 'backline') : 0);
+    units.push({ id, power, guard });
   }
-  return { power, guard };
+  return units;
+}
+export function performance(s: Run) {
+  return stageStats(s).reduce((a, u) => ({ power: a.power + u.power, guard: a.guard + u.guard }), {
+    power: 0,
+    guard: s.tattoo === 'plated' ? 2 : 0,
+  });
+}
+export function hitChanceForPressure(p: number) {
+  return 100 - Math.round(Math.max(0, Math.min(100, p)) * 0.4);
+}
+export function hitChance(s: Run) {
+  return hitChanceForPressure(s.pressure);
+}
+export function audience(s: Run, node?: TourNode) {
+  const e = node?.kind === 'show' ? encounterForNode(node) : encounterAt(s);
+  return Math.round(
+    (e.final ? 1000 : [20, 80, 250][e.world - 1]) *
+      (s.promotion ? PROMOTIONS[s.promotion].crowd : 1),
+  );
+}
+export function openingPressure(s: Run, node?: TourNode) {
+  const e = node?.kind === 'show' ? encounterForNode(node) : encounterAt(s);
+  return Math.max(
+    0,
+    Math.min(
+      100,
+      (e.final ? 50 : [10, 25, 40][e.world - 1]) +
+        (s.promotion ? PROMOTIONS[s.promotion].pressure : 0) -
+        25 * count(s, 'rehearsal') -
+        s.nextShowRelief,
+    ),
+  );
+}
+export function pressureGrowth(s: Run) {
+  const e = encounterAt(s);
+  return Math.max(
+    0,
+    (e.final ? 12 : [6, 8, 10][e.world - 1]) +
+      (s.promotion ? PROMOTIONS[s.promotion].growth : 0) -
+      3 * count(s, 'room'),
+  );
+}
+function resolveAttack(s: Run, id: number, amount: number) {
+  if (amount <= 0) return;
+  const next = nextRandom(s.hitRng);
+  s.hitRng = next.state;
+  const roll = Math.floor(next.value * 100),
+    chance = hitChance(s),
+    hit = roll < chance;
+  const hp = s.enemyHp,
+    block = s.enemyBlock;
+  if (hit) {
+    damageEnemy(s, amount);
+    s.hits++;
+    s.missStreak = 0;
+  } else {
+    s.misses++;
+    s.missStreak++;
+    s.maxMissStreak = Math.max(s.maxMissStreak, s.missStreak);
+  }
+  s.lastAttacks.push({
+    id,
+    name: cardFor(s, id).name,
+    chance,
+    roll,
+    hit,
+    damage: hp - s.enemyHp,
+    absorbed: block - s.enemyBlock,
+  });
 }
 function damageEnemy(s: Run, amount: number) {
   const absorbed = Math.min(s.enemyBlock, amount);
@@ -483,13 +602,16 @@ function recordPool(rarity: Rarity) {
   return (Object.keys(RECORDS) as RecordKey[]).filter((k) => RECORDS[k].rarity === rarity);
 }
 function finishEncounter(s: Run) {
+  const bonus = s.promotion ? PROMOTIONS[s.promotion].bonus : 0;
+  s.promotion = null;
+  s.showsWon++;
   s.hp = Math.min(s.maxHp, s.hp + 3 * count(s, 'live'));
   if (encounterAt(s).final) {
     s.phase = 'won';
     note(s, 'Crown Hall is cleared. Tour complete.');
     return;
   }
-  const earnings = encounterAt(s).boss ? 30 : 20;
+  const earnings = (encounterAt(s).boss ? 30 : 20) + bonus;
   s.cash += earnings;
   s.cashEarned += earnings;
   if (encounterAt(s).boss) {
@@ -547,9 +669,13 @@ export function playCard(state: Run, id: number, target?: number): Run {
     s.attachments.push({ musician: target!, gear: id });
   }
   const fx = card.effect;
+  if (fx.pressure) s.pressure = Math.max(0, Math.min(100, s.pressure + fx.pressure));
   if (fx.damage) {
-    damageEnemy(
+    s.lastAttacks = [];
+    s.attackSerial++;
+    resolveAttack(
       s,
+      id,
       fx.damage * (card.type === 'crew' && !s.crewAttackUsed ? 1 + count(s, 'double') : 1),
     );
     if (card.type === 'crew') s.crewAttackUsed = true;
@@ -579,7 +705,12 @@ export function endTurn(state: Run): Run {
   const s = copy(state);
   const band = performance(s);
   const priorHp = s.enemyHp;
-  damageEnemy(s, band.power);
+  s.lastAttacks = [];
+  s.attackSerial++;
+  for (const u of stageStats(s)) {
+    resolveAttack(s, u.id, u.power);
+    if (!s.enemyHp) break;
+  }
   s.block += band.guard;
   if (!s.enemyHp) {
     finishEncounter(s);
@@ -596,11 +727,12 @@ export function endTurn(state: Run): Run {
   s.block = 0;
   s.energy = 3;
   s.turn++;
+  s.pressure = Math.min(100, s.pressure + pressureGrowth(s));
   s.crewPlayed = 0;
   s.crewAttackUsed = false;
   note(
     s,
-    `Band dealt ${priorHp - s.enemyHp} damage and made ${band.guard} guard. Enemy dealt ${damage}${intent.block ? ` and gained ${intent.block} guard` : ''}.`,
+    `Performance ${priorHp - s.enemyHp}. ${s.lastAttacks.filter((a) => !a.hit).length} missed. Took ${damage}.`,
   );
   if (!s.hp && s.revivesUsed < count(s, 'encore')) {
     s.hp = 1;
@@ -627,8 +759,7 @@ export function chooseReward(state: Run, index: number): Run {
     s.deck.push({ id: Math.max(...s.deck.map((c) => c.id)) + 1, key, level: 0 });
     note(s, `Added ${CARDS[key].name}.`);
   } else note(s, 'Skipped card reward.');
-  s.floor++;
-  s.phase = 'stop';
+  returnToMap(s);
   s.rewards = [];
   s.shop = null;
   s.offers = [];
@@ -648,28 +779,19 @@ export function chooseRecord(state: Run, key: RecordKey | null, slot?: number): 
     return state;
   const s = copy(state);
   if (key && !replaceRecord(s, key, slot)) return state;
-  s.floor++;
-  s.phase = 'map';
+  returnToMap(s);
   s.recordRewards = [];
   note(s, key ? `Kept ${RECORDS[key].name}.` : 'Kept the current Records.');
   return s;
 }
-export function skipStop(state: Run): Run {
-  if (state.phase !== 'stop') return state;
-  const s = copy(state);
-  s.phase = 'map';
-  note(s, 'Headed straight to the next show.');
-  return s;
-}
-export function enterShop(state: Run, kind: ShopKind): Run {
-  if (state.phase !== 'stop' || !['record', 'tattoo', 'music'].includes(kind)) return state;
+function openShop(state: Run, kind: ShopKind): Run {
   const s = copy(state);
   s.phase = 'shop';
   s.shop = kind;
   s.shopVisits++;
   s.mysteryUsed = false;
   s.offers = [];
-  s.shopRng = hashSeed(`${s.seed}:shop:${s.floor}:${kind}`);
+  s.shopRng = hashSeed(`${s.seed}:shop:${s.currentNode}:${kind}`);
   const offer = (key: RecordKey | CardKey, type: 'record' | 'card') => {
     const rarity =
       type === 'record' ? RECORDS[key as RecordKey].rarity : CARDS[key as CardKey].rarity;
@@ -687,7 +809,7 @@ export function enterShop(state: Run, kind: ShopKind): Run {
       const j = Math.floor(shopRandom(s) * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
     }
-    pool.forEach((k) => offer(k, 'record'));
+    pool.slice(0, 3).forEach((k) => offer(k, 'record'));
     const ticket = Math.floor(shopRandom(s) * 100);
     if (ticket < 30) {
       const rare = recordPool(ticket < 2 ? 'super-rare' : 'rare');
@@ -702,16 +824,18 @@ export function enterShop(state: Run, kind: ShopKind): Run {
       ? 'Record House. Three Record slots; copies stack.'
       : kind === 'music'
         ? 'Backline. Buy Gear or upgrade a musician or instrument.'
-        : 'Tattoo Parlor. One tattoo for this tour, with a health tradeoff.',
+        : kind === 'studio'
+          ? 'Book a crowd for the next show.'
+          : 'One tattoo for this tour.',
   );
   return s;
 }
 export function leaveShop(state: Run): Run {
   if (state.phase !== 'shop') return state;
   const s = copy(state);
-  s.phase = 'map';
+  returnToMap(s);
   s.shop = null;
-  note(s, 'Next show. Cash, deck, Records and tattoo carry on.');
+  note(s, 'Back to town.');
   return s;
 }
 export function buyOffer(state: Run, offerId: string, recordSlot?: number): Run {
@@ -799,5 +923,84 @@ export function buyUpgrade(state: Run, id: number): Run {
   s.cash -= cost;
   s.cashSpent += cost;
   note(s, `Upgraded ${CARDS[card.key].name} to +${card.level + 1}.`);
+  return s;
+}
+
+export function mapChoices(s: Run): TourNode[] {
+  return (s.currentNode ? (NODE_BY_ID[s.currentNode]?.next ?? []) : ENTRY_NODES)
+    .filter((id) => !s.visited.includes(id))
+    .map((id) => NODE_BY_ID[id]);
+}
+export function mapWorld(s: Run) {
+  return NODE_BY_ID[s.selectedNode]?.world ?? 1;
+}
+export function encounterForNode(n: TourNode): Encounter {
+  return venueOptions(n.floor!)[n.variant ?? 0];
+}
+export function nodeName(n: TourNode) {
+  return n.kind === 'show'
+    ? encounterForNode(n).venue
+    : n.kind === 'shop'
+      ? SHOP_NAMES[n.shop!]
+      : 'Rehearsal';
+}
+export function selectNode(state: Run, id: string): Run {
+  if (state.phase !== 'map' || !mapChoices(state).some((n) => n.id === id)) return state;
+  const s = copy(state);
+  s.selectedNode = id;
+  return s;
+}
+function returnToMap(s: Run) {
+  s.phase = 'map';
+  s.selectedNode = mapChoices(s)[0]?.id ?? s.currentNode ?? ENTRY_NODES[0];
+}
+export function visitNode(state: Run, id = state.selectedNode): Run {
+  if (state.phase !== 'map' || !mapChoices(state).some((n) => n.id === id)) return state;
+  const n = NODE_BY_ID[id],
+    s = copy(state);
+  s.currentNode = id;
+  s.visited.push(id);
+  s.selectedNode = n.next[0] ?? id;
+  if (n.kind === 'show') {
+    s.floor = n.floor!;
+    s.route[s.floor] = n.variant ?? 0;
+    return beginEncounter(s);
+  }
+  if (n.kind === 'shop') return openShop(s, n.shop!);
+  s.phase = 'event';
+  note(s, 'Rehearsal.');
+  return s;
+}
+export function chooseRehearsal(state: Run, choice: 'rest' | 'focus' | 'leave'): Run {
+  if (state.phase !== 'event' || !['rest', 'focus', 'leave'].includes(choice)) return state;
+  const s = copy(state);
+  if (choice === 'rest') s.hp = Math.min(s.maxHp, s.hp + 10);
+  if (choice === 'focus') s.nextShowRelief = Math.min(100, s.nextShowRelief + 20);
+  returnToMap(s);
+  note(
+    s,
+    choice === 'rest'
+      ? 'Recovered 10 HP.'
+      : choice === 'focus'
+        ? 'Next show starts with 20 less pressure.'
+        : 'Back to town.',
+  );
+  return s;
+}
+export function buyPromotion(state: Run, key: PromotionKey): Run {
+  if (
+    state.phase !== 'shop' ||
+    state.shop !== 'studio' ||
+    state.promotion ||
+    !Object.hasOwn(PROMOTIONS, key) ||
+    state.cash < PROMOTIONS[key].fee
+  )
+    return state;
+  const s = copy(state),
+    p = PROMOTIONS[key];
+  s.promotion = key;
+  s.cash -= p.fee;
+  s.cashSpent += p.fee;
+  note(s, `Booked ${p.name.toLowerCase()}.`);
   return s;
 }
