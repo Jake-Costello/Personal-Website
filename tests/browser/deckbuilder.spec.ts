@@ -163,7 +163,13 @@ test('portfolio copy and payphone project lead to the themed cabinet without los
   expect(errors).toEqual([]);
 });
 
+async function layoutReady(page: Page) {
+  const game = page.locator('.db-game');
+  const height = (await game.boundingBox())!.height;
+  await expect(game).toHaveAttribute('data-compact', String(height < 360));
+}
 async function fit(page: Page) {
+  await layoutReady(page);
   const game = page.locator('.db-game');
   const result = await game.evaluate((e) => {
     const box = e.getBoundingClientRect();
@@ -358,6 +364,7 @@ test('short phone and portrait tablet keep all controls inside the monitor', asy
   await withoutWebGL(page);
   for (const viewport of [
     { width: 320, height: 568 },
+    { width: 390, height: 664 },
     { width: 820, height: 1180 },
     { width: 1180, height: 820 },
   ]) {
@@ -415,11 +422,11 @@ test('a legal road tour visits shops, an event, Studio, three bosses and the fin
       await fit(page);
       const original = page.viewportSize()!;
       await page.setViewportSize({ width: 320, height: 568 });
-      await expect(g).toHaveAttribute('data-compact', 'true');
+      await layoutReady(page);
       await fit(page);
       await page.screenshot({ path: info.outputPath(`short-${phase}.png`) });
       await page.setViewportSize(original);
-      await expect(g).toHaveAttribute('data-compact', 'false');
+      await layoutReady(page);
       await page.screenshot({ path: info.outputPath(`tour-${phase}.png`) });
       screenshots.add(phase!);
     }
@@ -463,7 +470,7 @@ test('a legal road tour visits shops, an event, Studio, three bosses and the fin
       if (!screenshots.has(id)) {
         const original = page.viewportSize()!;
         await page.setViewportSize({ width: 320, height: 568 });
-        await expect(g).toHaveAttribute('data-compact', 'true');
+        await layoutReady(page);
         for (let stockPage = 0; stockPage < 10; stockPage++) {
           await fit(page);
           await page.screenshot({ path: info.outputPath(`short-${id}-${stockPage}.png`) });
@@ -472,7 +479,7 @@ test('a legal road tour visits shops, an event, Studio, three bosses and the fin
           await next.click();
         }
         await page.setViewportSize(original);
-        await expect(g).toHaveAttribute('data-compact', 'false');
+        await layoutReady(page);
         await fit(page);
         await page.screenshot({ path: info.outputPath(`${id}.png`) });
         screenshots.add(id);
