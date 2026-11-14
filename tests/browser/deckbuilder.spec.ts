@@ -114,6 +114,9 @@ test('a complete Encore run crosses all three world bosses and the final boss wi
     if (phase === 'won' || phase === 'lost') break;
     if (phase === 'map') {
       visited.add(floor);
+      if (floor === 9)
+        await expect(game).toContainText('The final show. Win here to finish the tour.');
+      if (floor === 8) await expect(game).toContainText('Win this show to reach Crown Hall.');
       if ([0, 3, 6, 9].includes(floor))
         await page.screenshot({ path: info.outputPath(`town-${floor}.png`) });
       await game.getByRole('button', { name: /^(Start battle|Challenge final boss)$/ }).click();

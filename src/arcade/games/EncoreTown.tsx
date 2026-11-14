@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { ENCOUNTERS, WORLDS, encounterAt, venueOptions } from './deckbuilder-model';
+import { WORLDS, encounterAt, venueOptions } from './deckbuilder-model';
 import type { Run } from './deckbuilder-model';
 import { VenueArt } from './EncoreArt';
 
@@ -142,9 +142,13 @@ export default function EncoreTown({
         </p>
       </div>
       <p className="db-note">
-        {ENCOUNTERS[run.floor].boss
-          ? 'The streets meet here. Win to open the next district.'
-          : 'Choose either open building. Each show has a different opponent and attack rhythm.'}
+        {battle.final
+          ? 'The final show. Win here to finish the tour.'
+          : battle.boss
+            ? battle.world === 3
+              ? 'Win this show to reach Crown Hall.'
+              : 'The streets meet here. Win to open the next district.'
+            : 'Choose either open building. Each show has a different opponent and attack rhythm.'}
       </p>
     </>
   );
