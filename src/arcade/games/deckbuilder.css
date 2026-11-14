@@ -1600,3 +1600,16 @@
     margin-bottom: 3px;
   }
 }
+/* A portrait tablet has room for one toolbar row; wrapping covered the game's Deck control. */
+@media (min-width: 601px) and (max-width: 900px) and (orientation: portrait) {
+  .arcade-page[data-game='deckbuilder'] .arcade-play-header {
+    align-items: center;
+  }
+  .arcade-page[data-game='deckbuilder'] .arcade-play-tools {
+    max-width: none;
+    flex-wrap: nowrap;
+  }
+  .arcade-page[data-game='deckbuilder'] .arcade-play-tools button {
+    min-height: 40px;
+  }
+}

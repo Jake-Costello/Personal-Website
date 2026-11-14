@@ -454,3 +454,24 @@ test('cabinet arrows skip incompatible Gear without losing the selected card', a
   await expect(game.locator('.db-hand [data-card="soundcheck"]')).toHaveCount(0);
   await expect(game).toHaveAttribute('data-energy', '3');
 });
+
+test('portrait tablet toolbar leaves the Deck control clickable in fallback and expanded play', async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 820, height: 1180 });
+  await withoutWebGL(page);
+  await enter(page);
+  const game = page.locator('.db-game');
+  const header = page.locator('.arcade-play-header');
+  for (const expanded of [false, true]) {
+    if (expanded) await page.getByRole('button', { name: 'Expand screen', exact: true }).click();
+    const deck = game.getByRole('button', { name: /Deck \(/ });
+    const toolbar = await header.boundingBox(),
+      button = await deck.boundingBox();
+    expect(toolbar!.y + toolbar!.height).toBeLessThanOrEqual(button!.y);
+    await deck.click();
+    await expect(game.getByRole('heading', { name: 'Current deck', exact: true })).toBeFocused();
+    await game.getByRole('button', { name: 'Back to run', exact: true }).click();
+  }
+  await page.screenshot({ path: info.outputPath('tablet-toolbar-clear.png') });
+});
