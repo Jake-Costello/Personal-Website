@@ -542,6 +542,7 @@ export default function DeckbuilderGame({
                     <button
                       {...data}
                       data-choice
+                      aria-label={`Replace slot ${i + 1}: ${unit!.name}. ${gear ? `Attached ${gear.name}.` : 'No Gear.'}`}
                       disabled={!active || !targets.includes(id!)}
                       onClick={choose}
                     >
@@ -556,6 +557,7 @@ export default function DeckbuilderGame({
                       data-choice
                       data-stage-id={id}
                       data-role={unit?.role}
+                      aria-label={`Equip ${pending!.name} to slot ${i + 1}: ${unit!.name} (${unit!.role}). ${gear ? `Replace ${gear.name}.` : 'Empty Gear slot.'}`}
                       disabled={!active || !targets.includes(id!)}
                       onClick={choose}
                     >

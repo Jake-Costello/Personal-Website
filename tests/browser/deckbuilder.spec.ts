@@ -306,6 +306,9 @@ test('musicians persist and Gear targeting and cancellation cost only on confirm
   const energy = await g.getAttribute('data-energy');
   await kit.click();
   await expect(g).toHaveAttribute('data-targeting', 'true');
+  await expect(g.locator('.db-gear-slot[data-role="Drums"]')).toHaveAccessibleName(
+    /Equip House kit to slot 2: Backbeat drummer \(Drums\)/,
+  );
   await expect(g.locator('.db-gear-slot[data-role="Vocals"]')).toBeDisabled();
   await g.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(g).toHaveAttribute('data-energy', energy!);
