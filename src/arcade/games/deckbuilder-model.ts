@@ -92,7 +92,26 @@ export const RELICS = {
 export type RelicKey = keyof typeof RELICS;
 export type CardInstance = { id: number; key: CardKey };
 export type Intent = { damage: number; block: number };
+export type CharacterKey =
+  | 'moth'
+  | 'penny'
+  | 'wires'
+  | 'june'
+  | 'static'
+  | 'rivet'
+  | 'axle'
+  | 'fuse'
+  | 'torque'
+  | 'velvet'
+  | 'echo'
+  | 'prism'
+  | 'luna'
+  | 'nova'
+  | 'atlas'
+  | 'maestro';
 export type Encounter = {
+  character: CharacterKey;
+  venue: string;
   name: string;
   world: number;
   boss: boolean;
@@ -101,19 +120,93 @@ export type Encounter = {
   intents: Intent[];
 };
 const hit = (damage: number, block = 0): Intent => ({ damage, block });
-export const WORLDS = ['Garage', 'Club', 'Main Stage'] as const;
+export const WORLDS = ['House Shows', 'Garage Circuit', 'Main Venues'] as const;
 export const ENCOUNTERS: Encounter[] = [
-  { name: 'Garage · Soundcheck', world: 1, boss: false, hp: 22, intents: [hit(5), hit(7)] },
-  { name: 'Garage · First set', world: 1, boss: false, hp: 27, intents: [hit(6), hit(3, 5)] },
-  { name: 'Opening Act', world: 1, boss: true, hp: 42, intents: [hit(8), hit(0, 8), hit(12)] },
-  { name: 'Club · Support set', world: 2, boss: false, hp: 31, intents: [hit(7), hit(9)] },
-  { name: 'Club · Late set', world: 2, boss: false, hp: 35, intents: [hit(5, 6), hit(11)] },
-  { name: 'House Band', world: 2, boss: true, hp: 52, intents: [hit(5, 12), hit(15)] },
-  { name: 'Main Stage · Warmup', world: 3, boss: false, hp: 38, intents: [hit(9), hit(12)] },
-  { name: 'Main Stage · Spotlight', world: 3, boss: false, hp: 43, intents: [hit(6, 8), hit(14)] },
-  { name: 'The Headliner', world: 3, boss: true, hp: 65, intents: [hit(8), hit(18), hit(4, 10)] },
   {
-    name: 'The Final Set',
+    character: 'moth',
+    name: 'Moth',
+    venue: 'Porchlight House',
+    world: 1,
+    boss: false,
+    hp: 22,
+    intents: [hit(5), hit(7)],
+  },
+  {
+    character: 'wires',
+    name: 'Loose Wires',
+    venue: 'The Living Room',
+    world: 1,
+    boss: false,
+    hp: 27,
+    intents: [hit(6), hit(3, 5)],
+  },
+  {
+    character: 'static',
+    name: 'Saint Static',
+    venue: 'The Last House',
+    world: 1,
+    boss: true,
+    hp: 42,
+    intents: [hit(8), hit(0, 8), hit(12)],
+  },
+  {
+    character: 'rivet',
+    name: 'Rivet',
+    venue: 'Rivet Auto',
+    world: 2,
+    boss: false,
+    hp: 31,
+    intents: [hit(7), hit(9)],
+  },
+  {
+    character: 'fuse',
+    name: 'Short Fuse',
+    venue: 'Bay Three',
+    world: 2,
+    boss: false,
+    hp: 35,
+    intents: [hit(5, 6), hit(11)],
+  },
+  {
+    character: 'torque',
+    name: 'The Torque Twins',
+    venue: 'The Motor Court',
+    world: 2,
+    boss: true,
+    hp: 52,
+    intents: [hit(5, 12), hit(15)],
+  },
+  {
+    character: 'velvet',
+    name: 'Velvet',
+    venue: 'The Velvet Room',
+    world: 3,
+    boss: false,
+    hp: 38,
+    intents: [hit(9), hit(12)],
+  },
+  {
+    character: 'prism',
+    name: 'Prism Choir',
+    venue: 'Prism Ballroom',
+    world: 3,
+    boss: false,
+    hp: 43,
+    intents: [hit(6, 8), hit(14)],
+  },
+  {
+    character: 'atlas',
+    name: 'Atlas Electric',
+    venue: 'The Atlas',
+    world: 3,
+    boss: true,
+    hp: 65,
+    intents: [hit(8), hit(18), hit(4, 10)],
+  },
+  {
+    character: 'maestro',
+    name: 'The Midnight Conductor',
+    venue: 'Crown Hall',
     world: 3,
     boss: true,
     final: true,
@@ -121,11 +214,90 @@ export const ENCOUNTERS: Encounter[] = [
     intents: [hit(13), hit(8, 12), hit(21)],
   },
 ];
+// Each regular stop offers a different opponent and attack rhythm. Boss roads converge.
+const ALTERNATE_VENUES: Record<number, Encounter> = {
+  0: {
+    character: 'penny',
+    name: 'Penny Dread',
+    venue: 'Basement 9',
+    world: 1,
+    boss: false,
+    hp: 24,
+    intents: [hit(3, 4), hit(8)],
+  },
+  1: {
+    character: 'june',
+    name: 'June Bug',
+    venue: 'Juniper Kitchen',
+    world: 1,
+    boss: false,
+    hp: 25,
+    intents: [hit(8), hit(0, 6), hit(7)],
+  },
+  3: {
+    character: 'axle',
+    name: 'Axle',
+    venue: 'Axle & Sons',
+    world: 2,
+    boss: false,
+    hp: 34,
+    intents: [hit(4, 7), hit(10)],
+  },
+  4: {
+    character: 'echo',
+    name: 'Echo Box',
+    venue: 'The Loading Dock',
+    world: 2,
+    boss: false,
+    hp: 32,
+    intents: [hit(12), hit(0, 9), hit(7)],
+  },
+  6: {
+    character: 'luna',
+    name: 'Luna Vale',
+    venue: 'Moonrise Theatre',
+    world: 3,
+    boss: false,
+    hp: 41,
+    intents: [hit(7, 7), hit(13)],
+  },
+  7: {
+    character: 'nova',
+    name: 'Nova',
+    venue: 'The Observatory',
+    world: 3,
+    boss: false,
+    hp: 40,
+    intents: [hit(16), hit(0, 10), hit(10)],
+  },
+};
+export function venueOptions(floor: number): Encounter[] {
+  if (!ENCOUNTERS[floor]) return [];
+  return ALTERNATE_VENUES[floor]
+    ? [ENCOUNTERS[floor], ALTERNATE_VENUES[floor]]
+    : [ENCOUNTERS[floor]];
+}
+export function encounterAt(s: Run, floor = s.floor): Encounter {
+  return venueOptions(floor)[s.route[floor] ?? 0];
+}
+export function chooseVenue(state: Run, index: number): Run {
+  if (
+    state.phase !== 'map' ||
+    !Number.isInteger(index) ||
+    index < 0 ||
+    index >= venueOptions(state.floor).length
+  )
+    return state;
+  const s = copy(state);
+  s.route[s.floor] = index;
+  return s;
+}
 export type Run = {
   seed: string;
   rng: number;
   phase: 'map' | 'combat' | 'reward' | 'relic' | 'won' | 'lost';
   floor: number;
+  route: number[];
   hp: number;
   maxHp: number;
   energy: number;
@@ -167,6 +339,7 @@ function shuffled<T>(s: Run, values: T[]) {
 function copy(s: Run): Run {
   return {
     ...s,
+    route: [...s.route],
     deck: [...s.deck],
     draw: [...s.draw],
     hand: [...s.hand],
@@ -214,6 +387,7 @@ export function createRun(seed: string): Run {
     rng: hashSeed(cleanSeed),
     phase: 'map',
     floor: 0,
+    route: Array(ENCOUNTERS.length).fill(0),
     hp: 80,
     maxHp: 80,
     energy: 0,
@@ -236,7 +410,7 @@ export function createRun(seed: string): Run {
 export function beginEncounter(state: Run): Run {
   if (state.phase !== 'map' || !ENCOUNTERS[state.floor]) return state;
   const s = copy(state);
-  const enemy = ENCOUNTERS[s.floor];
+  const enemy = encounterAt(s);
   Object.assign(s, {
     phase: 'combat',
     energy: 3 + count(s, 'charge'),
@@ -260,17 +434,17 @@ export function beginEncounter(state: Run): Run {
   return s;
 }
 export function currentIntent(s: Run): Intent {
-  const list = ENCOUNTERS[s.floor].intents;
+  const list = encounterAt(s).intents;
   const intent = list[Math.max(0, s.turn - 1) % list.length];
   return { ...intent, damage: Math.max(0, intent.damage - (s.weakened ? 3 : 0)) };
 }
 function finishEncounter(s: Run) {
-  if (ENCOUNTERS[s.floor].final) {
+  if (encounterAt(s).final) {
     s.phase = 'won';
     note(s, 'Final boss defeated. Run complete.');
     return;
   }
-  if (ENCOUNTERS[s.floor].boss) {
+  if (encounterAt(s).boss) {
     s.phase = 'relic';
     s.hp = Math.min(s.maxHp, s.hp + 20);
     note(s, 'Boss defeated. Recover up to 20 HP and choose a relic.');
@@ -321,7 +495,7 @@ export function endTurn(state: Run): Run {
   s.enemyBlock = intent.block;
   if (
     intent.damage > 0 ||
-    ENCOUNTERS[s.floor].intents[(s.turn - 1) % ENCOUNTERS[s.floor].intents.length].damage > 0
+    encounterAt(s).intents[(s.turn - 1) % encounterAt(s).intents.length].damage > 0
   )
     s.weakened = false;
   s.discard.push(...s.hand);

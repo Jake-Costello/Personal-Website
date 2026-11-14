@@ -1,0 +1,391 @@
+{
+  "config": {
+    "argv": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "/workspace/deckbuilder-pilot/node_modules/.bin/playwright",
+      "test",
+      "--config",
+      "../playwright.town-capture.config.ts",
+      "--workers=1"
+    ],
+    "configFile": "/workspace/deckbuilder-pilot/playwright.town-capture.config.ts",
+    "rootDir": "/workspace/deckbuilder-pilot/probes",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/workspace/review-artifacts/encore-town-stage-2026-11-13/captures",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "desktop",
+        "name": "desktop",
+        "testDir": "/workspace/deckbuilder-pilot/probes",
+        "testIgnore": [],
+        "testMatch": [
+          "town-gallery.spec.ts"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "/workspace/review-artifacts/encore-town-stage-2026-11-13/captures",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "tablet",
+        "name": "tablet",
+        "testDir": "/workspace/deckbuilder-pilot/probes",
+        "testIgnore": [],
+        "testMatch": [
+          "town-gallery.spec.ts"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "/workspace/review-artifacts/encore-town-stage-2026-11-13/captures",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "mobile",
+        "name": "mobile",
+        "testDir": "/workspace/deckbuilder-pilot/probes",
+        "testIgnore": [],
+        "testMatch": [
+          "town-gallery.spec.ts"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "/workspace/review-artifacts/encore-town-stage-2026-11-13/logs/captures.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.63.0",
+    "workers": 1,
+    "webServer": {
+      "command": "npm run dev -- --config /workspace/deckbuilder-pilot/vite.review.config.ts --port 5195",
+      "cwd": "/workspace/deckbuilder-pilot/site",
+      "url": "http://127.0.0.1:5195",
+      "reuseExistingServer": true,
+      "env": {
+        "VITE_API_BASE_URL": "http://127.0.0.1:18000",
+        "VITE_CONTACT_FORM_ENDPOINT": ""
+      }
+    }
+  },
+  "suites": [
+    {
+      "title": "town-gallery.spec.ts",
+      "file": "town-gallery.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "responsive town, expanded map and combat board",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 12224,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-14T01:23:37.861Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "layout.json",
+                      "contentType": "application/json",
+                      "body": "ewogICJyZWN0IjogewogICAgIngiOiAyNDAsCiAgICAieSI6IDE5Mi4yOTY4NzUsCiAgICAid2lkdGgiOiA5NjAsCiAgICAiaGVpZ2h0IjogNjAwLAogICAgInRvcCI6IDE5Mi4yOTY4NzUsCiAgICAicmlnaHQiOiAxMjAwLAogICAgImJvdHRvbSI6IDc5Mi4yOTY4NzUsCiAgICAibGVmdCI6IDI0MAogIH0sCiAgInNjcm9sbFdpZHRoIjogOTYwLAogICJjbGllbnRXaWR0aCI6IDk2MCwKICAic3ZnRWxlbWVudHMiOiA1NCwKICAiYWN0aXZlQW5pbWF0aW9ucyI6IDAKfQ=="
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "dede5e90502d1dc2ae54-5f4f1847c664cff59812",
+          "file": "town-gallery.spec.ts",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "original performer contact sheet",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 14184,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-14T01:23:50.380Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "dede5e90502d1dc2ae54-631241c0f78e0875acad",
+          "file": "town-gallery.spec.ts",
+          "line": 26,
+          "column": 1
+        },
+        {
+          "title": "responsive town, expanded map and combat board",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 20769,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-14T01:24:05.632Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "layout.json",
+                      "contentType": "application/json",
+                      "body": "ewogICJyZWN0IjogewogICAgIngiOiAyMy4wMzEyNSwKICAgICJ5IjogMTU0LAogICAgIndpZHRoIjogNzIxLjkwNjI1LAogICAgImhlaWdodCI6IDY3NCwKICAgICJ0b3AiOiAxNTQsCiAgICAicmlnaHQiOiA3NDQuOTM3NSwKICAgICJib3R0b20iOiA4MjgsCiAgICAibGVmdCI6IDIzLjAzMTI1CiAgfSwKICAic2Nyb2xsV2lkdGgiOiA3MjIsCiAgImNsaWVudFdpZHRoIjogNzIyLAogICJzdmdFbGVtZW50cyI6IDU0LAogICJhY3RpdmVBbmltYXRpb25zIjogMAp9"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "dede5e90502d1dc2ae54-269b0885c71b96302b8c",
+          "file": "town-gallery.spec.ts",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "original performer contact sheet",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [
+                {
+                  "type": "skip",
+                  "description": "Contact sheet rendered once; live UI covers all viewports.",
+                  "location": {
+                    "file": "/workspace/deckbuilder-pilot/probes/town-gallery.spec.ts",
+                    "line": 27,
+                    "column": 7
+                  }
+                }
+              ],
+              "expectedStatus": "skipped",
+              "projectId": "tablet",
+              "projectName": "tablet",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "skipped",
+                  "duration": 830,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-14T01:24:26.712Z",
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "Contact sheet rendered once; live UI covers all viewports.",
+                      "location": {
+                        "file": "/workspace/deckbuilder-pilot/probes/town-gallery.spec.ts",
+                        "line": 27,
+                        "column": 7
+                      }
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "dede5e90502d1dc2ae54-81cbf86be08ce14ea0b4",
+          "file": "town-gallery.spec.ts",
+          "line": 26,
+          "column": 1
+        },
+        {
+          "title": "responsive town, expanded map and combat board",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 120000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 12813,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-14T01:24:29.255Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "layout.json",
+                      "contentType": "application/json",
+                      "body": "ewogICJyZWN0IjogewogICAgIngiOiAxMS42ODc1LAogICAgInkiOiAxNDIsCiAgICAid2lkdGgiOiAzNjYuNTkzNzUsCiAgICAiaGVpZ2h0IjogNTEwLAogICAgInRvcCI6IDE0MiwKICAgICJyaWdodCI6IDM3OC4yODEyNSwKICAgICJib3R0b20iOiA2NTIsCiAgICAibGVmdCI6IDExLjY4NzUKICB9LAogICJzY3JvbGxXaWR0aCI6IDM2NywKICAiY2xpZW50V2lkdGgiOiAzNjcsCiAgInN2Z0VsZW1lbnRzIjogNTQsCiAgImFjdGl2ZUFuaW1hdGlvbnMiOiAwCn0="
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "dede5e90502d1dc2ae54-60440d905482180dd249",
+          "file": "town-gallery.spec.ts",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "original performer contact sheet",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [
+                {
+                  "type": "skip",
+                  "description": "Contact sheet rendered once; live UI covers all viewports.",
+                  "location": {
+                    "file": "/workspace/deckbuilder-pilot/probes/town-gallery.spec.ts",
+                    "line": 27,
+                    "column": 7
+                  }
+                }
+              ],
+              "expectedStatus": "skipped",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "skipped",
+                  "duration": 131,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-14T01:24:42.471Z",
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "Contact sheet rendered once; live UI covers all viewports.",
+                      "location": {
+                        "file": "/workspace/deckbuilder-pilot/probes/town-gallery.spec.ts",
+                        "line": 27,
+                        "column": 7
+                      }
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "dede5e90502d1dc2ae54-9296ddc0209ecad2df03",
+          "file": "town-gallery.spec.ts",
+          "line": 26,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-11-14T01:23:36.455Z",
+    "duration": 66247.56199999999,
+    "expected": 4,
+    "skipped": 2,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}
