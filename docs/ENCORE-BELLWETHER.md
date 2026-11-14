@@ -16,7 +16,9 @@ separate final boss are retained. Routes replay from the seed **and choices**.
 
 The street map shows the current district, with a four-part tour indicator above
 it when space permits. Compact cabinet view keeps Start battle outside the
-scrolling map details; Expand screen provides the full map and seed controls.
+scrolling map details; Expand screen provides the larger map and seed controls. On portrait phones
+and tablets, expanded/fallback play uses a taller board between the shell tools
+and physical controls, leaving the physical cabinet screen unchanged.
 Keyboard users can Tab to a building and Enter/Space to select it. Cabinet arrows
 select open shows, and Q/Space confirm; touch uses native building buttons.
 

@@ -130,12 +130,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 11916,
+                  "duration": 12224,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-14T01:05:46.497Z",
+                  "startTime": "2026-11-14T01:23:37.861Z",
                   "annotations": [],
                   "attachments": [
                     {
@@ -170,12 +170,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 11347,
+                  "duration": 14184,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-14T01:05:58.769Z",
+                  "startTime": "2026-11-14T01:23:50.380Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -185,7 +185,7 @@
           ],
           "id": "dede5e90502d1dc2ae54-631241c0f78e0875acad",
           "file": "town-gallery.spec.ts",
-          "line": 25,
+          "line": 26,
           "column": 1
         },
         {
@@ -204,18 +204,18 @@
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 11047,
+                  "duration": 20769,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-14T01:06:10.602Z",
+                  "startTime": "2026-11-14T01:24:05.632Z",
                   "annotations": [],
                   "attachments": [
                     {
                       "name": "layout.json",
                       "contentType": "application/json",
-                      "body": "ewogICJyZWN0IjogewogICAgIngiOiA0Ni4wODU5Mzc1LAogICAgInkiOiAyOTIuMzgyODEyNSwKICAgICJ3aWR0aCI6IDY3NS44MjgxMjUsCiAgICAiaGVpZ2h0IjogNDIyLjM5MDYyNSwKICAgICJ0b3AiOiAyOTIuMzgyODEyNSwKICAgICJyaWdodCI6IDcyMS45MTQwNjI1LAogICAgImJvdHRvbSI6IDcxNC43NzM0Mzc1LAogICAgImxlZnQiOiA0Ni4wODU5Mzc1CiAgfSwKICAic2Nyb2xsV2lkdGgiOiA2NzYsCiAgImNsaWVudFdpZHRoIjogNjc2LAogICJzdmdFbGVtZW50cyI6IDU0LAogICJhY3RpdmVBbmltYXRpb25zIjogMAp9"
+                      "body": "ewogICJyZWN0IjogewogICAgIngiOiAyMy4wMzEyNSwKICAgICJ5IjogMTU0LAogICAgIndpZHRoIjogNzIxLjkwNjI1LAogICAgImhlaWdodCI6IDY3NCwKICAgICJ0b3AiOiAxNTQsCiAgICAicmlnaHQiOiA3NDQuOTM3NSwKICAgICJib3R0b20iOiA4MjgsCiAgICAibGVmdCI6IDIzLjAzMTI1CiAgfSwKICAic2Nyb2xsV2lkdGgiOiA3MjIsCiAgImNsaWVudFdpZHRoIjogNzIyLAogICJzdmdFbGVtZW50cyI6IDU0LAogICJhY3RpdmVBbmltYXRpb25zIjogMAp9"
                     }
                   ]
                 }
@@ -241,7 +241,7 @@
                   "description": "Contact sheet rendered once; live UI covers all viewports.",
                   "location": {
                     "file": "/workspace/deckbuilder-pilot/probes/town-gallery.spec.ts",
-                    "line": 26,
+                    "line": 27,
                     "column": 7
                   }
                 }
@@ -254,19 +254,19 @@
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "skipped",
-                  "duration": 124,
+                  "duration": 830,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-14T01:06:21.987Z",
+                  "startTime": "2026-11-14T01:24:26.712Z",
                   "annotations": [
                     {
                       "type": "skip",
                       "description": "Contact sheet rendered once; live UI covers all viewports.",
                       "location": {
                         "file": "/workspace/deckbuilder-pilot/probes/town-gallery.spec.ts",
-                        "line": 26,
+                        "line": 27,
                         "column": 7
                       }
                     }
@@ -279,7 +279,7 @@
           ],
           "id": "dede5e90502d1dc2ae54-81cbf86be08ce14ea0b4",
           "file": "town-gallery.spec.ts",
-          "line": 25,
+          "line": 26,
           "column": 1
         },
         {
@@ -298,18 +298,18 @@
                   "workerIndex": 2,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 8076,
+                  "duration": 12813,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-14T01:06:22.566Z",
+                  "startTime": "2026-11-14T01:24:29.255Z",
                   "annotations": [],
                   "attachments": [
                     {
                       "name": "layout.json",
                       "contentType": "application/json",
-                      "body": "ewogICJyZWN0IjogewogICAgIngiOiAxMS43MDMxMjUsCiAgICAieSI6IDI5OS45NDUzMTI1LAogICAgIndpZHRoIjogMzY2LjU5Mzc1LAogICAgImhlaWdodCI6IDIyOS4xMDkzNzUsCiAgICAidG9wIjogMjk5Ljk0NTMxMjUsCiAgICAicmlnaHQiOiAzNzguMjk2ODc1LAogICAgImJvdHRvbSI6IDUyOS4wNTQ2ODc1LAogICAgImxlZnQiOiAxMS43MDMxMjUKICB9LAogICJzY3JvbGxXaWR0aCI6IDM2NywKICAiY2xpZW50V2lkdGgiOiAzNjcsCiAgInN2Z0VsZW1lbnRzIjogNTQsCiAgImFjdGl2ZUFuaW1hdGlvbnMiOiAwCn0="
+                      "body": "ewogICJyZWN0IjogewogICAgIngiOiAxMS42ODc1LAogICAgInkiOiAxNDIsCiAgICAid2lkdGgiOiAzNjYuNTkzNzUsCiAgICAiaGVpZ2h0IjogNTEwLAogICAgInRvcCI6IDE0MiwKICAgICJyaWdodCI6IDM3OC4yODEyNSwKICAgICJib3R0b20iOiA2NTIsCiAgICAibGVmdCI6IDExLjY4NzUKICB9LAogICJzY3JvbGxXaWR0aCI6IDM2NywKICAiY2xpZW50V2lkdGgiOiAzNjcsCiAgInN2Z0VsZW1lbnRzIjogNTQsCiAgImFjdGl2ZUFuaW1hdGlvbnMiOiAwCn0="
                     }
                   ]
                 }
@@ -335,7 +335,7 @@
                   "description": "Contact sheet rendered once; live UI covers all viewports.",
                   "location": {
                     "file": "/workspace/deckbuilder-pilot/probes/town-gallery.spec.ts",
-                    "line": 26,
+                    "line": 27,
                     "column": 7
                   }
                 }
@@ -348,19 +348,19 @@
                   "workerIndex": 2,
                   "parallelIndex": 0,
                   "status": "skipped",
-                  "duration": 113,
+                  "duration": 131,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-14T01:06:30.856Z",
+                  "startTime": "2026-11-14T01:24:42.471Z",
                   "annotations": [
                     {
                       "type": "skip",
                       "description": "Contact sheet rendered once; live UI covers all viewports.",
                       "location": {
                         "file": "/workspace/deckbuilder-pilot/probes/town-gallery.spec.ts",
-                        "line": 26,
+                        "line": 27,
                         "column": 7
                       }
                     }
@@ -373,7 +373,7 @@
           ],
           "id": "dede5e90502d1dc2ae54-9296ddc0209ecad2df03",
           "file": "town-gallery.spec.ts",
-          "line": 25,
+          "line": 26,
           "column": 1
         }
       ]
@@ -381,8 +381,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-11-14T01:05:44.811Z",
-    "duration": 46263.988,
+    "startTime": "2026-11-14T01:23:36.455Z",
+    "duration": 66247.56199999999,
     "expected": 4,
     "skipped": 2,
     "unexpected": 0,

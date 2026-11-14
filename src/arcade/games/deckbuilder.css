@@ -1159,3 +1159,48 @@
     font-size: 10px;
   }
 }
+
+/* Expanded card play can use portrait space; the physical CRT keeps its geometry. */
+@media (max-width: 900px) and (min-height: 600px) and (orientation: portrait) {
+  .arcade-page[data-game='deckbuilder']:is(.is-expanded, .is-fallback.is-playing)
+    .arcade-live-screen {
+    left: 3% !important;
+    top: 80px !important;
+    bottom: 160px;
+    width: 94% !important;
+    height: auto !important;
+    aspect-ratio: auto;
+    transform: none !important;
+  }
+}
+@container (max-width: 550px) and (min-height: 400px) {
+  .db-opponent h2 {
+    font-size: 16px;
+  }
+  .db-intent {
+    font-size: 12px;
+  }
+  .db-enemy-stats {
+    font-size: 10px;
+  }
+  .db-game .db-card {
+    min-height: 110px;
+  }
+  .db-card-art {
+    display: block;
+    width: 28px;
+    height: 28px;
+  }
+  .db-card > b,
+  .db-card > strong {
+    font-size: 11px;
+  }
+  .db-card-cost {
+    width: 19px;
+    height: 19px;
+    font-size: 11px;
+  }
+  .db-turnbar {
+    font-size: 9px;
+  }
+}

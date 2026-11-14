@@ -86,6 +86,9 @@ test('Encore cabinet plays cards, pauses, accepts physical controls and resets w
   await expect(game).toHaveAttribute('data-turn', '2');
   await page.screenshot({ path: info.outputPath('encore-combat.png') });
   await page.getByRole('button', { name: 'Expand screen', exact: true }).click();
+  const viewport = page.viewportSize()!;
+  if (viewport.width <= 900 && viewport.height >= 600 && viewport.height > viewport.width)
+    expect((await game.boundingBox())!.height).toBeGreaterThan(400);
   await expect(game).toHaveAttribute('data-turn', '2');
   await game.getByRole('button', { name: /Deck \(/ }).click();
   await expect(game.getByRole('heading', { name: 'Current deck' })).toBeVisible();
