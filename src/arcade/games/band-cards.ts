@@ -6,6 +6,7 @@ export type Effect = {
   draw?: number;
   energy?: number;
   weaken?: boolean;
+  pressure?: number;
 };
 export type CardKey =
   | 'guitarist'
@@ -25,7 +26,9 @@ export type CardKey =
   | 'mic'
   | 'stack'
   | 'monitor'
-  | 'rig';
+  | 'rig'
+  | 'warmup'
+  | 'focus';
 export type CardDef = {
   name: string;
   type: CardType;
@@ -140,6 +143,18 @@ export const CARDS: Record<CardKey, CardDef> = {
     { damage: 12, block: 8 },
     true,
   ),
+  warmup: crew('Warm-up', 'common', 1, 'Lower pressure by 20. Draw 1.', '−20 pressure · Draw 1', {
+    pressure: -20,
+    draw: 1,
+  }),
+  focus: crew(
+    'Steady hands',
+    'rare',
+    1,
+    'Lower pressure by 35. Gain 3 guard.',
+    '−35 pressure · 3 guard',
+    { pressure: -35, block: 3 },
+  ),
   amp: gear('Practice amp', 'common', 1, 2, 0, 'gear-amp'),
   kit: gear('House kit', 'common', 1, 0, 3, 'gear-kit', ['Drums']),
   mic: gear('Wired microphone', 'common', 1, 1, 1, 'gear-mic', ['Vocals', 'Lead']),
@@ -154,6 +169,12 @@ export const RARITY_LABEL: Record<Rarity, string> = {
 };
 export const RARITIES: Rarity[] = ['common', 'rare', 'super-rare'];
 export const RECORDS = {
+  rehearsal: {
+    name: 'Private rehearsal',
+    rarity: 'common',
+    text: 'Start each show with 25 less pressure.',
+  },
+  room: { name: 'Room tone', rarity: 'rare', text: 'Pressure rises 3 less each turn per copy.' },
   edge: { name: 'Porchlight live', rarity: 'common', text: 'Each musician gains 1 power.' },
   plating: {
     name: 'Road case sessions',

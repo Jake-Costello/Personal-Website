@@ -34,90 +34,20 @@ async function withoutWebGL(page: Page) {
   });
 }
 
-test('Encore cabinet plays cards, pauses, accepts physical controls and resets without API calls', async ({
-  page,
-}, info) => {
-  test.setTimeout(120000);
-  const errors: string[] = [];
-  const external: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  page.on('request', (r) => {
-    if (/\/api\/|api\.openai\.com|spotify\.com/.test(r.url())) external.push(r.url());
-  });
-  const gameRequests: string[] = [];
-  page.on('request', (request) => {
-    if (
-      /\/(?:src\/arcade\/games\/DeckbuilderGame\.tsx|assets\/DeckbuilderGame-[^/]+\.js)/.test(
-        request.url(),
-      )
-    )
-      gameRequests.push(request.url());
-  });
-  await enter(page, () => expect(gameRequests).toEqual([]));
-  expect(gameRequests).toHaveLength(1);
-  const game = page.locator('.db-game');
-  await expect(game).toHaveAttribute('data-phase', 'map');
-  await expect(game.getByRole('heading', { name: 'Bellwether', exact: true })).toBeInViewport({
-    ratio: 1,
-  });
-  await expect(game.getByRole('button', { name: 'Start battle', exact: true })).toBeInViewport({
-    ratio: 1,
-  });
-  await page.screenshot({ path: info.outputPath('encore-cabinet.png') });
-  await game.getByRole('button', { name: 'Start battle', exact: true }).click();
-  await expect(game).toHaveAttribute('data-phase', 'combat');
-  await expect(game).toHaveAttribute('data-energy', '3');
-  const hp = Number(await game.getAttribute('data-enemy-health'));
-  await game.locator('.db-card[data-card="riff"]').first().click();
-  await expect(game).toHaveAttribute('data-enemy-health', String(hp - 6));
-  await expect(game).toHaveAttribute('data-energy', '2');
-  await page.keyboard.press('ArrowRight');
-  await expect(game.locator('.db-card[data-selected="true"]')).toHaveCount(1);
-  const turn = await game.getAttribute('data-turn');
-  await page.getByRole('button', { name: 'Pause game', exact: true }).click();
-  await page.keyboard.press('e');
-  await expect(game).toHaveAttribute('data-turn', turn!);
-  await expect(game.locator('.db-card').first()).toBeDisabled();
-  await page
-    .locator('.arcade-play-tools')
-    .getByRole('button', { name: 'Resume game', exact: true })
-    .click();
-  await page
-    .locator('.arcade-player-controls')
-    .getByRole('button', { name: 'End turn / skip', exact: true })
-    .click();
-  await expect(game).toHaveAttribute('data-turn', '2');
-  await page.screenshot({ path: info.outputPath('encore-combat.png') });
-  await page.getByRole('button', { name: 'Expand screen', exact: true }).click();
-  const viewport = page.viewportSize()!;
-  if (viewport.width <= 900 && viewport.height >= 600 && viewport.height > viewport.width)
-    expect((await game.boundingBox())!.height).toBeGreaterThan(400);
-  await expect(game).toHaveAttribute('data-turn', '2');
-  await game.getByRole('button', { name: /Deck \(/ }).click();
-  await expect(game.getByRole('heading', { name: 'Current deck' })).toBeVisible();
-  await game.getByRole('button', { name: 'Back to run' }).click();
-  await page.screenshot({ path: info.outputPath('encore-expanded.png') });
-  await page.getByRole('button', { name: 'Restart game', exact: true }).click();
-  await expect(game).toHaveAttribute('data-phase', 'map');
-  await expect(game).toHaveAttribute('data-health', '80');
-  await page.keyboard.press('Escape');
-  await expect(page.locator('.arcade-page')).toHaveAttribute('data-game', 'selection');
-  expect(errors).toEqual([]);
-  expect(external).toEqual([]);
-});
-
 async function playVisibleCard(page: Page) {
   const game = page.locator('.db-game');
   const attack = Number(
     (await game.locator('.db-intent').innerText()).match(/Attack (\d+)/)?.[1] ?? 0,
   );
-  const block = Number(await game.locator('.db-player-block>b').innerText());
-  const guard = Number(await game.locator('[data-band-guard]').getAttribute('data-band-guard'));
+  const block = Number(
+    (await game.locator('.db-band-summary').innerText()).match(/(\d+) guard/)?.[1] ?? 0,
+  );
+  const guard = 0;
   const deficit = Math.max(0, attack - block - guard);
   const awaitedWeak = (await game.locator('.db-intent').innerText()).includes('weakened');
   const enemy = Number(await game.getAttribute('data-enemy-health'));
   const energy = Number(await game.getAttribute('data-energy'));
-  const stage = await game.locator('.db-stage [data-stage-id]').evaluateAll((es) =>
+  const stage = await game.locator('.db-stage-slot[data-stage-id]').evaluateAll((es) =>
     es.map((e) => {
       const d = (e as HTMLElement).dataset;
       return {
@@ -136,6 +66,7 @@ async function playVisibleCard(page: Page) {
       disabled: (e as HTMLButtonElement).disabled,
     })),
   );
+  const pressure = Number(await game.getAttribute('data-pressure'));
   const options = hand
     .filter((c) => !c.disabled)
     .map((c) => {
@@ -169,6 +100,7 @@ async function playVisibleCard(page: Page) {
         if (f.draw) value += energy > 0 ? 45 : 5;
         if (f.damage) value += f.damage + (f.damage >= enemy ? 200 : 0);
         if (f.block) value += 1.1 * Math.min(f.block, deficit);
+        if (f.pressure && pressure > 0) value += 6;
         if (f.weaken && !awaitedWeak) value += Math.min(3, deficit);
       }
       return { ...c, value, target };
@@ -177,111 +109,13 @@ async function playVisibleCard(page: Page) {
     .sort((a, b) => b.value - a.value);
   const selected = options[0];
   if (!selected) {
-    await game.getByRole('button', { name: 'Perform / end turn', exact: true }).click();
+    await game.getByRole('button', { name: 'Perform', exact: true }).click();
     return;
   }
   await game.locator('.db-hand .db-card').nth(selected.i).click();
   if (selected.target !== undefined)
     await game.locator(`.db-stage button[data-stage-id="${selected.target}"]`).click();
 }
-
-test('a complete Encore tour visits all shops and three world bosses before Crown Hall', async ({
-  page,
-}, info) => {
-  test.setTimeout(240000);
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await withoutWebGL(page);
-  await enter(page);
-  const game = page.locator('.db-game');
-  const bandShots = new Set<number>();
-  const visited = new Set<number>(),
-    shops = new Set<string>();
-  for (let step = 0; step < 900; step++) {
-    const phase = await game.getAttribute('data-phase'),
-      floor = Number(await game.getAttribute('data-floor'));
-    if (phase === 'won' || phase === 'lost') break;
-    if (phase === 'map') {
-      visited.add(floor);
-      if ([0, 3, 6, 9].includes(floor))
-        await page.screenshot({ path: info.outputPath(`town-${floor}.png`) });
-      await game.getByRole('button', { name: /^(Start battle|Challenge final boss)$/ }).click();
-      if ([2, 5, 8, 9].includes(floor))
-        await page.screenshot({ path: info.outputPath(`boss-${floor}.png`) });
-    } else if (phase === 'reward') {
-      const choices = game.locator('[data-reward]');
-      const keys = await choices.evaluateAll((es) =>
-        es.map((e) => (e as HTMLElement).dataset.reward!),
-      );
-      const scored = keys
-        .map((key, i) => {
-          const c = CARDS[key as keyof typeof CARDS];
-          return {
-            i,
-            value:
-              (c.rarity === 'super-rare' ? 8 : c.rarity === 'rare' ? 4 : 0) +
-              (c.type === 'crew'
-                ? c.effect.draw
-                  ? 8
-                  : (c.effect.damage ?? c.effect.block ?? 5)
-                : (c.power ?? 0) + (c.guard ?? 0)),
-          };
-        })
-        .sort((a, b) => b.value - a.value);
-      await choices.nth(scored[0].i).click();
-    } else if (phase === 'record') {
-      const preferred = [
-        'edge',
-        'spotlight',
-        'double',
-        'plating',
-        'groove',
-        'charge',
-        'live',
-        'backline',
-        'encore',
-      ];
-      const choices = game.locator('[data-record]');
-      const keys = await choices.evaluateAll((es) =>
-        es.map((e) => (e as HTMLElement).dataset.record!),
-      );
-      const best = [...keys].sort((a, b) => preferred.indexOf(a) - preferred.indexOf(b))[0];
-      await game.locator(`[data-record="${best}"]`).click();
-    } else if (phase === 'stop') {
-      const shop = floor % 3 === 1 ? (floor === 1 ? 'record' : 'tattoo') : 'music';
-      shops.add(shop);
-      await game.locator(`[data-shop="${shop}"]`).click();
-      await page.screenshot({ path: info.outputPath(`shop-${floor}-${shop}.png`) });
-    } else if (phase === 'shop') {
-      const edge = game.locator('[data-offer="edge"]:enabled');
-      const tattoo = game.locator('[data-tattoo="plated"]:enabled');
-      const upgrades = game.locator('[data-upgrade]:enabled');
-      if (await edge.count()) await edge.click();
-      else if (await tattoo.count()) await tattoo.click();
-      else if (await upgrades.count()) await upgrades.first().click();
-      else await game.getByRole('button', { name: 'Leave shop', exact: true }).click();
-    } else {
-      await playVisibleCard(page);
-      const world = Number(await game.getAttribute('data-world'));
-      if (
-        !bandShots.has(world) &&
-        (await game.locator('.db-stage [data-stage-id]').count()) === 3
-      ) {
-        bandShots.add(world);
-        await page.screenshot({ path: info.outputPath(`band-world-${world}.png`) });
-      }
-    }
-  }
-  await expect(game).toHaveAttribute('data-phase', 'won');
-  expect([...visited]).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-  expect([...shops].sort()).toEqual(['music', 'record', 'tattoo']);
-  await expect(game.locator('.db-status')).toContainText('10/10 battles');
-  await page.screenshot({ path: info.outputPath('run-complete.png') });
-  expect(errors).toEqual([]);
-  await game.getByRole('button', { name: 'New run', exact: true }).click();
-  await expect(game).toHaveAttribute('data-health', '80');
-  await expect(game).toHaveAttribute('data-cash', '20');
-});
 
 test('Encore load failure keeps an exit and reload recovery', async ({ page }) => {
   await withoutWebGL(page);
@@ -329,62 +163,354 @@ test('portfolio copy and payphone project lead to the themed cabinet without los
   expect(errors).toEqual([]);
 });
 
-test('town buildings select a real alternate show and expose locked roads and keyboard choices', async ({
+async function fit(page: Page) {
+  const game = page.locator('.db-game');
+  const result = await game.evaluate((e) => {
+    const box = e.getBoundingClientRect();
+    const descendants = [
+      e,
+      ...e.querySelectorAll<HTMLElement>(
+        '.db-panel,.db-combat,.db-pages-grid,.db-turnbar,.db-rules,.db-page-card',
+      ),
+    ];
+    return {
+      overflow: descendants
+        .filter((x) => x.scrollHeight > x.clientHeight + 1)
+        .map((x) => ({ name: x.className, scroll: x.scrollHeight, client: x.clientHeight })),
+      clipped: [...e.querySelectorAll<HTMLElement>('button:not(:disabled),input,select')]
+        .filter((x) => {
+          if (!x.getClientRects().length || x.closest('.db-hand')) return false;
+          const b = x.getBoundingClientRect();
+          return (
+            b.bottom > box.bottom + 1 ||
+            b.top < box.top - 1 ||
+            b.left < box.left - 1 ||
+            b.right > box.right + 1
+          );
+        })
+        .map((x) => x.textContent),
+    };
+  });
+  expect(result).toEqual({ overflow: [], clipped: [] });
+}
+async function seedRun(page: Page, seed: string) {
+  const g = page.locator('.db-game');
+  await g.getByRole('button', { name: /Deck \(/ }).click();
+  await g.getByRole('button', { name: 'Rules', exact: true }).click();
+  await g.getByRole('textbox', { name: 'Run seed' }).fill(seed);
+  await g.getByRole('button', { name: 'Restart seed', exact: true }).click();
+}
+test('Encore fits the cabinet, plays cards, pauses and resets without external API calls', async ({
+  page,
+}, info) => {
+  test.setTimeout(120000);
+  const errors: string[] = [],
+    external: string[] = [],
+    imports: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('request', (r) => {
+    if (/\/api\/|api\.openai\.com|spotify\.com/.test(r.url())) external.push(r.url());
+    if (
+      /\/(?:src\/arcade\/games\/DeckbuilderGame\.tsx|assets\/DeckbuilderGame-[^/]+\.js)/.test(
+        r.url(),
+      )
+    )
+      imports.push(r.url());
+  });
+  await enter(page, () => expect(imports).toEqual([]));
+  expect(imports).toHaveLength(1);
+  const g = page.locator('.db-game');
+  await fit(page);
+  await page.screenshot({ path: info.outputPath('cabinet-map.png') });
+  await g.getByRole('button', { name: 'Play show', exact: true }).click();
+  await expect(g).toHaveAttribute('data-pressure', '10');
+  await expect(g).toHaveAttribute('data-hit-chance', '96');
+  await fit(page);
+  await page.screenshot({ path: info.outputPath('cabinet-combat.png') });
+  await g.locator('[data-card="singer"]').click();
+  await expect(g).toHaveAttribute('data-energy', '2');
+  for (const slot of await g.locator('.db-stage-slot,.db-gear-slot').all()) {
+    const box = await slot.boundingBox();
+    expect(box!.height).toBeGreaterThan(box!.width);
+  }
+  await page.getByRole('button', { name: 'Pause game', exact: true }).click();
+  await page.keyboard.press('e');
+  await expect(g).toHaveAttribute('data-turn', '1');
+  await expect(g.getByRole('button', { name: 'Perform', exact: true })).toBeDisabled();
+  await page
+    .locator('.arcade-play-tools')
+    .getByRole('button', { name: 'Resume game', exact: true })
+    .click();
+  await page
+    .locator('.arcade-player-controls')
+    .getByRole('button', { name: 'End turn / skip', exact: true })
+    .click();
+  await expect(g).toHaveAttribute('data-turn', '2');
+  await expect(g).toHaveAttribute('data-pressure', '16');
+  await expect(g.locator('.db-turnbar')).toHaveText('Perform');
+  await expect(g.locator('.db-turnbar')).not.toContainText(/Draw|Discard|Band dealt/);
+  await page.getByRole('button', { name: 'Expand screen', exact: true }).click();
+  await fit(page);
+  await page.screenshot({ path: info.outputPath('expanded-combat.png') });
+  await g.getByRole('button', { name: /Deck \(/ }).click();
+  await fit(page);
+  await expect(g.getByRole('heading', { name: 'Current deck' })).toBeFocused();
+  await page.screenshot({ path: info.outputPath('expanded-deck.png') });
+  await page.getByRole('button', { name: 'Restart game', exact: true }).click();
+  await expect(g).toHaveAttribute('data-phase', 'map');
+  await expect(g).toHaveAttribute('data-health', '80');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.arcade-page')).toHaveAttribute('data-game', 'selection');
+  expect(errors).toEqual([]);
+  expect(external).toEqual([]);
+});
+
+test('connected roads gate the town and keyboard confirmation plays the selected show', async ({
   page,
 }, info) => {
   await withoutWebGL(page);
   await enter(page);
-  const game = page.locator('.db-game');
-  const town = game.getByRole('group', { name: 'House Shows street map' });
-  await expect(town.getByRole('button', { name: /The Last House/ })).toBeDisabled();
-  const alternate = town.getByRole('button', { name: /Basement 9/ });
-  await alternate.focus();
+  const g = page.locator('.db-game');
+  await expect(g.locator('[data-node="w1-boss"]')).toBeDisabled();
+  await expect(g.locator('[data-node="w1-record"]')).toBeDisabled();
+  await expect(g.locator('.db-town button:enabled')).toHaveCount(3);
+  const middle = g.locator('[data-node="w1-show-middle"]');
+  await middle.focus();
   await page.keyboard.press('Enter');
-  await expect(alternate).toHaveAttribute('aria-pressed', 'true');
-  await expect(game.locator('.db-next-show')).toContainText(
-    'Penny Dread · 24 HP · First intent: Attack 3 + Block 4',
-  );
-  await page.screenshot({ path: info.outputPath('town-alternate.png') });
-  await game.getByRole('button', { name: /Deck \(/ }).click();
-  await expect(game.getByRole('heading', { name: 'Current deck', exact: true })).toBeFocused();
-  await page
-    .locator('.arcade-player-controls')
-    .getByRole('button', { name: 'Next card', exact: true })
-    .click();
-  await game.getByRole('button', { name: 'Back to run', exact: true }).click();
-  await expect(alternate).toHaveAttribute('aria-pressed', 'true');
+  await expect(middle).toHaveAttribute('aria-pressed', 'true');
+  await page.screenshot({ path: info.outputPath('connected-roads.png') });
+  await fit(page);
   await page
     .locator('.arcade-player-controls')
     .getByRole('button', { name: 'Play / confirm', exact: true })
     .click();
-  await expect(game.getByRole('heading', { name: 'Penny Dread', exact: true })).toBeFocused();
-  await expect(game).toHaveAttribute('data-enemy-health', '24');
-  await expect(game.locator('.db-enemy-art')).toHaveAttribute('data-character', 'penny');
-  await expect(game.getByRole('img', { name: /Penny Dread: a white undercut/ })).toBeVisible();
-  await expect(game.getByRole('group', { name: 'Guitar score battle board' })).toBeVisible();
-  await expect(
-    game.getByRole('button', { name: 'Perform / end turn', exact: true }),
-  ).toBeInViewport({
-    ratio: 1,
-  });
-  await page.screenshot({ path: info.outputPath('alternate-board.png') });
+  await expect(g).toHaveAttribute('data-current-node', 'w1-show-middle');
+  await expect(g.getByRole('heading', { name: 'Penny Dread', exact: true })).toBeFocused();
+  await expect(g.getByRole('group', { name: 'Guitar score battle board' })).toBeVisible();
+  await fit(page);
 });
 
-test('combat feedback animates once, pauses and respects reduced motion without blocking input', async ({
+test('musicians persist and Gear targeting and cancellation cost only on confirmation', async ({
+  page,
+}, info) => {
+  await withoutWebGL(page);
+  await enter(page);
+  await seedRun(page, 'target-6');
+  const g = page.locator('.db-game');
+  await g.getByRole('button', { name: 'Play show', exact: true }).click();
+  await expect(g.locator('.db-hand [data-card="kit"]')).toBeDisabled();
+  await g.locator('.db-hand [data-card="singer"]').click();
+  await expect(g.locator('.db-hand [data-card="kit"]')).toBeDisabled();
+  await g.locator('.db-hand [data-card="drummer"]').click();
+  const kit = g.locator('.db-hand [data-card="kit"]:enabled').first();
+  const energy = await g.getAttribute('data-energy');
+  await kit.click();
+  await expect(g).toHaveAttribute('data-targeting', 'true');
+  await expect(g.locator('.db-gear-slot[data-role="Vocals"]')).toBeDisabled();
+  await g.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(g).toHaveAttribute('data-energy', energy!);
+  await expect(kit).toBeFocused();
+  await kit.click();
+  await g.locator('.db-gear-slot[data-role="Drums"]').click();
+  await expect(g).toHaveAttribute('data-energy', String(Number(energy) - 1));
+  await expect(g.locator('.db-stage')).toContainText('House kit');
+  await g.getByRole('button', { name: 'Perform', exact: true }).click();
+  await expect(g.locator('.db-stage-slot[data-stage-id]')).toHaveCount(2);
+  await fit(page);
+  await page.screenshot({ path: info.outputPath('equipment-slots.png') });
+});
+
+test('catalog pagination retains every card, rarity labels and missing-art fallback without scrolling', async ({
+  page,
+}, info) => {
+  await withoutWebGL(page);
+  await page.route('**/art/encore/cards/guitarist.png', (r) => r.abort());
+  await enter(page);
+  const g = page.locator('.db-game');
+  await g.getByRole('button', { name: /Deck \(/ }).click();
+  await g.getByRole('button', { name: 'Catalog', exact: true }).click();
+  const seen = new Set<string>(),
+    rarities = new Set<string>();
+  for (let i = 0; i < 10; i++) {
+    await fit(page);
+    for (const card of await g.locator('.db-page-card').all()) {
+      seen.add((await card.getAttribute('aria-label'))!);
+      rarities.add((await card.getAttribute('data-rarity'))!);
+      if ((await card.getAttribute('aria-label'))!.startsWith('Garage guitarist'))
+        await expect(card.locator('svg')).toBeVisible();
+    }
+    if (i === 0) await page.screenshot({ path: info.outputPath('catalog-page.png') });
+    const next = g.getByRole('button', { name: 'Next page', exact: true });
+    if (await next.isDisabled()) break;
+    await next.click();
+  }
+  expect(seen.size).toBe(20);
+  expect([...rarities].sort()).toEqual(['common', 'rare', 'super-rare']);
+  await page.screenshot({ path: info.outputPath('catalog-last.png') });
+});
+
+test('short phone and portrait tablet keep all controls inside the monitor', async ({
+  page,
+}, info) => {
+  await withoutWebGL(page);
+  for (const viewport of [
+    { width: 320, height: 568 },
+    { width: 820, height: 1180 },
+    { width: 1180, height: 820 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await enter(page);
+    const g = page.locator('.db-game');
+    for (const expanded of [false, true]) {
+      if (expanded) await page.getByRole('button', { name: 'Expand screen', exact: true }).click();
+      await fit(page);
+      await g.getByRole('button', { name: 'Play show', exact: true }).click();
+      await fit(page);
+      await g.getByRole('button', { name: /Deck \(/ }).click();
+      for (const tab of ['Deck', 'Catalog', 'Perks', 'Rules']) {
+        await g.getByRole('button', { name: tab, exact: true }).click();
+        await fit(page);
+      }
+      await page.screenshot({ path: info.outputPath(`fit-${viewport.width}-${expanded}.png`) });
+      await g.getByRole('button', { name: 'Back to run', exact: true }).click();
+      await page.getByRole('button', { name: 'Restart game', exact: true }).click();
+    }
+  }
+});
+
+test('a legal road tour visits shops, an event, Studio, three bosses and the final show', async ({
+  page,
+}, info) => {
+  test.setTimeout(300000);
+  await withoutWebGL(page);
+  await enter(page);
+  const g = page.locator('.db-game'),
+    visited: string[] = [],
+    bosses: number[] = [],
+    shops = new Set<string>();
+  const route = [
+    'w1-show-left',
+    'w1-record',
+    'w1-tattoo',
+    'w1-boss',
+    'w2-show-middle',
+    'w2-extra-show',
+    'w2-studio',
+    'w2-boss',
+    'w3-show-right',
+    'w3-rehearsal',
+    'w3-music',
+    'w3-boss',
+    'crown-record',
+    'crown-show',
+  ];
+  const screenshots = new Set<string>();
+  for (let step = 0; step < 1100; step++) {
+    const phase = await g.getAttribute('data-phase');
+    if (phase === 'won' || phase === 'lost') break;
+    if (!screenshots.has(phase!)) {
+      await fit(page);
+      const original = page.viewportSize()!;
+      await page.setViewportSize({ width: 320, height: 568 });
+      await expect(g).toHaveAttribute('data-compact', 'true');
+      await fit(page);
+      await page.screenshot({ path: info.outputPath(`short-${phase}.png`) });
+      await page.setViewportSize(original);
+      await expect(g).toHaveAttribute('data-compact', 'false');
+      await page.screenshot({ path: info.outputPath(`tour-${phase}.png`) });
+      screenshots.add(phase!);
+    }
+    if (phase === 'map') {
+      const id = route[visited.length];
+      expect(id).toBeTruthy();
+      const node = g.locator(`[data-node="${id}"]`);
+      await expect(node).toBeEnabled();
+      await node.click();
+      await g.getByRole('button', { name: /^(Play show|Visit)$/ }).click();
+      visited.push(id);
+      if (id.endsWith('boss') || id === 'crown-show')
+        bosses.push(Number(await g.getAttribute('data-floor')));
+    } else if (phase === 'reward') {
+      const choices = g.locator('[data-reward]'),
+        keys = await choices.evaluateAll((es) => es.map((e) => (e as HTMLElement).dataset.reward!));
+      const scored = keys
+        .map((key, i) => {
+          const c = CARDS[key as keyof typeof CARDS];
+          return {
+            i,
+            value:
+              (c.rarity === 'super-rare' ? 8 : c.rarity === 'rare' ? 4 : 0) +
+              (c.type === 'crew'
+                ? c.effect.draw
+                  ? 8
+                  : (c.effect.damage ?? c.effect.block ?? 5)
+                : (c.power ?? 0) + (c.guard ?? 0)),
+          };
+        })
+        .sort((a, b) => b.value - a.value);
+      await choices.nth(scored[0].i).click();
+    } else if (phase === 'record') {
+      await g.locator('[data-record]').first().click();
+    } else if (phase === 'event') {
+      await g.getByRole('button', { name: /^Rehearse/ }).click();
+    } else if (phase === 'shop') {
+      const id = (await g.getAttribute('data-current-node'))!;
+      shops.add(id.split('-').slice(1).join('-'));
+      await fit(page);
+      if (!screenshots.has(id)) {
+        const original = page.viewportSize()!;
+        await page.setViewportSize({ width: 320, height: 568 });
+        await expect(g).toHaveAttribute('data-compact', 'true');
+        for (let stockPage = 0; stockPage < 10; stockPage++) {
+          await fit(page);
+          await page.screenshot({ path: info.outputPath(`short-${id}-${stockPage}.png`) });
+          const next = g.getByRole('button', { name: 'Next page', exact: true });
+          if (!(await next.count()) || (await next.isDisabled())) break;
+          await next.click();
+        }
+        await page.setViewportSize(original);
+        await expect(g).toHaveAttribute('data-compact', 'false');
+        await fit(page);
+        await page.screenshot({ path: info.outputPath(`${id}.png`) });
+        screenshots.add(id);
+      }
+      const tattoo = g.locator('[data-tattoo="plated"]:enabled'),
+        promo = g.locator('[data-promotion="flyers"]:enabled');
+      if (await tattoo.count()) await tattoo.click();
+      else if (await promo.count()) await promo.click();
+      else await g.getByRole('button', { name: 'Leave', exact: true }).click();
+    } else await playVisibleCard(page);
+  }
+  await expect(g).toHaveAttribute('data-phase', 'won');
+  expect(visited).toEqual(route);
+  expect(bosses).toEqual([2, 5, 8, 9]);
+  expect([...shops].sort()).toEqual(['music', 'record', 'studio', 'tattoo']);
+  await fit(page);
+  await page.screenshot({ path: info.outputPath('tour-complete.png') });
+  await g.getByRole('button', { name: 'New run', exact: true }).click();
+  await expect(g).toHaveAttribute('data-cash', '20');
+});
+
+test('Warm-up visibly improves hit odds and feedback honors pause and reduced motion', async ({
   page,
 }, info) => {
   await withoutWebGL(page);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await enter(page);
-  const game = page.locator('.db-game');
-  await game.getByRole('button', { name: 'Start battle', exact: true }).click();
-  const strike = game.locator('.db-card[data-card="riff"]').first();
-  await strike.click();
-  await expect(game).toHaveAttribute('data-feedback', 'attack');
-  const motion = game.locator('.db-character-motion');
-  await expect(motion).toHaveCSS('animation-name', 'db-recoil');
-  await expect(game.locator('.db-feedback span')).toHaveText('−6');
-  await expect(game.getByRole('button', { name: 'Perform / end turn', exact: true })).toBeEnabled();
+  await seedRun(page, 'calm-0');
+  const g = page.locator('.db-game');
+  await g.getByRole('button', { name: 'Play show', exact: true }).click();
+  await g.locator('.db-hand [data-card="warmup"]').click();
+  await expect(g).toHaveAttribute('data-pressure', '0');
+  await expect(g).toHaveAttribute('data-hit-chance', '100');
+  await expect(g).toHaveAttribute('data-feedback', 'utility');
+  await g.locator('.db-hand [data-card="guitarist"]').first().click();
+  await g.getByRole('button', { name: 'Perform', exact: true }).click();
+  await expect(g).toHaveAttribute('data-turn', '2');
+  await expect(g.locator('.db-stage-slot[data-stage-id]')).toHaveAttribute('data-outcome', 'hit');
+  await expect(g).toHaveAttribute('data-pressure', '6');
+  const motion = g.locator('.db-character-motion');
+  await expect(motion).toHaveCSS('animation-name', 'db-lunge');
   await page.getByRole('button', { name: 'Pause game', exact: true }).click();
   await expect(motion).toHaveCSS('animation-play-state', 'paused');
   await page
@@ -392,109 +518,32 @@ test('combat feedback animates once, pauses and respects reduced motion without 
     .getByRole('button', { name: 'Resume game', exact: true })
     .click();
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await game.getByRole('button', { name: 'Perform / end turn', exact: true }).click();
-  await expect(game).toHaveAttribute('data-turn', '2');
-  await expect(game.locator('.db-character-motion')).toHaveCSS('animation-name', 'none');
-  await expect(game.locator('.db-feedback span')).toHaveCSS('animation-name', 'none');
-  await expect(game.locator('.db-announcement')).toContainText('Enemy dealt');
-  await page.screenshot({ path: info.outputPath('reduced-motion-board.png') });
+  await expect(motion).toHaveCSS('animation-name', 'none');
+  await fit(page);
+  await page.screenshot({ path: info.outputPath('pressure-control.png') });
 });
 
-test('musicians persist, incompatible Gear is disabled and canceling a target costs nothing', async ({
-  page,
-}, info) => {
+test('cabinet arrows skip incompatible Gear and preserve document position', async ({ page }) => {
   await withoutWebGL(page);
   await enter(page);
-  const game = page.locator('.db-game');
-  await game.getByRole('textbox', { name: 'Run seed' }).fill('target-6');
-  await game.getByRole('button', { name: 'Start battle', exact: true }).click();
-  // This seed opens with both roles and Gear: verify the actual disabled/target states.
-  await expect(game.locator('.db-hand [data-card="kit"]')).toBeDisabled();
-  await game.locator('.db-hand [data-card="singer"]').click();
-  await expect(game.locator('.db-hand [data-card="kit"]')).toBeDisabled();
-  await game.locator('.db-hand [data-card="drummer"]').click();
-  const kit = game.locator('.db-hand [data-card="kit"]:enabled').first();
-  await expect(kit).toBeEnabled();
-  const energy = await game.getAttribute('data-energy');
-  await kit.click();
-  await expect(game).toHaveAttribute('data-targeting', 'true');
-  await expect(game.locator('.db-stage button[data-role="Vocals"]')).toBeDisabled();
-  await game.getByRole('button', { name: 'Cancel target' }).click();
-  await expect(game).toHaveAttribute('data-energy', energy!);
-  await expect(kit).toBeFocused();
-  await expect(kit).toBeInViewport({ ratio: 1 });
-  await kit.click();
-  await game.locator('.db-stage button[data-role="Drums"]').first().click();
-  await expect(game).toHaveAttribute('data-energy', String(Number(energy) - 1));
-  await expect(game.locator('.db-stage')).toContainText('House kit');
-  const stageCount = await game.locator('.db-stage [data-stage-id]').count();
-  await game.getByRole('button', { name: 'Perform / end turn', exact: true }).click();
-  await expect(game.locator('.db-stage [data-stage-id]')).toHaveCount(stageCount);
-  await page.screenshot({ path: info.outputPath('band-equipment.png') });
-});
-
-test('catalog labels matte, metallic and prismatic cards and missing artwork keeps readable rules', async ({
-  page,
-}, info) => {
-  await withoutWebGL(page);
-  await page.route('**/art/encore/cards/guitarist.png', (r) => r.abort());
-  await enter(page);
-  const game = page.locator('.db-game');
-  await game.getByRole('button', { name: /Deck \(/ }).click();
-  await game.getByRole('button', { name: 'Browse card catalog' }).click();
-  await expect(game.locator('.db-catalog .db-card')).toHaveCount(18);
-  await expect(game.locator('.db-catalog [data-rarity="super-rare"]')).toHaveCount(3);
-  await expect(game.locator('.db-catalog [data-rarity="rare"]')).toHaveCount(6);
-  const guitarist = game.locator('.db-catalog .db-card').filter({ hasText: 'Garage guitarist' });
-  await expect(guitarist.locator('svg')).toBeVisible();
-  await expect(guitarist).toContainText('4 power');
-  await expect(game.locator('.db-catalog .db-card').first()).toHaveCSS('animation-name', 'none');
-  await page.screenshot({ path: info.outputPath('card-finishes.png') });
-});
-
-test('cabinet arrows skip incompatible Gear without losing the selected card', async ({ page }) => {
-  await withoutWebGL(page);
-  await enter(page);
-  const game = page.locator('.db-game');
-  await game.getByRole('button', { name: 'Start battle', exact: true }).click();
-  const initialScroll = await page.evaluate(() => ({ x: scrollX, y: scrollY }));
-  await game.locator('.db-hand [data-card="riff"]').focus();
+  const g = page.locator('.db-game');
+  await g.getByRole('button', { name: 'Play show', exact: true }).click();
+  const scroll = await page.evaluate(() => ({ x: scrollX, y: scrollY }));
+  await g.locator('.db-hand [data-card="riff"]').focus();
   const next = page
     .locator('.arcade-player-controls')
     .getByRole('button', { name: 'Next card', exact: true });
   await next.click();
-  await expect(game.locator('.db-hand [data-card="singer"]')).toBeFocused();
+  await expect(g.locator('.db-hand [data-card="singer"]')).toBeFocused();
   await next.click();
-  await expect(game.locator('.db-hand [data-card="guitarist"]')).toBeFocused();
+  await expect(g.locator('.db-hand [data-card="guitarist"]')).toBeFocused();
   await next.click();
-  await expect(game.locator('.db-hand [data-card="soundcheck"]')).toBeFocused();
-  await expect(game.locator('.db-hand [data-card="soundcheck"]')).toBeInViewport({ ratio: 1 });
+  await expect(g.locator('.db-hand [data-card="soundcheck"]')).toBeFocused();
+  await expect(g.locator('.db-hand [data-card="soundcheck"]')).toBeInViewport({ ratio: 1 });
   await page
     .locator('.arcade-player-controls')
     .getByRole('button', { name: 'Play / confirm', exact: true })
     .click();
-  await expect(game.locator('.db-hand [data-card="soundcheck"]')).toHaveCount(0);
-  await expect(game).toHaveAttribute('data-energy', '3');
-  expect(await page.evaluate(() => ({ x: scrollX, y: scrollY }))).toEqual(initialScroll);
-});
-
-test('portrait tablet toolbar leaves the Deck control clickable in fallback and expanded play', async ({
-  page,
-}, info) => {
-  await page.setViewportSize({ width: 820, height: 1180 });
-  await withoutWebGL(page);
-  await enter(page);
-  const game = page.locator('.db-game');
-  const header = page.locator('.arcade-play-header');
-  for (const expanded of [false, true]) {
-    if (expanded) await page.getByRole('button', { name: 'Expand screen', exact: true }).click();
-    const deck = game.getByRole('button', { name: /Deck \(/ });
-    const toolbar = await header.boundingBox(),
-      button = await deck.boundingBox();
-    expect(toolbar!.y + toolbar!.height).toBeLessThanOrEqual(button!.y);
-    await deck.click();
-    await expect(game.getByRole('heading', { name: 'Current deck', exact: true })).toBeFocused();
-    await game.getByRole('button', { name: 'Back to run', exact: true }).click();
-  }
-  await page.screenshot({ path: info.outputPath('tablet-toolbar-clear.png') });
+  await expect(g.locator('.db-hand [data-card="soundcheck"]')).toHaveCount(0);
+  expect(await page.evaluate(() => ({ x: scrollX, y: scrollY }))).toEqual(scroll);
 });

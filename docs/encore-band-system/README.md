@@ -1,5 +1,7 @@
 # Encore: band / deck prototype
 
+Historical iteration: superseded by [roads and pressure](../encore-pressure/README.md).
+
 Encore is an original rock-band tour through Bellwether, a fictional town. Its payphone connection is to Jake's senior project; neither Cleveland nor a commercial game's fiction is used as a claim about that project. Influences are structural, not copied cards, characters or artwork.
 
 ## Playable rules

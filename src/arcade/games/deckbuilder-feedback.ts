@@ -2,7 +2,7 @@ import { currentIntent } from './deckbuilder-model';
 import type { Run } from './deckbuilder-model';
 
 export type CombatFeedback = {
-  kind: 'attack' | 'block' | 'utility' | 'enemy' | 'enemy-guard';
+  kind: 'attack' | 'block' | 'utility' | 'enemy' | 'enemy-guard' | 'miss';
   text: string;
 };
 // Visual feedback is derived from resolved state; animation never owns game timing.
@@ -20,6 +20,14 @@ export function combatFeedback(before: Run, after: Run): CombatFeedback | null {
     const damage = before.hp - after.hp;
     return { kind: 'enemy', text: damage > 0 ? `−${damage} HP` : 'Blocked' };
   }
+  if (
+    after.attackSerial > before.attackSerial &&
+    after.lastAttacks.length &&
+    after.lastAttacks.every((a) => !a.hit)
+  )
+    return { kind: 'miss', text: 'Miss' };
+  if (after.pressure < before.pressure)
+    return { kind: 'utility', text: `Pressure −${before.pressure - after.pressure}` };
   const damage = before.enemyHp - after.enemyHp;
   if (damage > 0) return { kind: 'attack', text: `−${damage}` };
   const absorbed = before.enemyBlock - after.enemyBlock;
