@@ -3,13 +3,16 @@ import type { Page } from '@playwright/test';
 import { CARDS } from '../../src/arcade/games/deckbuilder-model';
 import { installProteinApi } from './protein-fixtures';
 
-async function enter(page: Page, beforeEnter?: () => void) {
-  await page.goto('/arcade/?game=deckbuilder');
+async function cabinetReady(page: Page) {
   await expect(page.locator('.arcade-page')).toHaveAttribute(
     'data-renderer',
     /^(three|fallback)$/,
     { timeout: 30000 },
   );
+}
+async function enter(page: Page, beforeEnter?: () => void) {
+  await page.goto('/arcade/?game=deckbuilder');
+  await cabinetReady(page);
   beforeEnter?.();
   if ((await page.locator('.arcade-page').getAttribute('data-renderer')) === 'fallback')
     await page.locator('.arcade-fallback-machines > button').filter({ hasText: 'Encore' }).click();
@@ -295,6 +298,9 @@ test('Encore load failure keeps an exit and reload recovery', async ({ page }) =
 test('portfolio copy and payphone project lead to the themed cabinet without losing factual context', async ({
   page,
 }, info) => {
+  test.setTimeout(60000);
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
   await installProteinApi(page);
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'JAKE COSTELLO.' })).toBeVisible();
@@ -307,7 +313,20 @@ test('portfolio copy and payphone project lead to the themed cabinet without los
   await expect(dialog).toContainText('Python and Asterisk');
   await page.screenshot({ path: info.outputPath('payphone-details.png') });
   await dialog.getByRole('link', { name: 'See the Encore cabinet' }).click();
+  await expect(page).toHaveURL(/\/arcade\/\?game=deckbuilder$/);
+  // A full navigation initializes the WebGL capability probe before mounting the shell.
+  // Use the same bounded readiness budget as direct cabinet entry on the software GPU.
+  await cabinetReady(page);
   await expect(page.locator('.arcade-page')).toHaveAttribute('data-selected', 'deckbuilder');
+  if ((await page.locator('.arcade-page').getAttribute('data-renderer')) === 'three')
+    await expect(page.getByRole('button', { name: 'Play Encore', exact: true })).toBeEnabled({
+      timeout: 30000,
+    });
+  else
+    await expect(
+      page.locator('.arcade-fallback-machines > button').filter({ hasText: 'Encore' }),
+    ).toBeEnabled();
+  expect(errors).toEqual([]);
 });
 
 test('town buildings select a real alternate show and expose locked roads and keyboard choices', async ({
