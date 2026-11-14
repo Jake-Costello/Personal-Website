@@ -3,13 +3,16 @@ import type { Page } from '@playwright/test';
 import { CARDS } from '../../src/arcade/games/deckbuilder-model';
 import { installProteinApi } from './protein-fixtures';
 
-async function enter(page: Page, beforeEnter?: () => void) {
-  await page.goto('/arcade/?game=deckbuilder');
+async function cabinetReady(page: Page) {
   await expect(page.locator('.arcade-page')).toHaveAttribute(
     'data-renderer',
     /^(three|fallback)$/,
     { timeout: 30000 },
   );
+}
+async function enter(page: Page, beforeEnter?: () => void) {
+  await page.goto('/arcade/?game=deckbuilder');
+  await cabinetReady(page);
   beforeEnter?.();
   if ((await page.locator('.arcade-page').getAttribute('data-renderer')) === 'fallback')
     await page.locator('.arcade-fallback-machines > button').filter({ hasText: 'Encore' }).click();
@@ -65,7 +68,7 @@ test('Encore cabinet plays cards, pauses, accepts physical controls and resets w
   await expect(game).toHaveAttribute('data-phase', 'combat');
   await expect(game).toHaveAttribute('data-energy', '3');
   const hp = Number(await game.getAttribute('data-enemy-health'));
-  await game.locator('.db-card[data-card="strike"]').first().click();
+  await game.locator('.db-card[data-card="riff"]').first().click();
   await expect(game).toHaveAttribute('data-enemy-health', String(hp - 6));
   await expect(game).toHaveAttribute('data-energy', '2');
   await page.keyboard.press('ArrowRight');
@@ -103,87 +106,181 @@ test('Encore cabinet plays cards, pauses, accepts physical controls and resets w
   expect(external).toEqual([]);
 });
 
-test('a complete Encore run crosses all three world bosses and the final boss without WebGL', async ({
+async function playVisibleCard(page: Page) {
+  const game = page.locator('.db-game');
+  const attack = Number(
+    (await game.locator('.db-intent').innerText()).match(/Attack (\d+)/)?.[1] ?? 0,
+  );
+  const block = Number(await game.locator('.db-player-block>b').innerText());
+  const guard = Number(await game.locator('[data-band-guard]').getAttribute('data-band-guard'));
+  const deficit = Math.max(0, attack - block - guard);
+  const awaitedWeak = (await game.locator('.db-intent').innerText()).includes('weakened');
+  const enemy = Number(await game.getAttribute('data-enemy-health'));
+  const energy = Number(await game.getAttribute('data-energy'));
+  const stage = await game.locator('.db-stage [data-stage-id]').evaluateAll((es) =>
+    es.map((e) => {
+      const d = (e as HTMLElement).dataset;
+      return {
+        id: Number(d.stageId),
+        role: d.role!,
+        value: Number(d.power) + 1.1 * Number(d.guard),
+        gear: Number(d.gearPower) + 1.1 * Number(d.gearGuard),
+      };
+    }),
+  );
+  const hand = await game.locator('.db-hand .db-card').evaluateAll((es) =>
+    es.map((e, i) => ({
+      i,
+      key: (e as HTMLElement).dataset.card!,
+      level: Number((e as HTMLElement).dataset.level),
+      disabled: (e as HTMLButtonElement).disabled,
+    })),
+  );
+  const options = hand
+    .filter((c) => !c.disabled)
+    .map((c) => {
+      const def = CARDS[c.key as keyof typeof CARDS];
+      const stat =
+        (def.power ?? 0) +
+        ((def.power ?? 0) > 0 ? c.level : 0) +
+        1.1 * ((def.guard ?? 0) + ((def.guard ?? 0) > 0 ? c.level : 0));
+      let value = 0,
+        target: number | undefined;
+      if (def.type === 'musician') {
+        if (stage.length < 3) value = 50 + stat;
+        else {
+          const weak = [...stage].sort((a, b) => a.value + a.gear - b.value - b.gear)[0];
+          if (stat > weak.value + weak.gear) {
+            target = weak.id;
+            value = 15 + stat - weak.value - weak.gear;
+          }
+        }
+      } else if (def.type === 'gear') {
+        const eligible = stage
+          .filter((t) => !def.compatibleRoles || def.compatibleRoles.includes(t.role))
+          .sort((a, b) => a.gear - b.gear);
+        if (eligible[0] && stat > eligible[0].gear) {
+          target = eligible[0].id;
+          value = 25 + stat - eligible[0].gear;
+        }
+      } else {
+        const f = def.effect;
+        if (f.energy) value += 80;
+        if (f.draw) value += energy > 0 ? 45 : 5;
+        if (f.damage) value += f.damage + (f.damage >= enemy ? 200 : 0);
+        if (f.block) value += 1.1 * Math.min(f.block, deficit);
+        if (f.weaken && !awaitedWeak) value += Math.min(3, deficit);
+      }
+      return { ...c, value, target };
+    })
+    .filter((c) => c.value > 0)
+    .sort((a, b) => b.value - a.value);
+  const selected = options[0];
+  if (!selected) {
+    await game.getByRole('button', { name: 'Perform / end turn', exact: true }).click();
+    return;
+  }
+  await game.locator('.db-hand .db-card').nth(selected.i).click();
+  if (selected.target !== undefined)
+    await game.locator(`.db-stage button[data-stage-id="${selected.target}"]`).click();
+}
+
+test('a complete Encore tour visits all shops and three world bosses before Crown Hall', async ({
   page,
 }, info) => {
-  test.setTimeout(180000);
+  test.setTimeout(240000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
   await withoutWebGL(page);
   await enter(page);
   const game = page.locator('.db-game');
-  const visited = new Set<number>();
-  for (let step = 0; step < 700; step++) {
-    const phase = await game.getAttribute('data-phase');
-    const floor = Number(await game.getAttribute('data-floor'));
+  const bandShots = new Set<number>();
+  const visited = new Set<number>(),
+    shops = new Set<string>();
+  for (let step = 0; step < 900; step++) {
+    const phase = await game.getAttribute('data-phase'),
+      floor = Number(await game.getAttribute('data-floor'));
     if (phase === 'won' || phase === 'lost') break;
     if (phase === 'map') {
       visited.add(floor);
-      if (floor === 9)
-        await expect(game).toContainText('The final show. Win here to finish the tour.');
-      if (floor === 8) await expect(game).toContainText('Win this show to reach Crown Hall.');
       if ([0, 3, 6, 9].includes(floor))
         await page.screenshot({ path: info.outputPath(`town-${floor}.png`) });
       await game.getByRole('button', { name: /^(Start battle|Challenge final boss)$/ }).click();
       if ([2, 5, 8, 9].includes(floor))
         await page.screenshot({ path: info.outputPath(`boss-${floor}.png`) });
     } else if (phase === 'reward') {
-      const rank = ['Turn it up', 'Power chord', 'Drum fill', 'Quick riff', 'Count-in', 'Feedback'];
-      const choices = game.locator('.db-choices button');
-      const labels = await choices.locator('b').allTextContents();
-      const best = labels
-        .map((name, i) => ({ i, rank: rank.indexOf(name) }))
-        .sort((a, b) => a.rank - b.rank)[0];
-      await choices.nth(best.i).click();
-    } else if (phase === 'relic') await game.getByRole('button', { name: /Hot pickup/ }).click();
-    else {
-      const attack = Number(
-        (await game.locator('.db-intent').innerText()).match(/Attack (\d+)/)?.[1] ?? 0,
+      const choices = game.locator('[data-reward]');
+      const keys = await choices.evaluateAll((es) =>
+        es.map((e) => (e as HTMLElement).dataset.reward!),
       );
-      const block = Number(await game.locator('.db-player-block>b').innerText());
-      const strength = Number(
-        (await game.locator('.db-player-block small').allTextContents())
-          .join('')
-          .match(/\+(\d+)/)?.[1] ?? 0,
+      const scored = keys
+        .map((key, i) => {
+          const c = CARDS[key as keyof typeof CARDS];
+          return {
+            i,
+            value:
+              (c.rarity === 'super-rare' ? 8 : c.rarity === 'rare' ? 4 : 0) +
+              (c.type === 'crew'
+                ? c.effect.draw
+                  ? 8
+                  : (c.effect.damage ?? c.effect.block ?? 5)
+                : (c.power ?? 0) + (c.guard ?? 0)),
+          };
+        })
+        .sort((a, b) => b.value - a.value);
+      await choices.nth(scored[0].i).click();
+    } else if (phase === 'record') {
+      const preferred = [
+        'edge',
+        'spotlight',
+        'double',
+        'plating',
+        'groove',
+        'charge',
+        'live',
+        'backline',
+        'encore',
+      ];
+      const choices = game.locator('[data-record]');
+      const keys = await choices.evaluateAll((es) =>
+        es.map((e) => (e as HTMLElement).dataset.record!),
       );
-      const enemy = Number(await game.getAttribute('data-enemy-health'));
-      const enemyBlock = Number(
-        (await game.locator('.db-enemy-stats').innerText()).match(/· (\d+) block/)?.[1] ?? 0,
-      );
-      const energy = Number(await game.getAttribute('data-energy'));
-      const cards = await game.locator('.db-card').evaluateAll((elements) =>
-        elements.map((e, i) => ({
-          i,
-          key: (e as HTMLElement).dataset.card!,
-          disabled: (e as HTMLButtonElement).disabled,
-        })),
-      );
-      const awaitedWeak = (await game.locator('.db-intent').innerText()).includes('weakened');
-      const options = cards
-        .filter((c) => !c.disabled)
-        .map((c) => {
-          const f = CARDS[c.key as keyof typeof CARDS].effect;
-          let value = f.energy ? 100 : f.draw ? (energy > 0 ? 40 : 1) : 0;
-          if (f.strength) value += enemy > 18 ? 50 : 0;
-          if (f.damage) value += f.damage + strength;
-          if (f.damage && f.damage + strength >= enemy + enemyBlock) value += 200;
-          if (f.block) value += 1.5 * Math.min(f.block, Math.max(0, attack - block));
-          if (f.weaken && !awaitedWeak) value += 3;
-          return { ...c, value };
-        });
-      options.sort((a, b) => b.value - a.value);
-      if (options.length) await game.locator('.db-card').nth(options[0].i).click();
-      else await game.getByRole('button', { name: 'End turn', exact: true }).click();
+      const best = [...keys].sort((a, b) => preferred.indexOf(a) - preferred.indexOf(b))[0];
+      await game.locator(`[data-record="${best}"]`).click();
+    } else if (phase === 'stop') {
+      const shop = floor % 3 === 1 ? (floor === 1 ? 'record' : 'tattoo') : 'music';
+      shops.add(shop);
+      await game.locator(`[data-shop="${shop}"]`).click();
+      await page.screenshot({ path: info.outputPath(`shop-${floor}-${shop}.png`) });
+    } else if (phase === 'shop') {
+      const edge = game.locator('[data-offer="edge"]:enabled');
+      const tattoo = game.locator('[data-tattoo="plated"]:enabled');
+      const upgrades = game.locator('[data-upgrade]:enabled');
+      if (await edge.count()) await edge.click();
+      else if (await tattoo.count()) await tattoo.click();
+      else if (await upgrades.count()) await upgrades.first().click();
+      else await game.getByRole('button', { name: 'Leave shop', exact: true }).click();
+    } else {
+      await playVisibleCard(page);
+      const world = Number(await game.getAttribute('data-world'));
+      if (
+        !bandShots.has(world) &&
+        (await game.locator('.db-stage [data-stage-id]').count()) === 3
+      ) {
+        bandShots.add(world);
+        await page.screenshot({ path: info.outputPath(`band-world-${world}.png`) });
+      }
     }
   }
   await expect(game).toHaveAttribute('data-phase', 'won');
-  await expect(game.locator('.db-status')).toContainText('10/10 battles');
   expect([...visited]).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-  await expect(
-    game.getByRole('heading', { name: 'Final boss defeated', exact: true }),
-  ).toBeVisible();
+  expect([...shops].sort()).toEqual(['music', 'record', 'tattoo']);
+  await expect(game.locator('.db-status')).toContainText('10/10 battles');
   await page.screenshot({ path: info.outputPath('run-complete.png') });
+  expect(errors).toEqual([]);
   await game.getByRole('button', { name: 'New run', exact: true }).click();
   await expect(game).toHaveAttribute('data-health', '80');
-  await expect(game).toHaveAttribute('data-floor', '0');
+  await expect(game).toHaveAttribute('data-cash', '20');
 });
 
 test('Encore load failure keeps an exit and reload recovery', async ({ page }) => {
@@ -201,6 +298,9 @@ test('Encore load failure keeps an exit and reload recovery', async ({ page }) =
 test('portfolio copy and payphone project lead to the themed cabinet without losing factual context', async ({
   page,
 }, info) => {
+  test.setTimeout(60000);
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
   await installProteinApi(page);
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'JAKE COSTELLO.' })).toBeVisible();
@@ -213,7 +313,20 @@ test('portfolio copy and payphone project lead to the themed cabinet without los
   await expect(dialog).toContainText('Python and Asterisk');
   await page.screenshot({ path: info.outputPath('payphone-details.png') });
   await dialog.getByRole('link', { name: 'See the Encore cabinet' }).click();
+  await expect(page).toHaveURL(/\/arcade\/\?game=deckbuilder$/);
+  // A full navigation initializes the WebGL capability probe before mounting the shell.
+  // Use the same bounded readiness budget as direct cabinet entry on the software GPU.
+  await cabinetReady(page);
   await expect(page.locator('.arcade-page')).toHaveAttribute('data-selected', 'deckbuilder');
+  if ((await page.locator('.arcade-page').getAttribute('data-renderer')) === 'three')
+    await expect(page.getByRole('button', { name: 'Play Encore', exact: true })).toBeEnabled({
+      timeout: 30000,
+    });
+  else
+    await expect(
+      page.locator('.arcade-fallback-machines > button').filter({ hasText: 'Encore' }),
+    ).toBeEnabled();
+  expect(errors).toEqual([]);
 });
 
 test('town buildings select a real alternate show and expose locked roads and keyboard choices', async ({
@@ -249,7 +362,9 @@ test('town buildings select a real alternate show and expose locked roads and ke
   await expect(game.locator('.db-enemy-art')).toHaveAttribute('data-character', 'penny');
   await expect(game.getByRole('img', { name: /Penny Dread: a white undercut/ })).toBeVisible();
   await expect(game.getByRole('group', { name: 'Guitar score battle board' })).toBeVisible();
-  await expect(game.getByRole('button', { name: 'End turn', exact: true })).toBeInViewport({
+  await expect(
+    game.getByRole('button', { name: 'Perform / end turn', exact: true }),
+  ).toBeInViewport({
     ratio: 1,
   });
   await page.screenshot({ path: info.outputPath('alternate-board.png') });
@@ -263,13 +378,13 @@ test('combat feedback animates once, pauses and respects reduced motion without 
   await enter(page);
   const game = page.locator('.db-game');
   await game.getByRole('button', { name: 'Start battle', exact: true }).click();
-  const strike = game.locator('.db-card[data-card="strike"]').first();
+  const strike = game.locator('.db-card[data-card="riff"]').first();
   await strike.click();
   await expect(game).toHaveAttribute('data-feedback', 'attack');
   const motion = game.locator('.db-character-motion');
   await expect(motion).toHaveCSS('animation-name', 'db-recoil');
   await expect(game.locator('.db-feedback span')).toHaveText('−6');
-  await expect(game.getByRole('button', { name: 'End turn', exact: true })).toBeEnabled();
+  await expect(game.getByRole('button', { name: 'Perform / end turn', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: 'Pause game', exact: true }).click();
   await expect(motion).toHaveCSS('animation-play-state', 'paused');
   await page
@@ -277,10 +392,109 @@ test('combat feedback animates once, pauses and respects reduced motion without 
     .getByRole('button', { name: 'Resume game', exact: true })
     .click();
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await game.getByRole('button', { name: 'End turn', exact: true }).click();
+  await game.getByRole('button', { name: 'Perform / end turn', exact: true }).click();
   await expect(game).toHaveAttribute('data-turn', '2');
   await expect(game.locator('.db-character-motion')).toHaveCSS('animation-name', 'none');
   await expect(game.locator('.db-feedback span')).toHaveCSS('animation-name', 'none');
   await expect(game.locator('.db-announcement')).toContainText('Enemy dealt');
   await page.screenshot({ path: info.outputPath('reduced-motion-board.png') });
+});
+
+test('musicians persist, incompatible Gear is disabled and canceling a target costs nothing', async ({
+  page,
+}, info) => {
+  await withoutWebGL(page);
+  await enter(page);
+  const game = page.locator('.db-game');
+  await game.getByRole('textbox', { name: 'Run seed' }).fill('target-6');
+  await game.getByRole('button', { name: 'Start battle', exact: true }).click();
+  // This seed opens with both roles and Gear: verify the actual disabled/target states.
+  await expect(game.locator('.db-hand [data-card="kit"]')).toBeDisabled();
+  await game.locator('.db-hand [data-card="singer"]').click();
+  await expect(game.locator('.db-hand [data-card="kit"]')).toBeDisabled();
+  await game.locator('.db-hand [data-card="drummer"]').click();
+  const kit = game.locator('.db-hand [data-card="kit"]:enabled').first();
+  await expect(kit).toBeEnabled();
+  const energy = await game.getAttribute('data-energy');
+  await kit.click();
+  await expect(game).toHaveAttribute('data-targeting', 'true');
+  await expect(game.locator('.db-stage button[data-role="Vocals"]')).toBeDisabled();
+  await game.getByRole('button', { name: 'Cancel target' }).click();
+  await expect(game).toHaveAttribute('data-energy', energy!);
+  await expect(kit).toBeFocused();
+  await expect(kit).toBeInViewport({ ratio: 1 });
+  await kit.click();
+  await game.locator('.db-stage button[data-role="Drums"]').first().click();
+  await expect(game).toHaveAttribute('data-energy', String(Number(energy) - 1));
+  await expect(game.locator('.db-stage')).toContainText('House kit');
+  const stageCount = await game.locator('.db-stage [data-stage-id]').count();
+  await game.getByRole('button', { name: 'Perform / end turn', exact: true }).click();
+  await expect(game.locator('.db-stage [data-stage-id]')).toHaveCount(stageCount);
+  await page.screenshot({ path: info.outputPath('band-equipment.png') });
+});
+
+test('catalog labels matte, metallic and prismatic cards and missing artwork keeps readable rules', async ({
+  page,
+}, info) => {
+  await withoutWebGL(page);
+  await page.route('**/art/encore/cards/guitarist.png', (r) => r.abort());
+  await enter(page);
+  const game = page.locator('.db-game');
+  await game.getByRole('button', { name: /Deck \(/ }).click();
+  await game.getByRole('button', { name: 'Browse card catalog' }).click();
+  await expect(game.locator('.db-catalog .db-card')).toHaveCount(18);
+  await expect(game.locator('.db-catalog [data-rarity="super-rare"]')).toHaveCount(3);
+  await expect(game.locator('.db-catalog [data-rarity="rare"]')).toHaveCount(6);
+  const guitarist = game.locator('.db-catalog .db-card').filter({ hasText: 'Garage guitarist' });
+  await expect(guitarist.locator('svg')).toBeVisible();
+  await expect(guitarist).toContainText('4 power');
+  await expect(game.locator('.db-catalog .db-card').first()).toHaveCSS('animation-name', 'none');
+  await page.screenshot({ path: info.outputPath('card-finishes.png') });
+});
+
+test('cabinet arrows skip incompatible Gear without losing the selected card', async ({ page }) => {
+  await withoutWebGL(page);
+  await enter(page);
+  const game = page.locator('.db-game');
+  await game.getByRole('button', { name: 'Start battle', exact: true }).click();
+  const initialScroll = await page.evaluate(() => ({ x: scrollX, y: scrollY }));
+  await game.locator('.db-hand [data-card="riff"]').focus();
+  const next = page
+    .locator('.arcade-player-controls')
+    .getByRole('button', { name: 'Next card', exact: true });
+  await next.click();
+  await expect(game.locator('.db-hand [data-card="singer"]')).toBeFocused();
+  await next.click();
+  await expect(game.locator('.db-hand [data-card="guitarist"]')).toBeFocused();
+  await next.click();
+  await expect(game.locator('.db-hand [data-card="soundcheck"]')).toBeFocused();
+  await expect(game.locator('.db-hand [data-card="soundcheck"]')).toBeInViewport({ ratio: 1 });
+  await page
+    .locator('.arcade-player-controls')
+    .getByRole('button', { name: 'Play / confirm', exact: true })
+    .click();
+  await expect(game.locator('.db-hand [data-card="soundcheck"]')).toHaveCount(0);
+  await expect(game).toHaveAttribute('data-energy', '3');
+  expect(await page.evaluate(() => ({ x: scrollX, y: scrollY }))).toEqual(initialScroll);
+});
+
+test('portrait tablet toolbar leaves the Deck control clickable in fallback and expanded play', async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 820, height: 1180 });
+  await withoutWebGL(page);
+  await enter(page);
+  const game = page.locator('.db-game');
+  const header = page.locator('.arcade-play-header');
+  for (const expanded of [false, true]) {
+    if (expanded) await page.getByRole('button', { name: 'Expand screen', exact: true }).click();
+    const deck = game.getByRole('button', { name: /Deck \(/ });
+    const toolbar = await header.boundingBox(),
+      button = await deck.boundingBox();
+    expect(toolbar!.y + toolbar!.height).toBeLessThanOrEqual(button!.y);
+    await deck.click();
+    await expect(game.getByRole('heading', { name: 'Current deck', exact: true })).toBeFocused();
+    await game.getByRole('button', { name: 'Back to run', exact: true }).click();
+  }
+  await page.screenshot({ path: info.outputPath('tablet-toolbar-clear.png') });
 });

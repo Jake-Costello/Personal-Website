@@ -95,6 +95,7 @@ export default function EncoreTown({
               <button
                 key={`${floor}-${index}`}
                 className="db-town-node"
+                data-choice
                 style={{ left: `${x}%`, top: `${y}%` }}
                 disabled={!active || !available}
                 aria-label={`${venue.venue}. ${venue.boss ? 'Boss: ' : ''}${venue.name}. ${venue.hp} HP.${cleared ? (chosen ? ' Played.' : ' Not visited.') : !available ? ' Locked.' : ''}`}
