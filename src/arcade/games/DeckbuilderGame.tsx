@@ -31,6 +31,11 @@ import { VENUE_ART } from './encore-art-registry';
 import { CardFace, RecordRack, RecordSlot, ShopPanel, SHOP_NAMES } from './BandPanels';
 import './deckbuilder.css';
 
+function focusChoice(button: HTMLButtonElement | null | undefined) {
+  if (!button) return;
+  button.focus({ preventScroll: true });
+  button.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+}
 function startBattle(run: Run, seed: string) {
   return beginEncounter(run.floor === 0 ? chooseVenue(createRun(seed), run.route[0]) : run);
 }
@@ -75,9 +80,7 @@ export default function DeckbuilderGame({
     const id = current.current.targetCard;
     setTargetCard(null);
     queueMicrotask(() =>
-      section.current
-        ?.querySelector<HTMLButtonElement>(`.db-card[data-id="${id}"]`)
-        ?.focus({ preventScroll: true }),
+      focusChoice(section.current?.querySelector<HTMLButtonElement>(`.db-card[data-id="${id}"]`)),
     );
   };
   useEffect(() => {
@@ -88,9 +91,9 @@ export default function DeckbuilderGame({
   }, [run.phase, run.floor, showDeck, catalog]);
   useEffect(() => {
     if (targetCard !== null)
-      section.current
-        ?.querySelector<HTMLButtonElement>('.db-stage button:not(:disabled)')
-        ?.focus({ preventScroll: true });
+      focusChoice(
+        section.current?.querySelector<HTMLButtonElement>('.db-stage button:not(:disabled)'),
+      );
   }, [targetCard]);
   useEffect(() => {
     let previous = new Set(input.pressed);
@@ -117,7 +120,7 @@ export default function DeckbuilderGame({
               Math.max(1, options.length)) %
             Math.max(1, options.length);
           setCursor(next);
-          options[next]?.focus({ preventScroll: true });
+          focusChoice(options[next]);
           if (s.phase === 'map') options[next]?.click();
         } else if (action === 'secondary') {
           if (pending !== null) cancelTarget();
@@ -180,7 +183,7 @@ export default function DeckbuilderGame({
       const next = section.current?.querySelector<HTMLButtonElement>(
         '.db-hand button:not(:disabled), .db-turnbar button:not(:disabled)',
       );
-      next?.focus({ preventScroll: true });
+      focusChoice(next);
     }
   }, [run, targetCard, active]);
   const battle = encounterAt(run),

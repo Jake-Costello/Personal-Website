@@ -403,6 +403,7 @@ test('musicians persist, incompatible Gear is disabled and canceling a target co
   await game.getByRole('button', { name: 'Cancel target' }).click();
   await expect(game).toHaveAttribute('data-energy', energy!);
   await expect(kit).toBeFocused();
+  await expect(kit).toBeInViewport({ ratio: 1 });
   await kit.click();
   await game.locator('.db-stage button[data-role="Drums"]').first().click();
   await expect(game).toHaveAttribute('data-energy', String(Number(energy) - 1));
@@ -437,6 +438,7 @@ test('cabinet arrows skip incompatible Gear without losing the selected card', a
   await enter(page);
   const game = page.locator('.db-game');
   await game.getByRole('button', { name: 'Start battle', exact: true }).click();
+  const initialScroll = await page.evaluate(() => ({ x: scrollX, y: scrollY }));
   await game.locator('.db-hand [data-card="riff"]').focus();
   const next = page
     .locator('.arcade-player-controls')
@@ -447,12 +449,14 @@ test('cabinet arrows skip incompatible Gear without losing the selected card', a
   await expect(game.locator('.db-hand [data-card="guitarist"]')).toBeFocused();
   await next.click();
   await expect(game.locator('.db-hand [data-card="soundcheck"]')).toBeFocused();
+  await expect(game.locator('.db-hand [data-card="soundcheck"]')).toBeInViewport({ ratio: 1 });
   await page
     .locator('.arcade-player-controls')
     .getByRole('button', { name: 'Play / confirm', exact: true })
     .click();
   await expect(game.locator('.db-hand [data-card="soundcheck"]')).toHaveCount(0);
   await expect(game).toHaveAttribute('data-energy', '3');
+  expect(await page.evaluate(() => ({ x: scrollX, y: scrollY }))).toEqual(initialScroll);
 });
 
 test('portrait tablet toolbar leaves the Deck control clickable in fallback and expanded play', async ({
